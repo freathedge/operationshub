@@ -182,7 +182,7 @@ pnpm dlx shadcn@latest init -d
 pnpm dlx shadcn@latest add button input label card -y
 ```
 
-(The role picker in Task 12 uses a plain native `<select>` styled with Tailwind rather than shadcn's Radix-based Select, to keep it simple and reliably testable — so `select` is intentionally not added here.)
+(The role picker in Task 12 uses a plain native `<select>` styled with Tailwind rather than shadcn's Select primitive, to keep it simple and reliably testable — so `select` is intentionally not added here.)
 
 - [ ] **Step 3: Verify the project still builds**
 
@@ -1047,11 +1047,9 @@ export default function LandingPage() {
         operations in one place.
       </p>
       <div className="flex gap-3">
-        <Button asChild>
-          <Link href="/signup">Create an account</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/login">Log in</Link>
+        <Button render={<Link href="/signup" />}>Create an account</Button>
+        <Button render={<Link href="/login" />} variant="outline">
+          Log in
         </Button>
       </div>
     </main>
