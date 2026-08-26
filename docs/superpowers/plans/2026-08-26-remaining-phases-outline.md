@@ -1,6 +1,6 @@
 # Operations Hub — Outline for Phases 2–9
 
-Companion to the full Foundation plan (`2026-08-26-foundation.md`) and the architecture spec (`docs/superpowers/specs/2026-08-26-operations-hub-architecture-design.md`).
+Companion to the full Foundation plan (`2026-08-26-foundation.md`) and the architecture spec (`docs/architecture.md`).
 
 **Purpose of this document:** give a complete, navigable picture of the whole build before diving into any one phase. Each section below is a compact task outline — files, key domain-layer functions, and data flow — not a bite-sized executable plan. **Before executing a phase, its section gets expanded into a full plan** (TDD steps, real code, exact test files) following the same format as the Foundation plan, and saved as its own `docs/superpowers/plans/YYYY-MM-DD-phaseN-<name>.md`. Expanding just-in-time (rather than all up front) lets each phase's plan reflect what actually got built in the phase before it, instead of guessed-at signatures.
 

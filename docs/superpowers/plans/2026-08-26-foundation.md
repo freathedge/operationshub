@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js 15 (App Router, TypeScript strict, no `src/` dir), pnpm, Supabase (Postgres, Auth, local dev via Supabase CLI), `@supabase/ssr` + `@supabase/supabase-js`, Zod, React Hook Form, Tailwind CSS v4, shadcn/ui, Vitest + Testing Library.
 
-**Spec:** `docs/superpowers/specs/2026-08-26-operations-hub-architecture-design.md`
+**Spec:** `docs/architecture.md`
 
 ## Global Constraints
 
@@ -31,15 +31,7 @@
 **Interfaces:**
 - Produces: a running Next.js dev server, `pnpm build` command, import alias `@/*` resolving to the repo root.
 
-- [ ] **Step 1: Initialize git (if not already a repo)**
-
-```bash
-git init
-git add -A
-git commit -m "chore: initial commit (idea.md and architecture spec)"
-```
-
-- [ ] **Step 2: Scaffold Next.js into a temp directory and merge into the repo root**
+- [ ] **Step 1: Scaffold Next.js into a temp directory and merge into the repo root**
 
 The repo root already contains `docs/`, so `create-next-app` must be run into a fresh temp directory and merged in, rather than run in place.
 
@@ -51,13 +43,13 @@ cp -a .next-scaffold/. ./
 rm -rf .next-scaffold
 ```
 
-- [ ] **Step 3: Install the additional runtime dependencies this phase needs**
+- [ ] **Step 2: Install the additional runtime dependencies this phase needs**
 
 ```bash
 pnpm add @supabase/supabase-js @supabase/ssr zod react-hook-form @hookform/resolvers
 ```
 
-- [ ] **Step 4: Update the root metadata**
+- [ ] **Step 3: Update the root metadata**
 
 Edit the `metadata` export in `app/layout.tsx` to:
 
@@ -68,12 +60,12 @@ export const metadata: Metadata = {
 };
 ```
 
-- [ ] **Step 5: Verify the project builds**
+- [ ] **Step 4: Verify the project builds**
 
 Run: `pnpm build`
 Expected: build completes with no errors (the default scaffolded homepage is still present at this point — it gets replaced in Task 12).
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add -A
