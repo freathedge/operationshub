@@ -6,7 +6,7 @@
 
 **Architecture:** Single Next.js (App Router) project deployed as one app. Route Handlers are thin and delegate to a domain layer (`lib/domain/**`), which is the sole place that talks to Supabase Postgres, using the service-role key server-side. RLS is disabled — the domain layer is the only authorization boundary. The frontend never queries Supabase tables directly; the one exception in this phase is Supabase Auth itself (sign up / sign in / sign out are called directly from the browser, since Auth is a distinct concern from application data). Server Components (e.g. the authenticated layout) call domain-layer functions directly via in-process function calls — this is not a violation of "frontend never talks to Supabase directly," since Server Components execute on the server, same as Route Handlers; only actual browser-side code is restricted to the REST API.
 
-**Tech Stack:** Next.js 15 (App Router, TypeScript strict, no `src/` dir), pnpm, Supabase (Postgres, Auth, local dev via Supabase CLI), `@supabase/ssr` + `@supabase/supabase-js`, Zod, React Hook Form, Tailwind CSS v4, shadcn/ui, Vitest + Testing Library.
+**Tech Stack:** Next.js 16 (App Router, TypeScript strict, no `src/` dir), pnpm, hosted Supabase project (Postgres, Auth — no local Docker/CLI dev stack; schema changes applied via the Supabase MCP `apply_migration` tool), `@supabase/ssr` + `@supabase/supabase-js`, Zod, React Hook Form, Tailwind CSS v4, shadcn/ui, Vitest + Testing Library.
 
 **Spec:** `docs/architecture.md`
 
@@ -17,7 +17,7 @@
 - Single fictional company (AlpenTech Industries) — no multi-tenant isolation logic; a `companies` table exists but is expected to hold exactly one row.
 - Package manager: pnpm (v10.x). Node.js v22+ required.
 - TypeScript strict mode throughout.
-- Local Supabase dev (`supabase start`) requires Docker Desktop running — start it before any task involving migrations, the domain layer, or integration tests.
+- This project uses a hosted Supabase project (no local Docker/CLI dev stack — Docker is not available in this environment). The project's `project_id` is `yqzcunssgvffischmwle`. Schema changes (DDL) are applied with the `mcp__plugin_supabase_supabase__apply_migration` tool (`project_id`, `name`, `query`), not the Supabase CLI. The domain layer, tests, and the running app all talk to this hosted project via the credentials in `.env.local` (already populated — see Task 4).
 - Every task ends with a commit. Commit messages use the `feat:`/`chore:`/`test:` conventional prefix matching the task's nature.
 
 ---
@@ -198,36 +198,19 @@ git commit -m "chore: install shadcn/ui base components"
 
 ---
 
-## Task 4: Initialize Supabase CLI and local dev environment
+## Task 4: Set up hosted Supabase project
+
+**Status: already done by the controller session (not delegated to an implementer subagent).** Docker is unavailable in this environment, so the plan's original local-dev-stack approach (`supabase init` + `supabase start`) was replaced with a hosted Supabase project, created via the Supabase MCP plugin (`mcp__plugin_supabase_supabase__create_project`) directly by the controller — this required an interactive org/cost confirmation and a manual paste of the `service_role` key (never exposed via MCP tools, retrieved by the user from the Supabase dashboard), so it wasn't a good fit for a scripted implementer task.
+
+**What exists as a result, for later tasks to rely on:**
+- A hosted Supabase project named `operations-hub`, `project_id` = `yqzcunssgvffischmwle`, region `eu-central-1`.
+- `.env.local` at the repo root (untracked — `create-next-app`'s default `.gitignore` already excludes `.env*.local`), populated with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — every later task in this plan that touches Supabase depends on these three variables being set. Already done; no task needs to (re)create this file.
+- `.env.local.example` — still needs to be created (Step 1 below), as a checked-in template for anyone else setting up the project.
 
 **Files:**
-- Create: `supabase/config.toml`, `.env.local` (untracked), `.env.local.example`
+- Create: `.env.local.example`
 
-**Interfaces:**
-- Produces: a running local Supabase stack (Postgres, Auth, Studio) and `.env.local` populated with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — every later task in this plan that touches Supabase depends on these three variables being set.
-
-- [ ] **Step 1: Initialize the Supabase project**
-
-```bash
-pnpm dlx supabase init
-```
-
-- [ ] **Step 2: Start Docker Desktop, then start the local Supabase stack**
-
-Run: `pnpm dlx supabase start`
-Expected: output listing `API URL`, `anon key`, and `service_role key`.
-
-- [ ] **Step 3: Write `.env.local` from that output**
-
-Create `.env.local` (not committed — `create-next-app`'s default `.gitignore` already excludes `.env*.local`):
-
-```
-NEXT_PUBLIC_SUPABASE_URL=<API URL from supabase start>
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key from supabase start>
-SUPABASE_SERVICE_ROLE_KEY=<service_role key from supabase start>
-```
-
-- [ ] **Step 4: Create a checked-in example file**
+- [ ] **Step 1: Create a checked-in example file**
 
 Create `.env.local.example`:
 
@@ -237,16 +220,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
-- [ ] **Step 5: Verify Supabase Studio is reachable**
-
-Run: `pnpm dlx supabase status`
-Expected: shows the stack as running with the Studio URL.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 2: Commit**
 
 ```bash
-git add supabase/config.toml .env.local.example .gitignore
-git commit -m "chore: initialize Supabase CLI local dev environment"
+git add .env.local.example
+git commit -m "chore: add .env.local.example for hosted Supabase setup"
 ```
 
 ---
