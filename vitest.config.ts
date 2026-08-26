@@ -10,6 +10,14 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "."),
+      // `server-only` throws when resolved via its default export condition (plain Node,
+      // as vitest runs). Next.js only avoids this because its RSC bundler resolves the
+      // package's "react-server" export condition to a no-op instead. Alias straight to
+      // that same no-op file so tests can import server-only-guarded modules.
+      "server-only": path.resolve(
+        __dirname,
+        "node_modules/server-only/empty.js"
+      ),
     },
   },
   test: {
