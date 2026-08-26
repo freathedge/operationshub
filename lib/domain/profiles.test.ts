@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createProfile, getProfileByAuthUserId } from "@/lib/domain/profiles";
 
@@ -17,6 +17,10 @@ beforeAll(async () => {
     .single();
   if (error) throw error;
   companyId = data.id;
+});
+
+afterAll(async () => {
+  await supabase.from("companies").delete().eq("slug", "test-co-profiles");
 });
 
 afterEach(async () => {
