@@ -58,6 +58,7 @@ describe("SignupForm", () => {
     expect(signUpMock).toHaveBeenCalledWith({
       email: "max@example.com",
       password: "password123",
+      options: { emailRedirectTo: expect.stringContaining("/auth/confirmed") },
     });
   });
 
