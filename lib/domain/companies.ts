@@ -14,7 +14,8 @@ export async function getDefaultCompany(): Promise<Company> {
     .eq("slug", "alpentech-industries")
     .single();
 
-  if (error || !data) {
+  if (error) throw error;
+  if (!data) {
     throw new Error(
       "Default company 'alpentech-industries' not found. Run the seed script (Task 15) first."
     );
