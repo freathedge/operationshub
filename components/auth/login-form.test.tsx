@@ -42,6 +42,7 @@ describe("LoginForm", () => {
     await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/dashboard"));
+    expect(refreshMock).toHaveBeenCalled();
     expect(signInWithPasswordMock).toHaveBeenCalledWith({
       email: "max@example.com",
       password: "password123",
