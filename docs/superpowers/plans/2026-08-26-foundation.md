@@ -237,15 +237,9 @@ git commit -m "chore: add .env.local.example for hosted Supabase setup"
 **Interfaces:**
 - Produces: tables `companies(id, name, slug, created_at)`, `departments(id, company_id, name, created_at)`, `locations(id, company_id, name, created_at)`.
 
-- [ ] **Step 1: Generate the migration file**
+- [ ] **Step 1: Write the migration file**
 
-```bash
-pnpm dlx supabase migration new create_companies_departments_locations
-```
-
-- [ ] **Step 2: Write the migration**
-
-Replace the generated file's contents with:
+Create `supabase/migrations/<YYYYMMDDHHMMSS>_create_companies_departments_locations.sql` (use the current UTC timestamp for the prefix, standard Supabase migration naming) with:
 
 ```sql
 create table companies (
@@ -272,17 +266,19 @@ create table locations (
 );
 ```
 
-- [ ] **Step 3: Apply the migration to the local database**
+- [ ] **Step 2: Apply the migration to the hosted project**
 
-Run: `pnpm dlx supabase migration up`
-Expected: output confirms the migration applied with no errors.
+Use the `mcp__plugin_supabase_supabase__apply_migration` tool with `project_id: "yqzcunssgvffischmwle"`, `name: "create_companies_departments_locations"`, and `query` set to the exact SQL from Step 1.
+Expected: the tool call succeeds.
 
-- [ ] **Step 4: Verify the tables exist**
+If this tool is not available to you, report NEEDS_CONTEXT rather than skipping this step or trying a workaround — do not fall back to `supabase` CLI commands (no local dev stack exists in this environment).
 
-Run: `pnpm dlx supabase db execute --sql "select table_name from information_schema.tables where table_name in ('companies','departments','locations');"`
-Expected: all three table names are listed.
+- [ ] **Step 3: Verify the tables exist**
 
-- [ ] **Step 5: Commit**
+Use the `mcp__plugin_supabase_supabase__list_tables` tool with `project_id: "yqzcunssgvffischmwle"`, `schemas: ["public"]`.
+Expected: `companies`, `departments`, and `locations` all appear in the result.
+
+- [ ] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations
@@ -300,15 +296,9 @@ git commit -m "feat: add companies, departments, locations tables"
 - Consumes: `companies`, `departments` (Task 5), `auth.users` (built into Supabase).
 - Produces: `user_role` enum (`employee | manager | operations_manager | it | hr | admin`) and `profiles(id, auth_user_id, company_id, full_name, role, department_id, manager_id, created_at)`.
 
-- [ ] **Step 1: Generate the migration file**
+- [ ] **Step 1: Write the migration file**
 
-```bash
-pnpm dlx supabase migration new create_profiles
-```
-
-- [ ] **Step 2: Write the migration**
-
-Replace the generated file's contents with:
+Create `supabase/migrations/<YYYYMMDDHHMMSS>_create_profiles.sql` (timestamp later than Task 5's migration file) with:
 
 ```sql
 create type user_role as enum (
@@ -335,17 +325,19 @@ create index profiles_company_id_idx on profiles(company_id);
 create index profiles_department_id_idx on profiles(department_id);
 ```
 
-- [ ] **Step 3: Apply the migration**
+- [ ] **Step 2: Apply the migration to the hosted project**
 
-Run: `pnpm dlx supabase migration up`
-Expected: output confirms the migration applied with no errors.
+Use the `mcp__plugin_supabase_supabase__apply_migration` tool with `project_id: "yqzcunssgvffischmwle"`, `name: "create_profiles"`, and `query` set to the exact SQL from Step 1.
+Expected: the tool call succeeds.
 
-- [ ] **Step 4: Verify the table exists**
+If this tool is not available to you, report NEEDS_CONTEXT rather than skipping this step or trying a workaround.
 
-Run: `pnpm dlx supabase db execute --sql "select table_name from information_schema.tables where table_name = 'profiles';"`
-Expected: `profiles` is listed.
+- [ ] **Step 3: Verify the table exists**
 
-- [ ] **Step 5: Commit**
+Use the `mcp__plugin_supabase_supabase__list_tables` tool with `project_id: "yqzcunssgvffischmwle"`, `schemas: ["public"]`.
+Expected: `profiles` appears in the result.
+
+- [ ] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations
