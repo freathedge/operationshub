@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const signupFormSchema = z.object({
-  fullName: z.string().min(1, "Name is required"),
+  fullName: z.string().min(1, "Name is required").max(200),
   email: z.string().email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   role: roleSchema,
@@ -42,13 +42,25 @@ export function SignupForm() {
     setSubmitError(null);
     const supabase = createSupabaseBrowserClient();
 
-    const { error: signUpError } = await supabase.auth.signUp({
-      email: values.email,
-      password: values.password,
-    });
-    if (signUpError) {
-      setSubmitError(signUpError.message);
-      return;
+    const {
+      data: { session: existingSession },
+    } = await supabase.auth.getSession();
+
+    if (!existingSession) {
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+      });
+      if (signUpError) {
+        setSubmitError(signUpError.message);
+        return;
+      }
+      if (!signUpData.session) {
+        setSubmitError(
+          "Check your email to confirm your account, then come back here to finish setting up your profile."
+        );
+        return;
+      }
     }
 
     const response = await fetch("/api/auth/complete-signup", {
@@ -58,12 +70,19 @@ export function SignupForm() {
     });
 
     if (!response.ok) {
-      const body = await response.json();
-      setSubmitError(typeof body.error === "string" ? body.error : "Failed to complete signup");
+      let message = "Failed to complete signup";
+      try {
+        const body = await response.json();
+        if (typeof body.error === "string") message = body.error;
+      } catch {
+        // non-JSON error body (e.g. an unhandled server error) — keep the fallback message
+      }
+      setSubmitError(message);
       return;
     }
 
     router.push("/dashboard");
+    router.refresh();
   }
 
   return (
