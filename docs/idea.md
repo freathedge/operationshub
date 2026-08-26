@@ -1,0 +1,1245 @@
+# Operations Hub — Product Concept
+
+## 1. Product Overview
+
+**Operations Hub** is a central internal business platform for companies that want to manage operational work, internal requests, tasks, employees, assets, and recurring business processes in one place.
+
+The product is designed around one core idea:
+
+> Employees should not have to figure out who to contact, where to submit something, or which steps happen next. Operations Hub makes internal processes visible, structured, and actionable.
+
+Operations Hub is **not primarily an industrial machine-management system**. AlpenTech Industries is an industrial company used as the fictional reference company, but the product itself is intentionally broader and can support many different types of internal business operations.
+
+The platform combines:
+
+* company-wide operational visibility
+* task management
+* internal requests
+* approvals
+* workflows
+* employee operations
+* asset management
+* operational projects
+* reporting
+* activity history
+
+The individual areas are connected rather than existing as isolated modules.
+
+---
+
+# 2. Fictional Company
+
+## AlpenTech Industries
+
+AlpenTech Industries is a fictional medium-sized industrial company used as the reference customer for the product.
+
+### Company profile
+
+* **Company:** AlpenTech Industries
+* **Industry:** Industrial technology / manufacturing
+* **Employees:** approximately 200
+* **Locations:** 3
+* **Departments:** Engineering, Production, Operations, IT, HR, Finance, Procurement, Sales
+* **Assets:** laptops, monitors, mobile devices, company vehicles, production equipment, office equipment and other company property
+
+The company has grown enough that internal processes have become difficult to coordinate manually.
+
+Different departments currently use a mixture of:
+
+* email
+* Teams messages
+* spreadsheets
+* documents
+* separate task lists
+* verbal requests
+
+Operations Hub is intended to bring these processes into one structured system.
+
+---
+
+# 3. Core Problem
+
+As a company grows, small internal processes become increasingly difficult to manage.
+
+Examples:
+
+* An employee needs a new laptop.
+* A manager has to approve a purchase.
+* IT has to prepare the device.
+* Procurement has to order it.
+* Someone needs to confirm delivery.
+* The asset must be assigned to the employee.
+* The entire process should remain traceable.
+
+Without a centralized system, this can turn into:
+
+> Email → Teams message → spreadsheet → forgotten task → follow-up → another email
+
+Operations Hub replaces this with a structured process:
+
+> Request → Approval → Tasks → Procurement → Delivery → Asset Assignment → Completion
+
+The system should make it obvious:
+
+1. what needs to happen,
+2. who is responsible,
+3. what the current status is,
+4. what happens next,
+5. what has already happened.
+
+---
+
+# 4. Product Philosophy
+
+Operations Hub should feel like an **internal operating system for the company** rather than a collection of administrative forms.
+
+The interface should answer three questions immediately:
+
+### What is happening?
+
+Current requests, active operations, important events and company activity.
+
+### What needs my attention?
+
+Tasks, approvals, blocked processes and requests waiting for action.
+
+### What happens next?
+
+The next step in every important process should be clearly visible.
+
+The product should reduce ambiguity and administrative overhead.
+
+---
+
+# 5. Main Navigation
+
+The main product areas are:
+
+1. **Overview**
+2. **Tasks**
+3. **Requests**
+4. **Workflows**
+5. **Employees**
+6. **Assets**
+7. **Operations**
+8. **Reports**
+9. **Settings**
+
+These areas are interconnected.
+
+---
+
+# 6. Overview
+
+The Overview is the central dashboard.
+
+It should provide a concise picture of what is happening across the organization and what the current user needs to handle.
+
+## Personal section
+
+The user should immediately see:
+
+* tasks assigned to them
+* pending approvals
+* requests they created
+* active workflows involving them
+* upcoming deadlines
+* important notifications
+
+Example:
+
+> Good morning, Adrian.
+>
+> Here's what needs your attention.
+
+### Summary cards
+
+* My Tasks
+* Pending Approvals
+* Open Requests
+* Active Workflows
+
+### My Tasks
+
+Example tasks:
+
+* Fix printer in Marketing — High — Today
+* Approve equipment request — Medium — Today
+* Review supplier request — High — Tomorrow
+
+### Recent Activity
+
+Example activity:
+
+* Sarah requested a new laptop.
+* IT completed onboarding for Max.
+* Warehouse reported damaged equipment.
+* Procurement approved purchase request.
+* Operations created a maintenance task.
+
+## Company section
+
+Authorized users can additionally see company-wide information:
+
+* total open requests
+* active operations
+* overdue tasks
+* workflow activity
+* unresolved issues
+* department activity
+
+The Overview should be configurable according to the user's role.
+
+---
+
+# 7. Tasks
+
+Tasks represent individual pieces of work that need to be completed.
+
+A task can be created manually or automatically generated by another part of the system.
+
+## Task properties
+
+Every task can contain:
+
+* title
+* description
+* status
+* priority
+* assignee
+* department
+* creator
+* due date
+* creation date
+* completion date
+* comments
+* attachments
+* related request
+* related workflow
+* related employee
+* related asset
+* related operation
+
+## Task statuses
+
+The default lifecycle is:
+
+> Todo → In Progress → Blocked → Completed
+
+A task can also be cancelled where appropriate.
+
+## Priorities
+
+* Low
+* Medium
+* High
+* Critical
+
+## Example
+
+### Prepare laptop for Max Mustermann
+
+* Created by: Employee Onboarding Workflow
+* Assigned to: IT
+* Priority: High
+* Due: September 4
+* Status: In Progress
+
+Related information:
+
+* Employee: Max Mustermann
+* Workflow: Employee Onboarding
+* Asset: MacBook Pro 14"
+
+This relationship is important. Tasks should not exist in isolation.
+
+---
+
+# 8. Requests
+
+Requests are one of the central features of Operations Hub.
+
+Employees can submit internal requests without having to know exactly which department needs to handle them.
+
+## Request categories
+
+Initial categories:
+
+* Equipment
+* Software
+* Access
+* Maintenance
+* Purchase
+* HR
+* General
+* Other
+
+## Request lifecycle
+
+A generic request can follow:
+
+> Draft → Submitted → Under Review → Approved / Rejected → In Progress → Completed
+
+Not every request needs every step.
+
+The exact lifecycle depends on the type of request.
+
+---
+
+# 9. Equipment Requests
+
+Example:
+
+### New Laptop Request
+
+**Requested by:** Max Mustermann
+**Department:** Marketing
+**Priority:** Normal
+
+**Reason:**
+
+> Current device is outdated and no longer provides sufficient performance for video editing.
+
+Possible process:
+
+> Employee submits request
+>
+> ↓
+>
+> Manager Review
+>
+> ↓
+>
+> IT Review
+>
+> ↓
+>
+> Procurement
+>
+> ↓
+>
+> Ordered
+>
+> ↓
+>
+> Delivered
+>
+> ↓
+>
+> Asset Assigned
+>
+> ↓
+>
+> Completed
+
+The request should show the entire progress visually.
+
+---
+
+# 10. Approvals
+
+Approvals are actions performed by authorized users during a process.
+
+A request can require one or multiple approvals.
+
+Examples:
+
+* Manager approval
+* IT approval
+* Finance approval
+* Procurement approval
+* HR approval
+
+An approval should show:
+
+* who needs to approve
+* what they are approving
+* when it was requested
+* current state
+* decision
+* optional comment
+
+Possible states:
+
+* Pending
+* Approved
+* Rejected
+
+An approval can generate subsequent tasks or workflow steps.
+
+---
+
+# 11. Workflows
+
+Workflows define repeatable internal business processes.
+
+A workflow describes:
+
+* what starts the process
+* which steps happen
+* who performs each step
+* which approvals are required
+* what tasks are created
+* what happens after each decision
+* when the process is completed
+
+The objective is to make recurring processes predictable.
+
+---
+
+# 12. Employee Onboarding Workflow
+
+Example:
+
+> HR creates employee
+>
+> ↓
+>
+> Create accounts
+>
+> ↓
+>
+> Prepare equipment
+>
+> ↓
+>
+> Assign permissions
+>
+> ↓
+>
+> Manager confirms
+>
+> ↓
+>
+> Onboarding complete
+
+Each step can create tasks for the responsible department.
+
+Example:
+
+### Create company account
+
+Assigned to: IT
+
+### Prepare laptop
+
+Assigned to: IT
+
+### Prepare workspace
+
+Assigned to: Office Operations
+
+### Welcome meeting
+
+Assigned to: Manager
+
+The employee onboarding process should provide a clear overall progress indicator.
+
+---
+
+# 13. Maintenance Workflow
+
+Example:
+
+> Issue reported
+>
+> ↓
+>
+> Operations review
+>
+> ↓
+>
+> Employee assigned
+>
+> ↓
+>
+> Repair
+>
+> ↓
+>
+> Verification
+>
+> ↓
+>
+> Closed
+
+This can be used for anything from office equipment to production-related operational issues.
+
+The product does not need to become a specialized maintenance-management system. Maintenance is simply one possible operational process.
+
+---
+
+# 14. Operations
+
+Operations represent larger ongoing activities or operational initiatives.
+
+An Operation can contain:
+
+* title
+* description
+* owner
+* department
+* status
+* priority
+* start date
+* target date
+* tasks
+* requests
+* employees
+* assets
+* comments
+* activity
+
+Examples:
+
+### Office Relocation — Vienna
+
+Status: In Progress
+
+Related items:
+
+* 14 tasks
+* 3 requests
+* 8 assets
+* 2 departments
+
+### Production Line 3 Maintenance
+
+Status: Scheduled
+
+### New Office Setup
+
+Status: In Progress
+
+Operations provide a higher-level view than individual tasks.
+
+---
+
+# 15. Employees
+
+Employees are represented primarily from an **operational** perspective.
+
+Operations Hub is not intended to replace a complete HR or payroll system.
+
+Employee profiles should contain relevant operational information such as:
+
+* name
+* position
+* department
+* location
+* manager
+* status
+* assigned tasks
+* submitted requests
+* active workflows
+* assigned assets
+* recent activity
+
+Example:
+
+## Max Mustermann
+
+**Software Engineer**
+**Engineering**
+**Vienna**
+
+### Open Tasks
+
+3
+
+### Requests
+
+2
+
+### Assets
+
+4
+
+### Active Workflows
+
+1
+
+The profile provides a central place to understand an employee's operational context.
+
+---
+
+# 16. Assets
+
+Assets represent company-owned equipment or property.
+
+Examples:
+
+* laptops
+* monitors
+* smartphones
+* tablets
+* vehicles
+* tools
+* production equipment
+* office equipment
+
+## Asset information
+
+An asset can contain:
+
+* asset name
+* asset ID
+* category
+* status
+* assigned employee
+* department
+* location
+* purchase information
+* warranty information
+* maintenance information
+* related tasks
+* activity history
+
+Example:
+
+### MacBook Pro 14"
+
+Asset ID: AST-10482
+
+Status: Assigned
+
+Assigned to: Max Mustermann
+
+Possible asset states:
+
+* Available
+* Assigned
+* Maintenance
+* Retired
+* Lost
+
+Assets connect naturally to employees, requests and tasks.
+
+Example relationship:
+
+> Employee → Asset → Maintenance Task
+
+---
+
+# 17. Reports
+
+Reports provide an overview of operational performance.
+
+Potential metrics include:
+
+* open tasks
+* completed tasks
+* overdue tasks
+* request volume
+* average request completion time
+* pending approvals
+* workflow completion rate
+* requests by department
+* tasks by department
+* asset distribution
+* maintenance activity
+
+Reports should help managers identify bottlenecks.
+
+Example:
+
+### Requests by Department
+
+* IT — 42
+* HR — 18
+* Procurement — 27
+* Operations — 31
+
+Example:
+
+### Average Request Completion Time
+
+* Equipment — 3.2 days
+* Software — 1.4 days
+* Access — 0.8 days
+* Procurement — 5.7 days
+
+The goal is not to create complex business intelligence software, but to make operational performance understandable.
+
+---
+
+# 18. Activity History
+
+Important objects should have an activity timeline.
+
+Example:
+
+### New Laptop Request
+
+**Today, 14:32**
+Manager approved request.
+
+**Today, 11:08**
+IT reviewed requested device.
+
+**Yesterday, 16:43**
+Request submitted by Max Mustermann.
+
+This creates an audit-friendly history of what happened.
+
+Activity should be available for:
+
+* requests
+* tasks
+* workflows
+* employees
+* assets
+* operations
+
+---
+
+# 19. Notifications
+
+Users should receive notifications for actions that require attention.
+
+Examples:
+
+* new task assigned
+* approval required
+* request status changed
+* task overdue
+* workflow step completed
+* workflow blocked
+* request rejected
+* asset assigned
+* comment added
+
+Notifications should prioritize actionable events rather than creating unnecessary noise.
+
+---
+
+# 20. Search and Filtering
+
+Operations Hub should provide strong global search.
+
+Users should be able to find:
+
+* employees
+* tasks
+* requests
+* assets
+* operations
+* workflows
+
+Search results should clearly show what type of object was found.
+
+Filtering should be available in major list views.
+
+Common filters:
+
+* status
+* priority
+* department
+* assignee
+* creator
+* date
+* location
+* category
+
+---
+
+# 21. Roles
+
+The initial conceptual roles are:
+
+## Employee
+
+Can:
+
+* view their own tasks
+* create requests
+* view their own requests
+* participate in assigned workflows
+* view relevant company information
+
+## Manager
+
+Can additionally:
+
+* manage team-related tasks
+* approve requests
+* view team activity
+* view team members
+* monitor team workflows
+
+## Operations Manager
+
+Can:
+
+* manage operations
+* manage workflows
+* assign operational tasks
+* monitor company-wide operations
+* access operational reports
+
+## IT
+
+Can:
+
+* handle IT requests
+* manage IT tasks
+* manage relevant assets
+* participate in onboarding
+* manage technical workflow steps
+
+## HR
+
+Can:
+
+* manage employee operational information
+* initiate onboarding
+* manage HR-related requests
+* manage HR workflows
+
+## Admin
+
+Can:
+
+* configure the platform
+* manage users and roles
+* configure departments
+* configure workflow behavior
+* manage company-wide settings
+
+Permissions should be based on the user's responsibilities rather than simply exposing every feature to everyone.
+
+---
+
+# 22. Example End-to-End Scenario
+
+A complete scenario demonstrates how the individual modules connect.
+
+## Scenario: New Employee
+
+A new employee, **Max Mustermann**, joins AlpenTech Industries.
+
+### Step 1 — HR
+
+HR creates the employee profile.
+
+The onboarding workflow starts.
+
+### Step 2 — IT Account
+
+The workflow creates a task for IT:
+
+> Create company accounts for Max Mustermann.
+
+IT completes the task.
+
+### Step 3 — Equipment
+
+The workflow creates another task:
+
+> Prepare laptop for Max Mustermann.
+
+The laptop is prepared and assigned as an asset.
+
+### Step 4 — Access
+
+Another task is created:
+
+> Configure required system access.
+
+### Step 5 — Manager
+
+The manager receives:
+
+> Confirm onboarding readiness.
+
+The manager approves.
+
+### Step 6 — Completion
+
+The workflow is completed.
+
+The employee profile now shows:
+
+* assigned laptop
+* completed onboarding
+* relevant tasks
+* recent activity
+
+The entire process remains visible in the activity history.
+
+---
+
+# 23. Example End-to-End Scenario: Equipment Request
+
+Max needs a new laptop.
+
+### Request
+
+Max submits:
+
+> New Laptop
+
+Reason:
+
+> Current laptop is no longer powerful enough for required work.
+
+### Review
+
+His manager receives an approval request.
+
+Manager approves.
+
+### IT
+
+IT reviews the request and confirms the required specifications.
+
+### Procurement
+
+Procurement receives a task to purchase the device.
+
+### Delivery
+
+The device arrives.
+
+### Asset
+
+The laptop is registered as an asset and assigned to Max.
+
+### Completion
+
+The original request is marked completed.
+
+The system now contains a connected chain:
+
+> Request → Approval → Tasks → Procurement → Asset → Employee
+
+This interconnected model is a central characteristic of Operations Hub.
+
+---
+
+# 24. Example End-to-End Scenario: Maintenance
+
+An employee reports that an office printer is not working.
+
+### Request
+
+Category: Maintenance
+
+### Review
+
+Operations reviews the issue.
+
+### Task
+
+A maintenance task is automatically created:
+
+> Inspect Marketing printer
+
+Assigned to: Facilities
+
+### Repair
+
+The issue is repaired.
+
+### Verification
+
+The responsible employee confirms that the printer works again.
+
+### Completion
+
+The request is closed.
+
+The entire history remains attached to the request.
+
+---
+
+# 25. Data Relationships
+
+The product should conceptually connect its main objects.
+
+A simplified relationship model is:
+
+> **Employee**
+>
+> ├── creates → Request
+>
+> ├── receives → Task
+>
+> ├── participates in → Workflow
+>
+> └── owns → Asset
+
+> **Request**
+>
+> ├── creates → Approval
+>
+> ├── creates → Task
+>
+> └── belongs to → Workflow
+
+> **Workflow**
+>
+> ├── contains → Tasks
+>
+> ├── contains → Approvals
+>
+> └── involves → Employees
+
+> **Asset**
+>
+> ├── belongs to → Employee
+>
+> ├── creates → Maintenance Task
+>
+> └── has → Activity History
+
+> **Operation**
+>
+> ├── contains → Tasks
+>
+> ├── contains → Requests
+>
+> ├── involves → Employees
+>
+> └── involves → Assets
+
+This relationship structure is important because it makes the product feel like one coherent platform.
+
+---
+
+# 26. What Operations Hub Is Not
+
+Operations Hub should deliberately avoid becoming an everything-platform.
+
+It is not intended to replace:
+
+* payroll software
+* accounting software
+* a full CRM
+* a full ERP
+* a complete HR management system
+* a dedicated project-management platform
+* a specialized manufacturing execution system
+* a dedicated maintenance-management system
+
+Its purpose is narrower:
+
+> **Centralize and coordinate internal operational processes.**
+
+---
+
+# 27. MVP
+
+The first version should focus on the features that best demonstrate the concept.
+
+## Core MVP
+
+### Overview
+
+* personal dashboard
+* company activity
+* task summary
+* request summary
+* approval summary
+
+### Tasks
+
+* create task
+* assign task
+* change status
+* set priority
+* due dates
+* comments
+* related objects
+
+### Requests
+
+* create request
+* request categories
+* request status
+* approval
+* request activity
+
+### Workflows
+
+* predefined workflows
+* workflow progress
+* workflow steps
+* generated tasks
+
+### Employees
+
+* employee profiles
+* department
+* manager
+* tasks
+* requests
+* assets
+
+### Assets
+
+* asset list
+* asset details
+* assignment
+* status
+* activity
+
+### Operations
+
+* create operation
+* operation overview
+* related tasks
+* related requests
+* progress
+
+### Reports
+
+* basic operational metrics
+* task statistics
+* request statistics
+* workflow statistics
+
+---
+
+# 28. Later Features
+
+Potential future capabilities:
+
+* customizable workflow builder
+* automated workflow triggers
+* advanced approval rules
+* SLA management
+* recurring tasks
+* automated notifications
+* department-specific dashboards
+* advanced analytics
+* document management
+* integrations with communication tools
+* integrations with company identity systems
+* calendar integration
+* advanced audit logs
+* customizable request forms
+* automation rules
+* escalation rules
+
+These should not be necessary for the initial product concept.
+
+---
+
+# 29. Example Dashboard Content
+
+A realistic company dashboard could contain:
+
+## Overview
+
+**214 Employees**
+**128 Assets**
+**37 Open Requests**
+**54 Active Tasks**
+
+### Attention Required
+
+* 3 critical tasks
+* 7 pending approvals
+* 4 overdue requests
+
+### Active Operations
+
+* Vienna Office Relocation — 72%
+* Production Line 3 Maintenance — 45%
+* Annual Equipment Audit — 28%
+
+### Recent Activity
+
+* New equipment request submitted
+* Employee onboarding completed
+* Asset assigned
+* Maintenance issue reported
+* Procurement request approved
+
+### Upcoming
+
+* 8 tasks due today
+* 13 tasks due this week
+* 2 workflow deadlines
+
+---
+
+# 30. Design Direction
+
+Operations Hub should communicate:
+
+* professional
+* modern
+* structured
+* reliable
+* enterprise-oriented
+* efficient
+* calm
+
+It should avoid looking like a consumer productivity application.
+
+The interface should feel appropriate for a company where employees use the software every day.
+
+Information density should be relatively high, but the interface should remain easy to scan.
+
+Important states should be immediately recognizable.
+
+The product should prioritize:
+
+* clear hierarchy
+* strong typography
+* consistent status indicators
+* useful tables
+* concise cards
+* contextual actions
+* clear detail views
+* predictable navigation
+
+---
+
+# 31. Product Personality
+
+Operations Hub should feel like:
+
+> **The place where work gets organized.**
+
+When a user has an internal problem, request or task, the expected behavior should be:
+
+> "I'll put it into Operations Hub."
+
+When a manager wants to know what is happening:
+
+> "I'll check Operations Hub."
+
+When an operations manager wants to understand bottlenecks:
+
+> "I'll check Operations Hub."
+
+This is the central product positioning.
+
+---
+
+# 32. Reference Product Goal
+
+The primary purpose of the project is to demonstrate what high-quality custom internal business software can look like.
+
+It should communicate that the creator can understand a business process, turn it into structured software, and connect different operational areas into one coherent product.
+
+The demo should therefore feel like a **real internal platform used by a real company**, not like a collection of disconnected UI screens.
+
+The fictional company, AlpenTech Industries, provides the realistic context.
+
+The product itself remains intentionally general enough that the same underlying concept could be adapted to different companies and industries.
+
+---
+
+# 33. Core Product Statement
+
+**Operations Hub**
+
+> A centralized internal operations platform that gives companies one place to manage requests, tasks, workflows, employees, assets and day-to-day operational processes.
+
+The product is built around a simple principle:
+
+> **Make internal work visible, structured and actionable.**
