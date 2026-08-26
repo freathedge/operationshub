@@ -55,6 +55,6 @@ describe("AppLayout", () => {
 
     const element = await AppLayout({ children: "hello" });
     expect(JSON.stringify(element)).toContain("Max Mustermann");
-    expect(JSON.stringify(element)).toContain("it");
+    expect(JSON.stringify(element)).toContain('"it"');
   });
 });
