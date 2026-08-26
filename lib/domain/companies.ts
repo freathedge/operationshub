@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { ALPENTECH_SLUG } from "@/lib/domain/seed";
 
 export interface Company {
   id: string;
@@ -11,14 +12,12 @@ export async function getDefaultCompany(): Promise<Company> {
   const { data, error } = await supabase
     .from("companies")
     .select("id, name, slug")
-    .eq("slug", "alpentech-industries")
-    .single();
+    .eq("slug", ALPENTECH_SLUG)
+    .maybeSingle();
 
   if (error) throw error;
   if (!data) {
-    throw new Error(
-      "Default company 'alpentech-industries' not found. Run the seed script (Task 15) first."
-    );
+    throw new Error(`Default company '${ALPENTECH_SLUG}' not found. Run \`pnpm seed\` first.`);
   }
 
   return data;
