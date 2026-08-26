@@ -34,6 +34,14 @@ beforeEach(() => {
   );
 });
 
+async function fillValidForm() {
+  await userEvent.type(screen.getByLabelText(/full name/i), "Max Mustermann");
+  await userEvent.type(screen.getByLabelText(/email/i), "max@example.com");
+  await userEvent.type(screen.getByLabelText(/^password$/i), "password123");
+  await userEvent.type(screen.getByLabelText(/confirm password/i), "password123");
+  await userEvent.selectOptions(screen.getByLabelText(/explore as/i), "IT");
+}
+
 describe("SignupForm", () => {
   it("shows a validation error when submitted empty", async () => {
     render(<SignupForm />);
@@ -43,14 +51,46 @@ describe("SignupForm", () => {
     expect(signUpMock).not.toHaveBeenCalled();
   });
 
-  it("signs up, completes the profile, and redirects to the dashboard", async () => {
-    signUpMock.mockResolvedValue({ data: { session: { access_token: "token" } }, error: null });
+  it("shows an error when the passwords don't match", async () => {
     render(<SignupForm />);
 
     await userEvent.type(screen.getByLabelText(/full name/i), "Max Mustermann");
     await userEvent.type(screen.getByLabelText(/email/i), "max@example.com");
-    await userEvent.type(screen.getByLabelText(/password/i), "password123");
+    await userEvent.type(screen.getByLabelText(/^password$/i), "password123");
+    await userEvent.type(screen.getByLabelText(/confirm password/i), "password456");
     await userEvent.selectOptions(screen.getByLabelText(/explore as/i), "IT");
+    await userEvent.click(screen.getByRole("button", { name: /create account/i }));
+
+    expect(await screen.findByText("Passwords do not match")).toBeInTheDocument();
+    expect(signUpMock).not.toHaveBeenCalled();
+  });
+
+  it("grows and shifts from red toward green as the password gets longer", async () => {
+    render(<SignupForm />);
+    const passwordField = screen.getByLabelText(/^password$/i);
+    const progressBar = screen.getByRole("progressbar", { name: /password strength/i });
+
+    expect(progressBar).toHaveAttribute("aria-valuenow", "0");
+    expect((progressBar.firstElementChild as HTMLElement).style.width).toBe("0%");
+
+    await userEvent.type(passwordField, "a");
+    expect(progressBar).toHaveAttribute("aria-valuenow", "1");
+    const fillAtOneChar = progressBar.firstElementChild as HTMLElement;
+    expect(fillAtOneChar.style.width).toBe("10%");
+    expect(fillAtOneChar.style.backgroundColor).toBe("rgb(219, 81, 71)"); // mostly red
+
+    await userEvent.type(passwordField, "a".repeat(9));
+    const fillAtTenChars = progressBar.firstElementChild as HTMLElement;
+    expect(progressBar).toHaveAttribute("aria-valuenow", "10");
+    expect(fillAtTenChars.style.width).toBe("100%");
+    expect(fillAtTenChars.style.backgroundColor).toBe("rgb(34, 197, 94)"); // fully green
+  });
+
+  it("signs up, completes the profile, and redirects to the dashboard", async () => {
+    signUpMock.mockResolvedValue({ data: { session: { access_token: "token" } }, error: null });
+    render(<SignupForm />);
+
+    await fillValidForm();
     await userEvent.click(screen.getByRole("button", { name: /create account/i }));
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/dashboard"));
@@ -66,10 +106,7 @@ describe("SignupForm", () => {
     signUpMock.mockResolvedValue({ data: { session: null }, error: null });
     render(<SignupForm />);
 
-    await userEvent.type(screen.getByLabelText(/full name/i), "Max Mustermann");
-    await userEvent.type(screen.getByLabelText(/email/i), "max@example.com");
-    await userEvent.type(screen.getByLabelText(/password/i), "password123");
-    await userEvent.selectOptions(screen.getByLabelText(/explore as/i), "IT");
+    await fillValidForm();
     await userEvent.click(screen.getByRole("button", { name: /create account/i }));
 
     expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
@@ -80,10 +117,7 @@ describe("SignupForm", () => {
     getSessionMock.mockResolvedValue({ data: { session: { access_token: "existing" } } });
     render(<SignupForm />);
 
-    await userEvent.type(screen.getByLabelText(/full name/i), "Max Mustermann");
-    await userEvent.type(screen.getByLabelText(/email/i), "max@example.com");
-    await userEvent.type(screen.getByLabelText(/password/i), "password123");
-    await userEvent.selectOptions(screen.getByLabelText(/explore as/i), "IT");
+    await fillValidForm();
     await userEvent.click(screen.getByRole("button", { name: /create account/i }));
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/dashboard"));

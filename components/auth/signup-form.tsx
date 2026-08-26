@@ -11,14 +11,40 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const signupFormSchema = z.object({
-  fullName: z.string().min(1, "Name is required").max(200),
-  email: z.string().email("Enter a valid email"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  role: roleSchema,
-});
+const signupFormSchema = z
+  .object({
+    fullName: z.string().min(1, "Name is required").max(200),
+    email: z.string().email("Enter a valid email"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+    role: roleSchema,
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 type SignupFormValues = z.infer<typeof signupFormSchema>;
+
+const PASSWORD_STRENGTH_MAX_LENGTH = 10;
+const PASSWORD_STRENGTH_WEAK_COLOR = { r: 239, g: 68, b: 68 }; // red-500
+const PASSWORD_STRENGTH_STRONG_COLOR = { r: 34, g: 197, b: 94 }; // green-500
+
+function getPasswordStrengthColor(ratio: number) {
+  const r = Math.round(
+    PASSWORD_STRENGTH_WEAK_COLOR.r +
+      (PASSWORD_STRENGTH_STRONG_COLOR.r - PASSWORD_STRENGTH_WEAK_COLOR.r) * ratio
+  );
+  const g = Math.round(
+    PASSWORD_STRENGTH_WEAK_COLOR.g +
+      (PASSWORD_STRENGTH_STRONG_COLOR.g - PASSWORD_STRENGTH_WEAK_COLOR.g) * ratio
+  );
+  const b = Math.round(
+    PASSWORD_STRENGTH_WEAK_COLOR.b +
+      (PASSWORD_STRENGTH_STRONG_COLOR.b - PASSWORD_STRENGTH_WEAK_COLOR.b) * ratio
+  );
+  return `rgb(${r}, ${g}, ${b})`;
+}
 
 const ROLE_OPTIONS: { value: SignupFormValues["role"]; label: string }[] = [
   { value: "employee", label: "Employee" },
@@ -35,8 +61,12 @@ export function SignupForm() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<SignupFormValues>({ resolver: zodResolver(signupFormSchema) });
+
+  const password = watch("password") ?? "";
+  const passwordStrengthRatio = Math.min(password.length / PASSWORD_STRENGTH_MAX_LENGTH, 1);
 
   async function onSubmit(values: SignupFormValues) {
     setSubmitError(null);
@@ -105,7 +135,31 @@ export function SignupForm() {
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">Password</Label>
         <Input id="password" type="password" {...register("password")} />
+        <div
+          role="progressbar"
+          aria-label="Password strength"
+          aria-valuenow={password.length}
+          aria-valuemin={0}
+          aria-valuemax={PASSWORD_STRENGTH_MAX_LENGTH}
+          className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+        >
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${passwordStrengthRatio * 100}%`,
+              backgroundColor: getPasswordStrengthColor(passwordStrengthRatio),
+            }}
+          />
+        </div>
         {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="confirmPassword">Confirm password</Label>
+        <Input id="confirmPassword" type="password" {...register("confirmPassword")} />
+        {errors.confirmPassword && (
+          <p className="text-sm text-red-600">{errors.confirmPassword.message}</p>
+        )}
       </div>
 
       <div className="flex flex-col gap-1.5">
