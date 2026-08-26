@@ -94,4 +94,17 @@ describe("POST /api/auth/complete-signup", () => {
     const response = await POST(jsonRequest({ fullName: "Max", role: "ceo" }));
     expect(response.status).toBe(400);
   });
+
+  it("returns 500 with a JSON body when a domain call throws", async () => {
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({
+      auth: { getUser: async () => ({ data: { user: { id: "auth-1" } } }) },
+    } as never);
+    vi.mocked(getProfileByAuthUserId).mockResolvedValue(null);
+    vi.mocked(getDefaultCompany).mockRejectedValue(new Error("boom"));
+
+    const response = await POST(jsonRequest({ fullName: "Max", role: "employee" }));
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.error).toBe("Internal server error");
+  });
 });
