@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getProfileByAuthUserId } from "@/lib/domain/profiles";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { QueryProvider } from "@/components/providers/query-provider";
 
 export default async function AppLayout({
   children,
@@ -33,7 +34,9 @@ export default async function AppLayout({
           <LogoutButton />
         </div>
       </header>
-      <main className="flex-1 p-6">{children}</main>
+      <main className="flex-1 p-6">
+        <QueryProvider>{children}</QueryProvider>
+      </main>
     </div>
   );
 }
