@@ -1,11 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createProfile, getProfileByAuthUserId } from "@/lib/domain/profiles";
+import { createProfile, getProfileByAuthUserId, getProfileById } from "@/lib/domain/profiles";
 
 // Integration test — hits the live Supabase project via the service-role key. Skipped
 // (not failed) when the key isn't available so `pnpm test:unit`/CI-without-secrets stays green.
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
-  "createProfile / getProfileByAuthUserId",
+  "createProfile / getProfileByAuthUserId / getProfileById",
   () => {
     const supabase = createSupabaseAdminClient();
     let companyId: string;
@@ -63,6 +63,49 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
 
     it("returns null when no profile exists for the auth user id", async () => {
       const result = await getProfileByAuthUserId(crypto.randomUUID());
+      expect(result).toBeNull();
+    });
+
+    it("creates a profile with a department and manager, and retrieves it by id", async () => {
+      const { data: managerAuthUser, error: managerAuthError } =
+        await supabase.auth.admin.createUser({
+          email: `profile-test-manager-${crypto.randomUUID()}@example.com`,
+          password: "password123",
+          email_confirm: true,
+        });
+      if (managerAuthError || !managerAuthUser.user) throw managerAuthError;
+      createdAuthUserIds.push(managerAuthUser.user.id);
+      const manager = await createProfile({
+        authUserId: managerAuthUser.user.id,
+        companyId,
+        fullName: "Test Manager",
+        role: "manager",
+      });
+
+      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+        email: `profile-test-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+      if (authError || !authUser.user) throw authError;
+      createdAuthUserIds.push(authUser.user.id);
+
+      const created = await createProfile({
+        authUserId: authUser.user.id,
+        companyId,
+        fullName: "Test Employee",
+        role: "employee",
+        managerId: manager.id,
+      });
+      expect(created.managerId).toBe(manager.id);
+
+      const fetched = await getProfileById(created.id);
+      expect(fetched?.id).toBe(created.id);
+      expect(fetched?.managerId).toBe(manager.id);
+    });
+
+    it("returns null from getProfileById when no profile exists for the id", async () => {
+      const result = await getProfileById(crypto.randomUUID());
       expect(result).toBeNull();
     });
   }
