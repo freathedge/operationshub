@@ -615,7 +615,7 @@ describe("patchTaskSchema", () => {
 
   it("accepts an assigneeId-only payload", () => {
     expect(
-      patchTaskSchema.safeParse({ assigneeId: "11111111-1111-1111-1111-111111111111" }).success
+      patchTaskSchema.safeParse({ assigneeId: "11111111-1111-4111-8111-111111111111" }).success
     ).toBe(true);
   });
 
@@ -1980,9 +1980,16 @@ And add these `it` blocks inside the existing `describe.skipIf(...)(...)` block:
       );
     });
 
+    // Note (ruled on during execution, 2026-08-27): the positive case below uses
+    // `employee` (the task's creator), not `managerA`, as the authorized actor.
+    // `canChangeTaskStatus` (Task 10) has no department-manager branch — only
+    // assignee, creator, assignee's manager, and elevated roles can change status —
+    // so managerA has no relationship to an unassigned, department-less task
+    // created by someone else and would correctly be denied too. The creator is
+    // the correct, unambiguous positive case for this test.
     it("denies a status change from an unrelated employee", async () => {
       const task = await createTask(employee, { title: "Unauthorized status change" });
-      await expect(updateTaskStatus(managerA, task.id, "in_progress")).resolves.toBeDefined();
+      await expect(updateTaskStatus(employee, task.id, "in_progress")).resolves.toBeDefined();
 
       const stranger = await (async () => {
         const { data: authUser, error } = await supabase.auth.admin.createUser({
@@ -2017,6 +2024,12 @@ And add these `it` blocks inside the existing `describe.skipIf(...)(...)` block:
       expect(selfClaimed.assigneeId).toBe(managerA.id);
     });
 
+    // Note (ruled on during execution, 2026-08-27): the target below is `managerA.id`,
+    // not `stranger.id`. `canAssignTask` (Task 10) always allows self-claim
+    // (`profile.id === targetAssignee.id`) by design — an unrelated employee assigning
+    // a task to *themselves* is intentionally permitted, so that scenario can't be used
+    // to test denial. Assigning to a third party unrelated to both the caller and the
+    // task is the correct denial case.
     it("denies assignment from an unrelated employee", async () => {
       const task = await createTask(employee, { title: "Denied assignment test" });
       const stranger = await (async () => {
@@ -2036,7 +2049,7 @@ And add these `it` blocks inside the existing `describe.skipIf(...)(...)` block:
         });
       })();
 
-      await expect(assignTask(stranger, task.id, stranger.id)).rejects.toBeInstanceOf(
+      await expect(assignTask(stranger, task.id, managerA.id)).rejects.toBeInstanceOf(
         ForbiddenError
       );
     });
@@ -2484,14 +2497,14 @@ describe("PATCH /api/tasks/[id]", () => {
     vi.mocked(assignTask).mockResolvedValue({ id: "task-1" } as never);
 
     const response = await PATCH(
-      jsonRequest({ assigneeId: "11111111-1111-1111-1111-111111111111" }),
+      jsonRequest({ assigneeId: "11111111-1111-4111-8111-111111111111" }),
       params("task-1")
     );
     expect(response.status).toBe(200);
     expect(assignTask).toHaveBeenCalledWith(
       PROFILE,
       "task-1",
-      "11111111-1111-1111-1111-111111111111"
+      "11111111-1111-4111-8111-111111111111"
     );
   });
 
