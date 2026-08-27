@@ -10,7 +10,6 @@ Last updated: 2026-08-27
 
 Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline.md` for the full breakdown of each.
 
-- **Phase 3 — Requests & Approvals**: request lifecycle, approvals, notifications.
 - **Phase 4 — Workflow Engine**: generic workflow template/instance runner; seeds Onboarding/Equipment/Maintenance workflows.
 - **Phase 5 — Employees & Assets**: operational employee profiles, asset registry.
 - **Phase 6 — Operations**: higher-level grouping over tasks/requests/assets/employees.
@@ -20,15 +19,17 @@ Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline
 
 ## In Progress
 
-_(nothing right now)_
+- **Phase 3 — Requests & Approvals**: request lifecycle, approvals, notifications. Builds on `tasks` (via `related_request_id`), the `comments`/`activity_log` generic modules, the permissions pattern, and the broadcast pattern from Phase 2. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline.md` for scope.
 
 ## Review
 
-- **Phase 2 — Tasks**: task CRUD, comments, activity log, attachments, first Realtime broadcast usage. Spec: `docs/superpowers/specs/2026-08-27-phase2-tasks-design.md`. Plan: `docs/superpowers/plans/2026-08-27-phase2-tasks.md`.
-  - Branch `worktree-phase2-tasks-plan`, pushed; PR pending (open at https://github.com/freathedge/operationshub/pull/new/worktree-phase2-tasks-plan).
-  - Deferred to Phase 3+ (not blockers, see PR description): `listTasks`/`canViewTask` visibility-logic duplication, short signed-download-URL TTL, `deleteTask` not cleaning up child comments/activity/attachments.
+_(nothing right now)_
 
 ## Finished
+
+- **Phase 2 — Tasks**: task CRUD, comments, activity log, attachments, first Realtime broadcast usage. Spec: `docs/superpowers/specs/2026-08-27-phase2-tasks-design.md`. Plan: `docs/superpowers/plans/2026-08-27-phase2-tasks.md`.
+  - Deferred to Phase 3+ (not blockers): `listTasks`/`canViewTask` visibility-logic duplication, short signed-download-URL TTL, `deleteTask` not cleaning up child comments/activity/attachments.
+  - Merged to `main` via PR #3 (`7df922a`).
 
 - **Foundation phase** — Next.js 16 + hosted Supabase scaffold: schema (companies/departments/locations/profiles), Supabase Auth signup (with role picker) + login, session middleware, authenticated app shell, seed script for AlpenTech Industries. Plan: `docs/superpowers/plans/2026-08-26-foundation.md`. Spec: `docs/architecture.md`.
   - Includes follow-up UX added after the initial review: back links on `/login`/`/signup`, an `/auth/confirmed` email-confirmation page, and password confirmation + a strength meter on signup.
