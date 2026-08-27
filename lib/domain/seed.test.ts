@@ -6,7 +6,7 @@ import {
   ALPENTECH_LOCATIONS,
 } from "@/lib/domain/seed";
 
-describe("seedFoundationData", () => {
+describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("seedFoundationData", () => {
   it("creates AlpenTech Industries with its departments and locations, and is idempotent", async () => {
     const supabase = createSupabaseAdminClient();
 
