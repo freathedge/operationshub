@@ -11,8 +11,14 @@ export default function LandingPage() {
         operations in one place.
       </p>
       <div className="flex gap-3">
-        <Button render={<Link href="/signup" />}>Create an account</Button>
-        <Button render={<Link href="/login" />} variant="outline">
+        <Button render={<Link href="/signup" />} nativeButton={false}>
+          Create an account
+        </Button>
+        <Button
+          render={<Link href="/login" />}
+          variant="outline"
+          nativeButton={false}
+        >
           Log in
         </Button>
       </div>
