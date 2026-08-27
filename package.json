@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:unit": "vitest run --exclude \"lib/domain/profiles.test.ts\" --exclude \"lib/domain/seed.test.ts\" --exclude \"lib/domain/activity.test.ts\" --exclude \"scripts/seed.smoke.test.ts\"",
-    "test:integration": "vitest run lib/domain/profiles.test.ts lib/domain/seed.test.ts lib/domain/activity.test.ts scripts/seed.smoke.test.ts",
+    "test:unit": "vitest run --exclude \"lib/domain/profiles.test.ts\" --exclude \"lib/domain/seed.test.ts\" --exclude \"lib/domain/activity.test.ts\" --exclude \"lib/domain/comments.test.ts\" --exclude \"scripts/seed.smoke.test.ts\"",
+    "test:integration": "vitest run lib/domain/profiles.test.ts lib/domain/seed.test.ts lib/domain/activity.test.ts lib/domain/comments.test.ts scripts/seed.smoke.test.ts",
     "test:watch": "vitest",
     "seed": "tsx --conditions=react-server scripts/seed.ts"
   },
