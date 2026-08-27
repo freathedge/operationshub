@@ -11,9 +11,10 @@ vi.mock("next/navigation", () => ({
 
 const signUpMock = vi.fn();
 const getSessionMock = vi.fn();
+const getUserMock = vi.fn();
 vi.mock("@/lib/supabase/browser", () => ({
   createSupabaseBrowserClient: () => ({
-    auth: { signUp: signUpMock, getSession: getSessionMock },
+    auth: { signUp: signUpMock, getSession: getSessionMock, getUser: getUserMock },
   }),
 }));
 
@@ -25,6 +26,8 @@ beforeEach(() => {
   signUpMock.mockReset();
   getSessionMock.mockReset();
   getSessionMock.mockResolvedValue({ data: { session: null } });
+  getUserMock.mockReset();
+  getUserMock.mockResolvedValue({ data: { user: null } });
   vi.stubGlobal(
     "fetch",
     vi.fn().mockResolvedValue({
@@ -98,8 +101,20 @@ describe("SignupForm", () => {
     expect(signUpMock).toHaveBeenCalledWith({
       email: "max@example.com",
       password: "password123",
-      options: { emailRedirectTo: expect.stringContaining("/auth/confirmed") },
+      options: {
+        data: { role: "it" },
+        emailRedirectTo: expect.stringContaining("/auth/confirmed"),
+      },
     });
+  });
+
+  it("pre-selects the role from Supabase user metadata for a returning, already-authenticated user", async () => {
+    getSessionMock.mockResolvedValue({ data: { session: { access_token: "existing" } } });
+    getUserMock.mockResolvedValue({ data: { user: { user_metadata: { role: "hr" } } } });
+
+    render(<SignupForm />);
+
+    expect(await screen.findByLabelText(/explore as/i)).toHaveValue("hr");
   });
 
   it("shows a check-your-email message when signup requires email confirmation", async () => {

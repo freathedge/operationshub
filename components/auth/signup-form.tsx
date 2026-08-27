@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -62,11 +62,25 @@ export function SignupForm() {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SignupFormValues>({ resolver: zodResolver(signupFormSchema) });
 
   const password = watch("password") ?? "";
   const passwordStrengthRatio = Math.min(password.length / PASSWORD_STRENGTH_MAX_LENGTH, 1);
+
+  // A user returning from the email-confirmation link already has a Supabase Auth session
+  // and already picked a role before confirming — read it back from the user metadata
+  // signUp stored, instead of making them pick again (or silently defaulting).
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      const rememberedRole = roleSchema.safeParse(user?.user_metadata?.role);
+      if (rememberedRole.success) {
+        setValue("role", rememberedRole.data);
+      }
+    });
+  }, [setValue]);
 
   async function onSubmit(values: SignupFormValues) {
     setSubmitError(null);
@@ -81,6 +95,7 @@ export function SignupForm() {
         email: values.email,
         password: values.password,
         options: {
+          data: { role: values.role },
           emailRedirectTo: `${window.location.origin}/auth/confirmed`,
         },
       });

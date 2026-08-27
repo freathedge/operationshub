@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 
 export default function ConfirmedPage() {
-  const router = useRouter();
   const [status, setStatus] = useState<"checking" | "confirmed" | "error">("checking");
 
   useEffect(() => {
@@ -45,7 +43,9 @@ export default function ConfirmedPage() {
       <p className="max-w-sm text-muted-foreground">
         Your account is verified. Continue to finish setting up your profile.
       </p>
-      <Button onClick={() => router.push("/dashboard")}>Continue</Button>
+      <Link href="/signup" className={buttonVariants()}>
+        Continue
+      </Link>
     </main>
   );
 }
