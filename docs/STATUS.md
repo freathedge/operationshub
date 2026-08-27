@@ -10,7 +10,6 @@ Last updated: 2026-08-27
 
 Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline.md` for the full breakdown of each.
 
-- **Phase 2 — Tasks**: task CRUD, comments, activity log, attachments, first Realtime broadcast usage.
 - **Phase 3 — Requests & Approvals**: request lifecycle, approvals, notifications.
 - **Phase 4 — Workflow Engine**: generic workflow template/instance runner; seeds Onboarding/Equipment/Maintenance workflows.
 - **Phase 5 — Employees & Assets**: operational employee profiles, asset registry.
@@ -21,7 +20,7 @@ Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline
 
 ## In Progress
 
-_(nothing right now)_
+- **Phase 2 — Tasks**: task CRUD, comments, activity log, attachments, first Realtime broadcast usage. Spec: `docs/superpowers/specs/2026-08-27-phase2-tasks-design.md`. Plan: `docs/superpowers/plans/2026-08-27-phase2-tasks.md`.
 
 ## Review
 
