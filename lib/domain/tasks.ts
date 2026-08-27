@@ -1,11 +1,11 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import type { Profile } from "@/lib/domain/profiles";
+import { getProfileById, type Profile } from "@/lib/domain/profiles";
 import { logActivity } from "@/lib/domain/activity";
 import { broadcastChange } from "@/lib/realtime/broadcast";
-import { canCreateTask, canViewTask } from "@/lib/domain/permissions";
-import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
+import { canAssignTask, canChangeTaskStatus, canCreateTask, canDeleteTask, canViewTask } from "@/lib/domain/permissions";
+import { ForbiddenError, InvalidTransitionError, NotFoundError } from "@/lib/domain/errors";
 import type { CreateTaskInput, TaskFilters } from "@/lib/validation/tasks";
-import type { TaskPriority, TaskStatus } from "@/lib/domain/task-status";
+import { TASK_STATUS_TRANSITIONS, type TaskPriority, type TaskStatus } from "@/lib/domain/task-status";
 
 export interface Task {
   id: string;
@@ -133,4 +133,94 @@ export async function listTasks(profile: Profile, filters: TaskFilters): Promise
   const { data, error } = await query.order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []).map(toTask);
+}
+
+export async function updateTaskStatus(
+  profile: Profile,
+  taskId: string,
+  newStatus: TaskStatus
+): Promise<Task> {
+  const task = await loadTaskOrThrow(taskId);
+  const assignee = task.assigneeId ? await getProfileById(task.assigneeId) : null;
+
+  if (!canChangeTaskStatus(profile, task, assignee)) {
+    throw new ForbiddenError("You cannot change this task's status");
+  }
+
+  if (!TASK_STATUS_TRANSITIONS[task.status].includes(newStatus)) {
+    throw new InvalidTransitionError(
+      `Cannot move a task from "${task.status}" to "${newStatus}"`
+    );
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({
+      status: newStatus,
+      completed_at: newStatus === "completed" ? new Date().toISOString() : task.completedAt,
+    })
+    .eq("id", taskId)
+    .select(TASK_COLUMNS)
+    .single();
+  if (error) throw error;
+
+  const updated = toTask(data);
+  await logActivity(
+    "task",
+    updated.id,
+    profile.id,
+    `${profile.fullName} changed status from "${task.status}" to "${newStatus}"`
+  );
+  await broadcastChange(profile.companyId, "tasks", { type: "task_updated" });
+  return updated;
+}
+
+export async function assignTask(
+  profile: Profile,
+  taskId: string,
+  targetAssigneeId: string
+): Promise<Task> {
+  const task = await loadTaskOrThrow(taskId);
+  const targetAssignee = await getProfileById(targetAssigneeId);
+  if (!targetAssignee || targetAssignee.companyId !== task.companyId) {
+    throw new NotFoundError("Target assignee not found");
+  }
+  const currentAssignee = task.assigneeId ? await getProfileById(task.assigneeId) : null;
+
+  if (!canAssignTask(profile, task, currentAssignee, targetAssignee)) {
+    throw new ForbiddenError("You cannot assign this task");
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({ assignee_id: targetAssigneeId })
+    .eq("id", taskId)
+    .select(TASK_COLUMNS)
+    .single();
+  if (error) throw error;
+
+  const updated = toTask(data);
+  await logActivity(
+    "task",
+    updated.id,
+    profile.id,
+    `${profile.fullName} assigned this task to ${targetAssignee.fullName}`
+  );
+  await broadcastChange(profile.companyId, "tasks", { type: "task_updated" });
+  return updated;
+}
+
+export async function deleteTask(profile: Profile, taskId: string): Promise<void> {
+  const task = await loadTaskOrThrow(taskId);
+  if (!canDeleteTask(profile, task)) {
+    throw new ForbiddenError("You cannot delete this task");
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+  if (error) throw error;
+
+  await broadcastChange(profile.companyId, "tasks", { type: "task_deleted" });
 }
