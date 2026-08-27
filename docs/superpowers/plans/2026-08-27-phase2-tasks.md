@@ -2920,6 +2920,12 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       expect(attachments.map((a) => a.id)).toContain(result.attachment.id);
     });
 
+    // Note (ruled on during execution, 2026-08-27): a signed *upload* URL only reserves a
+    // path — Supabase Storage refuses to issue a signed *download* URL for a path with no
+    // object actually uploaded to it yet (`StorageApiError: Object not found`). The original
+    // version of this test called createSignedDownloadUrl without ever uploading anything.
+    // Fixed by actually uploading a small payload via uploadToSignedUrl first, mirroring real
+    // usage (client PUTs the file via the signed upload URL, then later reads it back).
     it("creates a signed download URL for a stored path", async () => {
       const result = await createSignedUploadUrl(
         "task",
@@ -2928,6 +2934,11 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
         "photo.png"
       );
       createdPaths.push(result.attachment.storagePath);
+
+      const { error: uploadError } = await supabase.storage
+        .from("attachments")
+        .uploadToSignedUrl(result.attachment.storagePath, result.token, Buffer.from("test"));
+      if (uploadError) throw uploadError;
 
       const downloadUrl = await createSignedDownloadUrl(result.attachment.storagePath);
       expect(downloadUrl).toBeTruthy();
