@@ -19,8 +19,8 @@ export async function createSupabaseServerClient() {
               cookieStore.set(name, value, options)
             );
           } catch {
-            // Called from a Server Component render — the middleware
-            // (Task 8) is responsible for refreshing the session cookie.
+            // Called from a Server Component render — the proxy (Task 8)
+            // is responsible for refreshing the session cookie.
           }
         },
       },
