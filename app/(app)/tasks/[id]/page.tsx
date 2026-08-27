@@ -5,6 +5,7 @@ import { listComments } from "@/lib/domain/comments";
 import { listActivity } from "@/lib/domain/activity";
 import { createSignedDownloadUrl, listAttachments } from "@/lib/domain/attachments";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
+import { BackLink } from "@/components/back-link";
 import { TaskRealtimeRefresh } from "@/components/tasks/task-realtime-refresh";
 import { TaskStatusControl } from "@/components/tasks/task-status-control";
 import { TaskComments } from "@/components/tasks/task-comments";
@@ -48,6 +49,8 @@ export default async function TaskDetailPage({
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
       <TaskRealtimeRefresh companyId={profile.companyId} />
+
+      <BackLink href="/tasks" />
 
       <div>
         <h1 className="text-2xl font-semibold">{task.title}</h1>

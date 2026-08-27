@@ -33,6 +33,7 @@ This file is read automatically by Claude Code at the start of every session in 
 
 - Build screens from shadcn/ui's pre-made blocks/templates wherever one exists for the job (e.g. the dashboard block(s) at [ui.shadcn.com/blocks](https://ui.shadcn.com/blocks)) instead of composing layouts from primitives from scratch. Pull the block in via the shadcn CLI, then adapt it to this project's data and routes.
 - Fall back to composing shadcn/ui primitives directly only when no suitable block exists.
+- **Back navigation:** every new page gets a `<BackLink href="...">` (`components/back-link.tsx`) pointing at its logical parent route (a detail page → its list, a creation form → its list), placed at the top of the page's content. Exceptions: the landing page (`/`) and the authenticated app's `/dashboard` are the "roots" of their areas and don't get one. Fixed destination, not `router.back()` — predictable regardless of how the page was reached (direct link, reload, bookmark). See `docs/architecture.md` §11.
 
 ## Workflow
 
