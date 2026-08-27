@@ -111,7 +111,7 @@ create table tasks (
   status task_status not null default 'todo',
   priority task_priority not null default 'medium',
   assignee_id uuid references profiles(id) on delete set null,
-  creator_id uuid not null references profiles(id) on delete set null,
+  creator_id uuid references profiles(id) on delete set null,
   department_id uuid references departments(id) on delete set null,
   related_employee_id uuid references profiles(id) on delete set null,
   due_date timestamptz,
@@ -124,6 +124,8 @@ create index tasks_assignee_id_idx on tasks(assignee_id);
 create index tasks_department_id_idx on tasks(department_id);
 create index tasks_status_idx on tasks(status);
 ```
+
+**Note (ruled on during execution, 2026-08-27):** `creator_id` was originally specified as `not null` alongside `on delete set null`. That combination is self-contradictory in Postgres: deleting the referenced `profiles` row fires the `SET NULL` action, which then immediately violates the column's own `NOT NULL` constraint, aborting the delete with an error. Dropped `not null` — `creator_id` is now nullable, matching the existing pattern already used by `assignee_id`, `department_id`, and `related_employee_id` in this same table (and by `activity_log.actor_id`). `createTask` always sets a real profile id at insert time; the column only goes `null` later, if that profile is ever deleted. The corresponding domain type (`Task.creatorId` in Task 14) is `string | null` to match. If this task's migration was already applied with the old `not null` before this note was added, a follow-up corrective migration (`alter table tasks alter column creator_id drop not null;`) closes the gap — see the ledger for whether that was needed.
 
 - [ ] **Step 2: Apply the migration**
 
@@ -171,13 +173,15 @@ create table comments (
   id uuid primary key default gen_random_uuid(),
   entity_type text not null,
   entity_id uuid not null,
-  author_id uuid not null references profiles(id) on delete set null,
+  author_id uuid references profiles(id) on delete set null,
   body text not null,
   created_at timestamptz not null default now()
 );
 
 create index comments_entity_idx on comments(entity_type, entity_id);
 ```
+
+**Note (ruled on during execution, 2026-08-27):** `author_id` was originally `not null` alongside `on delete set null` — self-contradictory for the same reason as `tasks.creator_id` (see Task 2's note). Dropped `not null`; `addComment` always passes a real profile id at insert time, the column only goes `null` later if that profile is deleted. `Comment.authorId` (Task 12) is `string | null`.
 
 - [ ] **Step 2: Apply the migration**
 
@@ -266,7 +270,7 @@ create table attachments (
   entity_type text not null,
   entity_id uuid not null,
   storage_path text not null,
-  uploaded_by uuid not null references profiles(id) on delete set null,
+  uploaded_by uuid references profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
@@ -276,6 +280,8 @@ insert into storage.buckets (id, name, public)
 values ('attachments', 'attachments', false)
 on conflict (id) do nothing;
 ```
+
+**Note (ruled on during execution, 2026-08-27):** `uploaded_by` was originally `not null` alongside `on delete set null` — self-contradictory for the same reason as `tasks.creator_id` (see Task 2's note). Dropped `not null`; `createSignedUploadUrl` always passes a real profile id at insert time, the column only goes `null` later if that profile is deleted. `Attachment.uploadedBy` (Task 19) is `string | null`.
 
 - [ ] **Step 2: Apply the migration**
 
@@ -1059,7 +1065,7 @@ import type { Profile } from "@/lib/domain/profiles";
 
 export interface TaskLike {
   companyId: string;
-  creatorId: string;
+  creatorId: string | null;
   assigneeId: string | null;
   departmentId: string | null;
 }
@@ -1412,7 +1418,7 @@ export interface Comment {
   id: string;
   entityType: string;
   entityId: string;
-  authorId: string;
+  authorId: string | null;
   body: string;
   createdAt: string;
 }
@@ -1421,7 +1427,7 @@ interface CommentRow {
   id: string;
   entity_type: string;
   entity_id: string;
-  author_id: string;
+  author_id: string | null;
   body: string;
   created_at: string;
 }
@@ -1789,7 +1795,7 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   assigneeId: string | null;
-  creatorId: string;
+  creatorId: string | null;
   departmentId: string | null;
   relatedEmployeeId: string | null;
   dueDate: string | null;
@@ -1805,7 +1811,7 @@ interface TaskRow {
   status: TaskStatus;
   priority: TaskPriority;
   assignee_id: string | null;
-  creator_id: string;
+  creator_id: string | null;
   department_id: string | null;
   related_employee_id: string | null;
   due_date: string | null;
@@ -2934,7 +2940,7 @@ export interface Attachment {
   entityType: string;
   entityId: string;
   storagePath: string;
-  uploadedBy: string;
+  uploadedBy: string | null;
   createdAt: string;
 }
 
@@ -2943,7 +2949,7 @@ interface AttachmentRow {
   entity_type: string;
   entity_id: string;
   storage_path: string;
-  uploaded_by: string;
+  uploaded_by: string | null;
   created_at: string;
 }
 
