@@ -42,10 +42,9 @@ Create `supabase/migrations/<YYYYMMDDHHMMSS>_close_schema_usage_gap.sql` (curren
 
 ```sql
 revoke usage on schema public from public;
-
-alter default privileges for role supabase_admin in schema public
-  revoke all on tables from anon, authenticated;
 ```
+
+**Note (ruled on during execution, 2026-08-27):** the plan originally also specified `alter default privileges for role supabase_admin in schema public revoke all on tables from anon, authenticated;` as defense-in-depth. `mcp__claude_ai_Supabase__apply_migration` executes as role `postgres`, which is not a member of `supabase_admin` and cannot alter that role's default privileges (`42501: permission denied to change default privileges`) — Postgres only allows `ALTER DEFAULT PRIVILEGES FOR ROLE X` to be run by `X` itself, a member of `X`, or a superuser, and the hosted `postgres` role is none of those. This statement is dropped. It is not load-bearing: every migration in this plan (including Tasks 2–5) runs via `apply_migration` as `postgres`, so every table this plan creates is already covered by the existing Foundation-phase migration `20260826230306_revoke_anon_authenticated_table_grants.sql`'s default-privilege revoke (which is correctly scoped to the `postgres` grantor). The `supabase_admin` default ACL only matters for tables created through a different path (e.g. the Supabase Studio UI) — out of scope for this plan — and even then, the schema-`USAGE` revoke below is what actually blocks `anon`/`authenticated` from reaching *any* object in `public`, regardless of that object's own grants or default privileges. The single `revoke usage` statement is therefore sufficient to close the gap for everything this plan touches.
 
 - [ ] **Step 2: Apply the migration**
 
