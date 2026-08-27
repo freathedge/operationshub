@@ -6,18 +6,26 @@
 
 **Architecture:** Single Next.js (App Router) project deployed as one app. Route Handlers are thin and delegate to a domain layer (`lib/domain/**`), which is the sole place that talks to Supabase Postgres, using the service-role key server-side. RLS is disabled — the domain layer is the only authorization boundary. The frontend never queries Supabase tables directly; the one exception in this phase is Supabase Auth itself (sign up / sign in / sign out are called directly from the browser, since Auth is a distinct concern from application data). Server Components (e.g. the authenticated layout) call domain-layer functions directly via in-process function calls — this is not a violation of "frontend never talks to Supabase directly," since Server Components execute on the server, same as Route Handlers; only actual browser-side code is restricted to the REST API.
 
-**Tech Stack:** Next.js 15 (App Router, TypeScript strict, no `src/` dir), pnpm, Supabase (Postgres, Auth, local dev via Supabase CLI), `@supabase/ssr` + `@supabase/supabase-js`, Zod, React Hook Form, Tailwind CSS v4, shadcn/ui, Vitest + Testing Library.
+**Tech Stack:** Next.js 16 (App Router, TypeScript strict, no `src/` dir), pnpm, hosted Supabase project (Postgres, Auth — no local Docker/CLI dev stack; schema changes applied via the Supabase MCP `apply_migration` tool), `@supabase/ssr` + `@supabase/supabase-js`, Zod, React Hook Form, Tailwind CSS v4, shadcn/ui, Vitest + Testing Library.
 
 **Spec:** `docs/architecture.md`
 
 ## Global Constraints
 
 - REST API (Next.js Route Handlers) is the sole authorization boundary. Row Level Security stays disabled on every table; the Supabase service-role key is used server-side only, never shipped to the browser.
+- **RLS-disabled-by-design only holds if `anon`/`authenticated` have zero table privileges.** Supabase grants those roles full DML on `public` tables by default, expecting RLS to gate them — with RLS off and the default grants left in place, the public anon key can read/write every table directly through PostgREST, bypassing the domain layer entirely (this happened in Foundation, fixed in migration `20260826230306_revoke_anon_authenticated_table_grants.sql`). Every migration that creates a new table in a later phase must either (a) be covered by that blanket `alter default privileges` revoke — verify with the query below — or (b) explicitly re-revoke for that table. Verify after every schema change: `select table_name, grantee from information_schema.role_table_grants where table_schema = 'public' and grantee in ('anon','authenticated');` must return zero rows. `service_role` is unaffected by this and keeps working normally.
+- **The primary security boundary is schema `USAGE`, not the table-grant revoke.** `ALTER DEFAULT PRIVILEGES` without `FOR ROLE` only affects the executing role's own future grants — the `20260826230306` migration's default-privilege revoke only covers tables created by the `postgres` grantor. Line 3 of that migration (`revoke usage on schema public from anon, authenticated`) is what is actually load-bearing: schema `USAGE` is a prerequisite to reach anything inside the schema at all, so as long as it's denied, it doesn't matter which grantor's default ACL a future table inherits. Verify alongside the table-grants query above:
+  ```sql
+  select has_schema_privilege('anon','public','usage'),
+         has_schema_privilege('authenticated','public','usage');  -- both must be false
+  ```
+  **Live-verification caveat found while writing this note (2026-08-27):** running this query against the hosted project today returns `true, true` for both roles — schema `USAGE` is *not* currently denied in practice. `REVOKE ... FROM anon, authenticated` only removes grants naming those roles directly; it does not touch a separate, pre-existing grant of `USAGE` on schema `public` to the special `PUBLIC` pseudo-role (visible in `pg_namespace.nspacl` as the `=U/pg_database_owner` entry, dating to project bootstrap), and every role — including `anon`/`authenticated` — implicitly holds whatever is granted to `PUBLIC`. So schema `USAGE` was never actually revoked for these roles; what is protecting the four existing tables today is solely (a) the direct table-grant revoke (verified zero rows) and (b) the fact that all four were created by `postgres`, whose default-privilege revoke is correctly scoped. The `supabase_admin` grantor's default ACL for future tables still grants `anon`/`authenticated` full DML (confirmed via `pg_default_acl`) — combined with schema `USAGE` already being reachable, the **next table created under `supabase_admin` ownership would be immediately anon-readable/writable on creation, with no additional re-grant required.** This is a live gap, not a contingent future risk. Fixing it (e.g. `revoke usage on schema public from public;`, or an explicit `for role supabase_admin` default-privilege revoke) needs a follow-up migration and a human decision — out of scope for the docs-only fix wave that added this note; do not treat the query above as currently passing.
 - The frontend never reads or writes Supabase tables directly. Confirmed exceptions for this phase: Supabase Auth calls (sign up/in/out) from the browser client, and Server Components calling the domain layer in-process.
 - Single fictional company (AlpenTech Industries) — no multi-tenant isolation logic; a `companies` table exists but is expected to hold exactly one row.
 - Package manager: pnpm (v10.x). Node.js v22+ required.
 - TypeScript strict mode throughout.
-- Local Supabase dev (`supabase start`) requires Docker Desktop running — start it before any task involving migrations, the domain layer, or integration tests.
+- This project uses a hosted Supabase project (no local Docker/CLI dev stack — Docker is not available in this environment). The project's `project_id` is `yqzcunssgvffischmwle`. Schema changes (DDL) are applied with the `mcp__plugin_supabase_supabase__apply_migration` tool (`project_id`, `name`, `query`), not the Supabase CLI. The domain layer, tests, and the running app all talk to this hosted project via the credentials in `.env.local` (already populated — see Task 4).
+- **Migration filenames must match the version `apply_migration` actually assigns.** The tool stamps its own timestamp on apply — it does not use whatever prefix the local filename happens to have. After calling `apply_migration`, call `list_migrations` and rename the local file to `<version-from-list_migrations>_<name>.sql` before committing. A mismatched filename means a future `supabase db push`/`migration up` (if this project is ever linked via the CLI) won't recognize the migration as already applied and will try to re-run it, failing with "already exists" errors.
 - Every task ends with a commit. Commit messages use the `feat:`/`chore:`/`test:` conventional prefix matching the task's nature.
 
 ---
@@ -182,7 +190,7 @@ pnpm dlx shadcn@latest init -d
 pnpm dlx shadcn@latest add button input label card -y
 ```
 
-(The role picker in Task 12 uses a plain native `<select>` styled with Tailwind rather than shadcn's Radix-based Select, to keep it simple and reliably testable — so `select` is intentionally not added here.)
+(The role picker in Task 12 uses a plain native `<select>` styled with Tailwind rather than shadcn's Select primitive, to keep it simple and reliably testable — so `select` is intentionally not added here.)
 
 - [ ] **Step 3: Verify the project still builds**
 
@@ -198,36 +206,19 @@ git commit -m "chore: install shadcn/ui base components"
 
 ---
 
-## Task 4: Initialize Supabase CLI and local dev environment
+## Task 4: Set up hosted Supabase project
+
+**Status: already done by the controller session (not delegated to an implementer subagent).** Docker is unavailable in this environment, so the plan's original local-dev-stack approach (`supabase init` + `supabase start`) was replaced with a hosted Supabase project, created via the Supabase MCP plugin (`mcp__plugin_supabase_supabase__create_project`) directly by the controller — this required an interactive org/cost confirmation and a manual paste of the `service_role` key (never exposed via MCP tools, retrieved by the user from the Supabase dashboard), so it wasn't a good fit for a scripted implementer task.
+
+**What exists as a result, for later tasks to rely on:**
+- A hosted Supabase project named `operations-hub`, `project_id` = `yqzcunssgvffischmwle`, region `eu-central-1`.
+- `.env.local` at the repo root (untracked — `create-next-app`'s default `.gitignore` already excludes `.env*.local`), populated with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — every later task in this plan that touches Supabase depends on these three variables being set. Already done; no task needs to (re)create this file.
+- `.env.local.example` — still needs to be created (Step 1 below), as a checked-in template for anyone else setting up the project.
 
 **Files:**
-- Create: `supabase/config.toml`, `.env.local` (untracked), `.env.local.example`
+- Create: `.env.local.example`
 
-**Interfaces:**
-- Produces: a running local Supabase stack (Postgres, Auth, Studio) and `.env.local` populated with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — every later task in this plan that touches Supabase depends on these three variables being set.
-
-- [ ] **Step 1: Initialize the Supabase project**
-
-```bash
-pnpm dlx supabase init
-```
-
-- [ ] **Step 2: Start Docker Desktop, then start the local Supabase stack**
-
-Run: `pnpm dlx supabase start`
-Expected: output listing `API URL`, `anon key`, and `service_role key`.
-
-- [ ] **Step 3: Write `.env.local` from that output**
-
-Create `.env.local` (not committed — `create-next-app`'s default `.gitignore` already excludes `.env*.local`):
-
-```
-NEXT_PUBLIC_SUPABASE_URL=<API URL from supabase start>
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key from supabase start>
-SUPABASE_SERVICE_ROLE_KEY=<service_role key from supabase start>
-```
-
-- [ ] **Step 4: Create a checked-in example file**
+- [ ] **Step 1: Create a checked-in example file**
 
 Create `.env.local.example`:
 
@@ -237,16 +228,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
-- [ ] **Step 5: Verify Supabase Studio is reachable**
-
-Run: `pnpm dlx supabase status`
-Expected: shows the stack as running with the Studio URL.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 2: Commit**
 
 ```bash
-git add supabase/config.toml .env.local.example .gitignore
-git commit -m "chore: initialize Supabase CLI local dev environment"
+git add .env.local.example
+git commit -m "chore: add .env.local.example for hosted Supabase setup"
 ```
 
 ---
@@ -259,15 +245,9 @@ git commit -m "chore: initialize Supabase CLI local dev environment"
 **Interfaces:**
 - Produces: tables `companies(id, name, slug, created_at)`, `departments(id, company_id, name, created_at)`, `locations(id, company_id, name, created_at)`.
 
-- [ ] **Step 1: Generate the migration file**
+- [ ] **Step 1: Write the migration file**
 
-```bash
-pnpm dlx supabase migration new create_companies_departments_locations
-```
-
-- [ ] **Step 2: Write the migration**
-
-Replace the generated file's contents with:
+Create `supabase/migrations/<YYYYMMDDHHMMSS>_create_companies_departments_locations.sql` (use the current UTC timestamp for the prefix, standard Supabase migration naming) with:
 
 ```sql
 create table companies (
@@ -294,17 +274,19 @@ create table locations (
 );
 ```
 
-- [ ] **Step 3: Apply the migration to the local database**
+- [ ] **Step 2: Apply the migration to the hosted project**
 
-Run: `pnpm dlx supabase migration up`
-Expected: output confirms the migration applied with no errors.
+Use the `mcp__plugin_supabase_supabase__apply_migration` tool with `project_id: "yqzcunssgvffischmwle"`, `name: "create_companies_departments_locations"`, and `query` set to the exact SQL from Step 1.
+Expected: the tool call succeeds.
 
-- [ ] **Step 4: Verify the tables exist**
+If this tool is not available to you, report NEEDS_CONTEXT rather than skipping this step or trying a workaround — do not fall back to `supabase` CLI commands (no local dev stack exists in this environment).
 
-Run: `pnpm dlx supabase db execute --sql "select table_name from information_schema.tables where table_name in ('companies','departments','locations');"`
-Expected: all three table names are listed.
+- [ ] **Step 3: Verify the tables exist**
 
-- [ ] **Step 5: Commit**
+Use the `mcp__plugin_supabase_supabase__list_tables` tool with `project_id: "yqzcunssgvffischmwle"`, `schemas: ["public"]`.
+Expected: `companies`, `departments`, and `locations` all appear in the result.
+
+- [ ] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations
@@ -322,15 +304,9 @@ git commit -m "feat: add companies, departments, locations tables"
 - Consumes: `companies`, `departments` (Task 5), `auth.users` (built into Supabase).
 - Produces: `user_role` enum (`employee | manager | operations_manager | it | hr | admin`) and `profiles(id, auth_user_id, company_id, full_name, role, department_id, manager_id, created_at)`.
 
-- [ ] **Step 1: Generate the migration file**
+- [ ] **Step 1: Write the migration file**
 
-```bash
-pnpm dlx supabase migration new create_profiles
-```
-
-- [ ] **Step 2: Write the migration**
-
-Replace the generated file's contents with:
+Create `supabase/migrations/<YYYYMMDDHHMMSS>_create_profiles.sql` (timestamp later than Task 5's migration file) with:
 
 ```sql
 create type user_role as enum (
@@ -357,17 +333,19 @@ create index profiles_company_id_idx on profiles(company_id);
 create index profiles_department_id_idx on profiles(department_id);
 ```
 
-- [ ] **Step 3: Apply the migration**
+- [ ] **Step 2: Apply the migration to the hosted project**
 
-Run: `pnpm dlx supabase migration up`
-Expected: output confirms the migration applied with no errors.
+Use the `mcp__plugin_supabase_supabase__apply_migration` tool with `project_id: "yqzcunssgvffischmwle"`, `name: "create_profiles"`, and `query` set to the exact SQL from Step 1.
+Expected: the tool call succeeds.
 
-- [ ] **Step 4: Verify the table exists**
+If this tool is not available to you, report NEEDS_CONTEXT rather than skipping this step or trying a workaround.
 
-Run: `pnpm dlx supabase db execute --sql "select table_name from information_schema.tables where table_name = 'profiles';"`
-Expected: `profiles` is listed.
+- [ ] **Step 3: Verify the table exists**
 
-- [ ] **Step 5: Commit**
+Use the `mcp__plugin_supabase_supabase__list_tables` tool with `project_id: "yqzcunssgvffischmwle"`, `schemas: ["public"]`.
+Expected: `profiles` appears in the result.
+
+- [ ] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations
@@ -732,7 +710,8 @@ export async function getDefaultCompany(): Promise<Company> {
     .eq("slug", "alpentech-industries")
     .single();
 
-  if (error || !data) {
+  if (error) throw error;
+  if (!data) {
     throw new Error(
       "Default company 'alpentech-industries' not found. Run the seed script (Task 15) first."
     );
@@ -1047,11 +1026,9 @@ export default function LandingPage() {
         operations in one place.
       </p>
       <div className="flex gap-3">
-        <Button asChild>
-          <Link href="/signup">Create an account</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/login">Log in</Link>
+        <Button render={<Link href="/signup" />}>Create an account</Button>
+        <Button render={<Link href="/login" />} variant="outline">
+          Log in
         </Button>
       </div>
     </main>
@@ -1550,7 +1527,7 @@ describe("AppLayout", () => {
 
     const element = await AppLayout({ children: "hello" });
     expect(JSON.stringify(element)).toContain("Max Mustermann");
-    expect(JSON.stringify(element)).toContain("it");
+    expect(JSON.stringify(element)).toContain('"it"');
   });
 });
 ```

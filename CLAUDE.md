@@ -27,6 +27,7 @@ This file is read automatically by Claude Code at the start of every session in 
 - Architecture & tech stack spec: `docs/architecture.md`
 - Implementation plans (one per build phase): `docs/superpowers/plans/`
 - Full phase breakdown and build order: `docs/superpowers/plans/2026-08-26-remaining-phases-outline.md`
+- **Project status board:** `docs/STATUS.md` — Backlog / In Progress / Review / Finished. **Keep it current as part of the work, not as an afterthought:** move a phase or piece of work to a new column the moment its state actually changes (starting it, opening a PR, merging it), not in a separate later pass.
 
 ## Workflow
 
