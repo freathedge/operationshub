@@ -57,7 +57,7 @@ Principles:
 | API layer | REST via Next.js Route Handlers | Explicit, easy to read/demo, no extra infrastructure |
 | Validation | Zod | Request body validation in route handlers, shared types with frontend |
 | Data fetching (frontend) | React Query (TanStack Query) | Caching, refetching, optimistic updates for task/status changes |
-| UI components | shadcn/ui + Tailwind | Matches the "professional / structured / enterprise" design direction (idea.md §30); full styling control |
+| UI components | shadcn/ui + Tailwind | Matches the "professional / structured / enterprise" design direction (idea.md §30); full styling control. Build screens from shadcn/ui's pre-made blocks (e.g. the dashboard blocks at [ui.shadcn.com/blocks](https://ui.shadcn.com/blocks)) rather than composing primitives from scratch wherever a matching block exists — pull it in via the shadcn CLI and adapt it to this project's data/routes. |
 | Forms | React Hook Form + Zod | Request creation, task creation, etc. |
 | Charts | Recharts | Reports (idea.md §17) |
 | Deployment | Vercel | Native Next.js hosting, preview deployments |
