@@ -3575,6 +3575,19 @@ interface TaskListItem {
 const STATUS_OPTIONS = ["todo", "in_progress", "blocked", "completed", "cancelled"];
 const PRIORITY_OPTIONS = ["low", "medium", "high", "critical"];
 
+// Note (ruled on during execution, 2026-08-27): `<option>` labels are title-cased via
+// this helper rather than rendering the raw enum value verbatim. The `<option value="...">`
+// still carries the raw value (filtering/query-param behavior unchanged) — only the visible
+// label changed. This was required, not cosmetic: the test below does `screen.getByText("todo")`,
+// which the original raw-value rendering made ambiguous (it matched both the status Badge's
+// "todo" text and this dropdown's literal "todo" option label).
+function formatOptionLabel(value: string): string {
+  return value
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 export function TaskListView({ companyId }: { companyId: string }) {
   const [status, setStatus] = useState("");
   const [priority, setPriority] = useState("");
@@ -3609,7 +3622,7 @@ export function TaskListView({ companyId }: { companyId: string }) {
             <option value="">All statuses</option>
             {STATUS_OPTIONS.map((option) => (
               <option key={option} value={option}>
-                {option}
+                {formatOptionLabel(option)}
               </option>
             ))}
           </select>
@@ -3621,7 +3634,7 @@ export function TaskListView({ companyId }: { companyId: string }) {
             <option value="">All priorities</option>
             {PRIORITY_OPTIONS.map((option) => (
               <option key={option} value={option}>
-                {option}
+                {formatOptionLabel(option)}
               </option>
             ))}
           </select>
