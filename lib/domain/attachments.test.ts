@@ -96,5 +96,12 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       const downloadUrl = await createSignedDownloadUrl(result.attachment.storagePath);
       expect(downloadUrl).toBeTruthy();
     });
+
+    it("returns null for a path that was never uploaded to", async () => {
+      const orphanedPath = `task/${entityId}/${crypto.randomUUID()}-orphaned.pdf`;
+
+      const downloadUrl = await createSignedDownloadUrl(orphanedPath);
+      expect(downloadUrl).toBeNull();
+    });
   }
 );

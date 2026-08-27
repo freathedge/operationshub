@@ -7,7 +7,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 interface AttachmentWithUrl {
   id: string;
   storagePath: string;
-  downloadUrl: string;
+  downloadUrl: string | null;
 }
 
 export function TaskAttachments({
@@ -64,9 +64,15 @@ export function TaskAttachments({
       <ul className="flex flex-col gap-1 text-sm">
         {initialAttachments.map((attachment) => (
           <li key={attachment.id}>
-            <a href={attachment.downloadUrl} className="hover:underline">
-              {attachment.storagePath.split("/").pop()}
-            </a>
+            {attachment.downloadUrl ? (
+              <a href={attachment.downloadUrl} className="hover:underline">
+                {attachment.storagePath.split("/").pop()}
+              </a>
+            ) : (
+              <span className="text-muted-foreground">
+                {attachment.storagePath.split("/").pop()} (unavailable)
+              </span>
+            )}
           </li>
         ))}
         {initialAttachments.length === 0 && (

@@ -41,7 +41,12 @@ export async function POST(
   }
   const { id } = await params;
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const parsed = addCommentSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -54,7 +59,11 @@ export async function POST(
     }
     const comment = await addComment("task", task.id, profile.id, parsed.data.body);
     await logActivity("task", task.id, profile.id, `${profile.fullName} commented on this task`);
-    await broadcastChange(profile.companyId, "tasks", { type: "task_updated" });
+    try {
+      await broadcastChange(profile.companyId, "tasks", { type: "task_updated" });
+    } catch (error) {
+      console.error("broadcastChange failed:", error);
+    }
     return NextResponse.json({ comment }, { status: 201 });
   } catch (error) {
     return toErrorResponse(error);

@@ -87,7 +87,11 @@ export async function createTask(profile: Profile, input: CreateTaskInput): Prom
 
   const task = toTask(data);
   await logActivity("task", task.id, profile.id, `${profile.fullName} created this task`);
-  await broadcastChange(profile.companyId, "tasks", { type: "task_created" });
+  try {
+    await broadcastChange(profile.companyId, "tasks", { type: "task_created" });
+  } catch (error) {
+    console.error("broadcastChange failed:", error);
+  }
   return task;
 }
 
@@ -172,7 +176,11 @@ export async function updateTaskStatus(
     profile.id,
     `${profile.fullName} changed status from "${task.status}" to "${newStatus}"`
   );
-  await broadcastChange(profile.companyId, "tasks", { type: "task_updated" });
+  try {
+    await broadcastChange(profile.companyId, "tasks", { type: "task_updated" });
+  } catch (error) {
+    console.error("broadcastChange failed:", error);
+  }
   return updated;
 }
 
@@ -208,7 +216,11 @@ export async function assignTask(
     profile.id,
     `${profile.fullName} assigned this task to ${targetAssignee.fullName}`
   );
-  await broadcastChange(profile.companyId, "tasks", { type: "task_updated" });
+  try {
+    await broadcastChange(profile.companyId, "tasks", { type: "task_updated" });
+  } catch (error) {
+    console.error("broadcastChange failed:", error);
+  }
   return updated;
 }
 
@@ -222,5 +234,9 @@ export async function deleteTask(profile: Profile, taskId: string): Promise<void
   const { error } = await supabase.from("tasks").delete().eq("id", taskId);
   if (error) throw error;
 
-  await broadcastChange(profile.companyId, "tasks", { type: "task_deleted" });
+  try {
+    await broadcastChange(profile.companyId, "tasks", { type: "task_deleted" });
+  } catch (error) {
+    console.error("broadcastChange failed:", error);
+  }
 }

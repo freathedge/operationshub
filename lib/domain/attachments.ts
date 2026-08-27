@@ -62,12 +62,12 @@ export async function createSignedUploadUrl(
   return { attachment: toAttachment(data), signedUrl: signed.signedUrl, token: signed.token };
 }
 
-export async function createSignedDownloadUrl(storagePath: string): Promise<string> {
+export async function createSignedDownloadUrl(storagePath: string): Promise<string | null> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase.storage
     .from(ATTACHMENTS_BUCKET)
     .createSignedUrl(storagePath, 60);
-  if (error) throw error;
+  if (error) return null;
   return data.signedUrl;
 }
 

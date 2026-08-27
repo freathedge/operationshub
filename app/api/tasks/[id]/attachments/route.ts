@@ -8,6 +8,7 @@ import {
   listAttachments,
 } from "@/lib/domain/attachments";
 import { logActivity } from "@/lib/domain/activity";
+import { broadcastChange } from "@/lib/realtime/broadcast";
 import { createAttachmentSchema } from "@/lib/validation/tasks";
 import { toErrorResponse } from "@/lib/api/error-response";
 import { ForbiddenError } from "@/lib/domain/errors";
@@ -50,7 +51,12 @@ export async function POST(
   }
   const { id } = await params;
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const parsed = createAttachmentSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -68,6 +74,11 @@ export async function POST(
       parsed.data.filename
     );
     await logActivity("task", task.id, profile.id, `${profile.fullName} attached a file`);
+    try {
+      await broadcastChange(profile.companyId, "tasks", { type: "task_updated" });
+    } catch (error) {
+      console.error("broadcastChange failed:", error);
+    }
     return NextResponse.json(
       { attachment: result.attachment, token: result.token },
       { status: 201 }
