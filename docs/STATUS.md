@@ -20,11 +20,13 @@ Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline
 
 ## In Progress
 
-- **Phase 2 — Tasks**: task CRUD, comments, activity log, attachments, first Realtime broadcast usage. Spec: `docs/superpowers/specs/2026-08-27-phase2-tasks-design.md`. Plan: `docs/superpowers/plans/2026-08-27-phase2-tasks.md`.
+_(nothing right now)_
 
 ## Review
 
-_(nothing right now)_
+- **Phase 2 — Tasks**: task CRUD, comments, activity log, attachments, first Realtime broadcast usage. Spec: `docs/superpowers/specs/2026-08-27-phase2-tasks-design.md`. Plan: `docs/superpowers/plans/2026-08-27-phase2-tasks.md`.
+  - Branch `worktree-phase2-tasks-plan`, pushed; PR pending (open at https://github.com/freathedge/operationshub/pull/new/worktree-phase2-tasks-plan).
+  - Deferred to Phase 3+ (not blockers, see PR description): `listTasks`/`canViewTask` visibility-logic duplication, short signed-download-URL TTL, `deleteTask` not cleaning up child comments/activity/attachments.
 
 ## Finished
 

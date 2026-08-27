@@ -51,11 +51,26 @@ export async function getProfileByAuthUserId(
   return toProfile(data);
 }
 
+export async function getProfileById(id: string): Promise<Profile | null> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(PROFILE_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+  return toProfile(data);
+}
+
 export async function createProfile(input: {
   authUserId: string;
   companyId: string;
   fullName: string;
   role: Role;
+  departmentId?: string | null;
+  managerId?: string | null;
 }): Promise<Profile> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
@@ -65,6 +80,8 @@ export async function createProfile(input: {
       company_id: input.companyId,
       full_name: input.fullName,
       role: input.role,
+      department_id: input.departmentId ?? null,
+      manager_id: input.managerId ?? null,
     })
     .select(PROFILE_COLUMNS)
     .single();

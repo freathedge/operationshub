@@ -42,10 +42,9 @@ Create `supabase/migrations/<YYYYMMDDHHMMSS>_close_schema_usage_gap.sql` (curren
 
 ```sql
 revoke usage on schema public from public;
-
-alter default privileges for role supabase_admin in schema public
-  revoke all on tables from anon, authenticated;
 ```
+
+**Note (ruled on during execution, 2026-08-27):** the plan originally also specified `alter default privileges for role supabase_admin in schema public revoke all on tables from anon, authenticated;` as defense-in-depth. `mcp__claude_ai_Supabase__apply_migration` executes as role `postgres`, which is not a member of `supabase_admin` and cannot alter that role's default privileges (`42501: permission denied to change default privileges`) — Postgres only allows `ALTER DEFAULT PRIVILEGES FOR ROLE X` to be run by `X` itself, a member of `X`, or a superuser, and the hosted `postgres` role is none of those. This statement is dropped. It is not load-bearing: every migration in this plan (including Tasks 2–5) runs via `apply_migration` as `postgres`, so every table this plan creates is already covered by the existing Foundation-phase migration `20260826230306_revoke_anon_authenticated_table_grants.sql`'s default-privilege revoke (which is correctly scoped to the `postgres` grantor). The `supabase_admin` default ACL only matters for tables created through a different path (e.g. the Supabase Studio UI) — out of scope for this plan — and even then, the schema-`USAGE` revoke below is what actually blocks `anon`/`authenticated` from reaching *any* object in `public`, regardless of that object's own grants or default privileges. The single `revoke usage` statement is therefore sufficient to close the gap for everything this plan touches.
 
 - [ ] **Step 2: Apply the migration**
 
@@ -112,7 +111,7 @@ create table tasks (
   status task_status not null default 'todo',
   priority task_priority not null default 'medium',
   assignee_id uuid references profiles(id) on delete set null,
-  creator_id uuid not null references profiles(id) on delete set null,
+  creator_id uuid references profiles(id) on delete set null,
   department_id uuid references departments(id) on delete set null,
   related_employee_id uuid references profiles(id) on delete set null,
   due_date timestamptz,
@@ -125,6 +124,8 @@ create index tasks_assignee_id_idx on tasks(assignee_id);
 create index tasks_department_id_idx on tasks(department_id);
 create index tasks_status_idx on tasks(status);
 ```
+
+**Note (ruled on during execution, 2026-08-27):** `creator_id` was originally specified as `not null` alongside `on delete set null`. That combination is self-contradictory in Postgres: deleting the referenced `profiles` row fires the `SET NULL` action, which then immediately violates the column's own `NOT NULL` constraint, aborting the delete with an error. Dropped `not null` — `creator_id` is now nullable, matching the existing pattern already used by `assignee_id`, `department_id`, and `related_employee_id` in this same table (and by `activity_log.actor_id`). `createTask` always sets a real profile id at insert time; the column only goes `null` later, if that profile is ever deleted. The corresponding domain type (`Task.creatorId` in Task 14) is `string | null` to match. If this task's migration was already applied with the old `not null` before this note was added, a follow-up corrective migration (`alter table tasks alter column creator_id drop not null;`) closes the gap — see the ledger for whether that was needed.
 
 - [ ] **Step 2: Apply the migration**
 
@@ -172,13 +173,15 @@ create table comments (
   id uuid primary key default gen_random_uuid(),
   entity_type text not null,
   entity_id uuid not null,
-  author_id uuid not null references profiles(id) on delete set null,
+  author_id uuid references profiles(id) on delete set null,
   body text not null,
   created_at timestamptz not null default now()
 );
 
 create index comments_entity_idx on comments(entity_type, entity_id);
 ```
+
+**Note (ruled on during execution, 2026-08-27):** `author_id` was originally `not null` alongside `on delete set null` — self-contradictory for the same reason as `tasks.creator_id` (see Task 2's note). Dropped `not null`; `addComment` always passes a real profile id at insert time, the column only goes `null` later if that profile is deleted. `Comment.authorId` (Task 12) is `string | null`.
 
 - [ ] **Step 2: Apply the migration**
 
@@ -267,7 +270,7 @@ create table attachments (
   entity_type text not null,
   entity_id uuid not null,
   storage_path text not null,
-  uploaded_by uuid not null references profiles(id) on delete set null,
+  uploaded_by uuid references profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
@@ -277,6 +280,8 @@ insert into storage.buckets (id, name, public)
 values ('attachments', 'attachments', false)
 on conflict (id) do nothing;
 ```
+
+**Note (ruled on during execution, 2026-08-27):** `uploaded_by` was originally `not null` alongside `on delete set null` — self-contradictory for the same reason as `tasks.creator_id` (see Task 2's note). Dropped `not null`; `createSignedUploadUrl` always passes a real profile id at insert time, the column only goes `null` later if that profile is deleted. `Attachment.uploadedBy` (Task 19) is `string | null`.
 
 - [ ] **Step 2: Apply the migration**
 
@@ -610,7 +615,7 @@ describe("patchTaskSchema", () => {
 
   it("accepts an assigneeId-only payload", () => {
     expect(
-      patchTaskSchema.safeParse({ assigneeId: "11111111-1111-1111-1111-111111111111" }).success
+      patchTaskSchema.safeParse({ assigneeId: "11111111-1111-4111-8111-111111111111" }).success
     ).toBe(true);
   });
 
@@ -1060,7 +1065,7 @@ import type { Profile } from "@/lib/domain/profiles";
 
 export interface TaskLike {
   companyId: string;
-  creatorId: string;
+  creatorId: string | null;
   assigneeId: string | null;
   departmentId: string | null;
 }
@@ -1413,7 +1418,7 @@ export interface Comment {
   id: string;
   entityType: string;
   entityId: string;
-  authorId: string;
+  authorId: string | null;
   body: string;
   createdAt: string;
 }
@@ -1422,7 +1427,7 @@ interface CommentRow {
   id: string;
   entity_type: string;
   entity_id: string;
-  author_id: string;
+  author_id: string | null;
   body: string;
   created_at: string;
 }
@@ -1790,7 +1795,7 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   assigneeId: string | null;
-  creatorId: string;
+  creatorId: string | null;
   departmentId: string | null;
   relatedEmployeeId: string | null;
   dueDate: string | null;
@@ -1806,7 +1811,7 @@ interface TaskRow {
   status: TaskStatus;
   priority: TaskPriority;
   assignee_id: string | null;
-  creator_id: string;
+  creator_id: string | null;
   department_id: string | null;
   related_employee_id: string | null;
   due_date: string | null;
@@ -1975,9 +1980,16 @@ And add these `it` blocks inside the existing `describe.skipIf(...)(...)` block:
       );
     });
 
+    // Note (ruled on during execution, 2026-08-27): the positive case below uses
+    // `employee` (the task's creator), not `managerA`, as the authorized actor.
+    // `canChangeTaskStatus` (Task 10) has no department-manager branch — only
+    // assignee, creator, assignee's manager, and elevated roles can change status —
+    // so managerA has no relationship to an unassigned, department-less task
+    // created by someone else and would correctly be denied too. The creator is
+    // the correct, unambiguous positive case for this test.
     it("denies a status change from an unrelated employee", async () => {
       const task = await createTask(employee, { title: "Unauthorized status change" });
-      await expect(updateTaskStatus(managerA, task.id, "in_progress")).resolves.toBeDefined();
+      await expect(updateTaskStatus(employee, task.id, "in_progress")).resolves.toBeDefined();
 
       const stranger = await (async () => {
         const { data: authUser, error } = await supabase.auth.admin.createUser({
@@ -2012,6 +2024,12 @@ And add these `it` blocks inside the existing `describe.skipIf(...)(...)` block:
       expect(selfClaimed.assigneeId).toBe(managerA.id);
     });
 
+    // Note (ruled on during execution, 2026-08-27): the target below is `managerA.id`,
+    // not `stranger.id`. `canAssignTask` (Task 10) always allows self-claim
+    // (`profile.id === targetAssignee.id`) by design — an unrelated employee assigning
+    // a task to *themselves* is intentionally permitted, so that scenario can't be used
+    // to test denial. Assigning to a third party unrelated to both the caller and the
+    // task is the correct denial case.
     it("denies assignment from an unrelated employee", async () => {
       const task = await createTask(employee, { title: "Denied assignment test" });
       const stranger = await (async () => {
@@ -2031,7 +2049,7 @@ And add these `it` blocks inside the existing `describe.skipIf(...)(...)` block:
         });
       })();
 
-      await expect(assignTask(stranger, task.id, stranger.id)).rejects.toBeInstanceOf(
+      await expect(assignTask(stranger, task.id, managerA.id)).rejects.toBeInstanceOf(
         ForbiddenError
       );
     });
@@ -2479,14 +2497,14 @@ describe("PATCH /api/tasks/[id]", () => {
     vi.mocked(assignTask).mockResolvedValue({ id: "task-1" } as never);
 
     const response = await PATCH(
-      jsonRequest({ assigneeId: "11111111-1111-1111-1111-111111111111" }),
+      jsonRequest({ assigneeId: "11111111-1111-4111-8111-111111111111" }),
       params("task-1")
     );
     expect(response.status).toBe(200);
     expect(assignTask).toHaveBeenCalledWith(
       PROFILE,
       "task-1",
-      "11111111-1111-1111-1111-111111111111"
+      "11111111-1111-4111-8111-111111111111"
     );
   });
 
@@ -2902,6 +2920,12 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       expect(attachments.map((a) => a.id)).toContain(result.attachment.id);
     });
 
+    // Note (ruled on during execution, 2026-08-27): a signed *upload* URL only reserves a
+    // path — Supabase Storage refuses to issue a signed *download* URL for a path with no
+    // object actually uploaded to it yet (`StorageApiError: Object not found`). The original
+    // version of this test called createSignedDownloadUrl without ever uploading anything.
+    // Fixed by actually uploading a small payload via uploadToSignedUrl first, mirroring real
+    // usage (client PUTs the file via the signed upload URL, then later reads it back).
     it("creates a signed download URL for a stored path", async () => {
       const result = await createSignedUploadUrl(
         "task",
@@ -2910,6 +2934,11 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
         "photo.png"
       );
       createdPaths.push(result.attachment.storagePath);
+
+      const { error: uploadError } = await supabase.storage
+        .from("attachments")
+        .uploadToSignedUrl(result.attachment.storagePath, result.token, Buffer.from("test"));
+      if (uploadError) throw uploadError;
 
       const downloadUrl = await createSignedDownloadUrl(result.attachment.storagePath);
       expect(downloadUrl).toBeTruthy();
@@ -2935,7 +2964,7 @@ export interface Attachment {
   entityType: string;
   entityId: string;
   storagePath: string;
-  uploadedBy: string;
+  uploadedBy: string | null;
   createdAt: string;
 }
 
@@ -2944,7 +2973,7 @@ interface AttachmentRow {
   entity_type: string;
   entity_id: string;
   storage_path: string;
-  uploaded_by: string;
+  uploaded_by: string | null;
   created_at: string;
 }
 
@@ -3546,6 +3575,19 @@ interface TaskListItem {
 const STATUS_OPTIONS = ["todo", "in_progress", "blocked", "completed", "cancelled"];
 const PRIORITY_OPTIONS = ["low", "medium", "high", "critical"];
 
+// Note (ruled on during execution, 2026-08-27): `<option>` labels are title-cased via
+// this helper rather than rendering the raw enum value verbatim. The `<option value="...">`
+// still carries the raw value (filtering/query-param behavior unchanged) — only the visible
+// label changed. This was required, not cosmetic: the test below does `screen.getByText("todo")`,
+// which the original raw-value rendering made ambiguous (it matched both the status Badge's
+// "todo" text and this dropdown's literal "todo" option label).
+function formatOptionLabel(value: string): string {
+  return value
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 export function TaskListView({ companyId }: { companyId: string }) {
   const [status, setStatus] = useState("");
   const [priority, setPriority] = useState("");
@@ -3580,7 +3622,7 @@ export function TaskListView({ companyId }: { companyId: string }) {
             <option value="">All statuses</option>
             {STATUS_OPTIONS.map((option) => (
               <option key={option} value={option}>
-                {option}
+                {formatOptionLabel(option)}
               </option>
             ))}
           </select>
@@ -3592,12 +3634,14 @@ export function TaskListView({ companyId }: { companyId: string }) {
             <option value="">All priorities</option>
             {PRIORITY_OPTIONS.map((option) => (
               <option key={option} value={option}>
-                {option}
+                {formatOptionLabel(option)}
               </option>
             ))}
           </select>
         </div>
-        <Button render={<Link href="/tasks/new" />}>New task</Button>
+        <Button render={<Link href="/tasks/new" />} nativeButton={false}>
+          New task
+        </Button>
       </div>
 
       {isLoading && <p className="text-muted-foreground">Loading tasks...</p>}

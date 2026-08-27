@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:unit": "vitest run --exclude \"lib/domain/profiles.test.ts\" --exclude \"lib/domain/seed.test.ts\" --exclude \"scripts/seed.smoke.test.ts\"",
-    "test:integration": "vitest run lib/domain/profiles.test.ts lib/domain/seed.test.ts scripts/seed.smoke.test.ts",
+    "test:unit": "vitest run --exclude \"lib/domain/profiles.test.ts\" --exclude \"lib/domain/seed.test.ts\" --exclude \"lib/domain/activity.test.ts\" --exclude \"lib/domain/comments.test.ts\" --exclude \"lib/domain/tasks.test.ts\" --exclude \"lib/domain/attachments.test.ts\" --exclude \"scripts/seed.smoke.test.ts\"",
+    "test:integration": "vitest run lib/domain/profiles.test.ts lib/domain/seed.test.ts lib/domain/activity.test.ts lib/domain/comments.test.ts lib/domain/tasks.test.ts lib/domain/attachments.test.ts scripts/seed.smoke.test.ts",
     "test:watch": "vitest",
     "seed": "tsx --conditions=react-server scripts/seed.ts"
   },
@@ -18,6 +18,7 @@
     "@hookform/resolvers": "^5.9.1",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
+    "@tanstack/react-query": "^5.102.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.34.0",

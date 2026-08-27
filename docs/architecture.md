@@ -195,12 +195,15 @@ lib/
   validation/            zod schemas, shared between route handlers and frontend forms
 components/
   ui/                    shadcn primitives
+  back-link.tsx          shared back-navigation link (see below)
   <feature>/             feature-specific components (tasks/, requests/, dashboard/, ...)
 supabase/
   migrations/            versioned SQL migrations
 scripts/
   seed.ts                seeds AlpenTech Industries fictional data
 ```
+
+**Back navigation:** every page except the landing page (`/`) and the authenticated app's `/dashboard` renders a `<BackLink href="...">` at the top of its content, pointing at its logical parent route (e.g. a task detail page → `/tasks`, `/tasks/new` → `/tasks`, `/tasks` → `/dashboard`). This is a fixed destination per page, not `router.back()`/browser history — predictable regardless of whether the page was reached via in-app navigation, a direct link, or a reload. Established during the Foundation phase for `/login`/`/signup` and generalized into the shared `components/back-link.tsx` component during Phase 2; every later phase's pages follow the same convention.
 
 ---
 
