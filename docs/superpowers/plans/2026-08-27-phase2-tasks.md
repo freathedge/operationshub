@@ -3639,7 +3639,9 @@ export function TaskListView({ companyId }: { companyId: string }) {
             ))}
           </select>
         </div>
-        <Button render={<Link href="/tasks/new" />}>New task</Button>
+        <Button render={<Link href="/tasks/new" />} nativeButton={false}>
+          New task
+        </Button>
       </div>
 
       {isLoading && <p className="text-muted-foreground">Loading tasks...</p>}
