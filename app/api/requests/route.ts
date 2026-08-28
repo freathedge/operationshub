@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentProfile } from "@/lib/auth/session";
-import { createRequest, listRequests, submitRequest } from "@/lib/domain/requests";
+import { createRequest, deleteRequest, listRequests, submitRequest } from "@/lib/domain/requests";
 import { createRequestSchema, requestFiltersSchema } from "@/lib/validation/requests";
 import { toErrorResponse } from "@/lib/api/error-response";
 
@@ -35,17 +35,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const parsed = createRequestSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+  let created: Awaited<ReturnType<typeof createRequest>> | undefined;
   try {
-    const created = await createRequest(profile, parsed.data);
+    created = await createRequest(profile, parsed.data);
     const submitted = await submitRequest(profile, created.id);
     return NextResponse.json({ request: submitted }, { status: 201 });
   } catch (error) {
+    if (created) {
+      try {
+        await deleteRequest(created.id);
+      } catch (cleanupError) {
+        console.error("Failed to clean up orphaned draft request:", cleanupError);
+      }
+    }
     return toErrorResponse(error);
   }
 }

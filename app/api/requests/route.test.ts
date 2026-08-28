@@ -5,14 +5,15 @@ vi.mock("@/lib/auth/session", () => ({
 }));
 vi.mock("@/lib/domain/requests", () => ({
   createRequest: vi.fn(),
+  deleteRequest: vi.fn(),
   listRequests: vi.fn(),
   submitRequest: vi.fn(),
 }));
 
 import { getCurrentProfile } from "@/lib/auth/session";
-import { createRequest, listRequests, submitRequest } from "@/lib/domain/requests";
+import { createRequest, deleteRequest, listRequests, submitRequest } from "@/lib/domain/requests";
 import { GET, POST } from "@/app/api/requests/route";
-import { ForbiddenError } from "@/lib/domain/errors";
+import { ForbiddenError, UnprocessableRequestError } from "@/lib/domain/errors";
 
 const PROFILE = {
   id: "profile-1",
@@ -27,6 +28,7 @@ const PROFILE = {
 beforeEach(() => {
   vi.mocked(getCurrentProfile).mockReset();
   vi.mocked(createRequest).mockReset();
+  vi.mocked(deleteRequest).mockReset();
   vi.mocked(listRequests).mockReset();
   vi.mocked(submitRequest).mockReset();
 });
@@ -96,5 +98,30 @@ describe("POST /api/requests", () => {
 
     const response = await POST(jsonRequest({ title: "New laptop", category: "equipment" }));
     expect(response.status).toBe(403);
+  });
+
+  it("returns 400 when the JSON body is malformed", async () => {
+    vi.mocked(getCurrentProfile).mockResolvedValue(PROFILE);
+    const response = await POST(
+      new Request("http://localhost/api/requests", {
+        method: "POST",
+        body: "{not valid json",
+        headers: { "content-type": "application/json" },
+      })
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("cleans up the orphaned draft and maps to 422 when submitRequest fails after createRequest succeeds", async () => {
+    vi.mocked(getCurrentProfile).mockResolvedValue(PROFILE);
+    vi.mocked(createRequest).mockResolvedValue({ id: "request-1", status: "draft" } as never);
+    vi.mocked(submitRequest).mockRejectedValue(
+      new UnprocessableRequestError("No approver could be resolved for company company-1")
+    );
+    vi.mocked(deleteRequest).mockResolvedValue(undefined);
+
+    const response = await POST(jsonRequest({ title: "New laptop", category: "equipment" }));
+    expect(response.status).toBe(422);
+    expect(deleteRequest).toHaveBeenCalledWith("request-1");
   });
 });

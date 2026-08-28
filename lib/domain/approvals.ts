@@ -77,6 +77,11 @@ export async function decideApproval(
     throw new ForbiddenError("You cannot decide this approval");
   }
 
+  const request = await loadRequestOrThrow(approval.requestId);
+  if (request.companyId !== profile.companyId) {
+    throw new ForbiddenError("You cannot decide this approval");
+  }
+
   const { data: updatedRow, error: updateError } = await supabase
     .from("approvals")
     .update({
@@ -90,7 +95,6 @@ export async function decideApproval(
   if (updateError) throw updateError;
   const updatedApproval = toApproval(updatedRow);
 
-  const request = await loadRequestOrThrow(approval.requestId);
   const newRequestStatus = decision === "approved" ? "approved" : "rejected";
   const { error: requestUpdateError } = await supabase
     .from("requests")

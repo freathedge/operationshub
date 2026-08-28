@@ -120,5 +120,46 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       const approval = await getApprovalForRequest(draft.id);
       expect(approval).toBeNull();
     });
+
+    it("denies an elevated-role profile from a different company from deciding the approval", async () => {
+      const draft = await createRequest(requester, {
+        title: "Cross-company decision",
+        category: "general",
+      });
+      const submitted = await submitRequest(requester, draft.id);
+      const approval = await getApprovalForRequest(submitted.id);
+
+      const { data: otherCompany, error: otherCompanyError } = await supabase
+        .from("companies")
+        .upsert(
+          { name: "Test Co (approvals, other)", slug: "test-co-approvals-other" },
+          { onConflict: "slug" }
+        )
+        .select("id")
+        .single();
+      if (otherCompanyError) throw otherCompanyError;
+
+      const { data: otherAuthUser, error: otherAuthError } = await supabase.auth.admin.createUser({
+        email: `approvals-test-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+      if (otherAuthError || !otherAuthUser.user) throw otherAuthError;
+
+      const otherOpsManager = await createProfile({
+        authUserId: otherAuthUser.user.id,
+        companyId: otherCompany.id,
+        fullName: "Other Co Ops Manager",
+        role: "operations_manager",
+      });
+
+      await expect(
+        decideApproval(otherOpsManager, approval!.id, "approved")
+      ).rejects.toBeInstanceOf(ForbiddenError);
+
+      await supabase.from("profiles").delete().eq("id", otherOpsManager.id);
+      await supabase.auth.admin.deleteUser(otherAuthUser.user.id);
+      await supabase.from("companies").delete().eq("id", otherCompany.id);
+    });
   }
 );

@@ -3,7 +3,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createProfile } from "@/lib/domain/profiles";
 import type { Profile } from "@/lib/domain/profiles";
 import { createRequest, getRequest, listRequests, submitRequest, transitionRequestStatus } from "@/lib/domain/requests";
-import { ForbiddenError, InvalidTransitionError } from "@/lib/domain/errors";
+import { ForbiddenError, InvalidTransitionError, UnprocessableRequestError } from "@/lib/domain/errors";
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
   "createRequest / getRequest / listRequests",
@@ -312,7 +312,9 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
         category: "general",
       });
 
-      await expect(submitRequest(requester, draft.id)).rejects.toThrow();
+      await expect(submitRequest(requester, draft.id)).rejects.toBeInstanceOf(
+        UnprocessableRequestError
+      );
 
       await supabase.from("requests").delete().eq("company_id", emptyCompany.id);
       await supabase.from("profiles").delete().eq("id", requester.id);

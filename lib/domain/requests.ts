@@ -8,7 +8,12 @@ import {
   canTransitionRequestStatus,
   canViewRequest,
 } from "@/lib/domain/permissions";
-import { ForbiddenError, InvalidTransitionError, NotFoundError } from "@/lib/domain/errors";
+import {
+  ForbiddenError,
+  InvalidTransitionError,
+  NotFoundError,
+  UnprocessableRequestError,
+} from "@/lib/domain/errors";
 import type { CreateRequestInput, RequestFilters } from "@/lib/validation/requests";
 import {
   REQUEST_STATUS_TRANSITIONS,
@@ -174,9 +179,15 @@ async function resolveApprover(profile: Profile): Promise<Profile> {
   const admin = await findEarliestProfileByRole(profile.companyId, "admin");
   if (admin) return admin;
 
-  throw new Error(
+  throw new UnprocessableRequestError(
     `No approver could be resolved for company ${profile.companyId}: the requester has no manager, and the company has no operations_manager or admin profile.`
   );
+}
+
+export async function deleteRequest(requestId: string): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase.from("requests").delete().eq("id", requestId);
+  if (error) throw error;
 }
 
 export async function submitRequest(profile: Profile, requestId: string): Promise<Request> {
