@@ -395,5 +395,27 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
         transitionRequestStatus(stranger, submitted.id, "in_progress")
       ).rejects.toBeInstanceOf(ForbiddenError);
     });
+
+    it("still resolves visibility correctly when a request has more than one approval row", async () => {
+      const request = await createRequest(employee, { title: "Multi-approval test", category: "general" });
+      const submitted = await submitRequest(employee, request.id);
+      const { data: firstApproval, error: firstApprovalError } = await supabase
+        .from("approvals")
+        .select("id, approver_id")
+        .eq("request_id", submitted.id)
+        .single();
+      if (firstApprovalError) throw firstApprovalError;
+
+      const { error: secondApprovalError } = await supabase.from("approvals").insert({
+        request_id: submitted.id,
+        approver_id: opsManager.id,
+        status: "pending",
+      });
+      if (secondApprovalError) throw secondApprovalError;
+
+      await expect(getRequest(opsManager, submitted.id)).resolves.toMatchObject({
+        id: submitted.id,
+      });
+    });
   }
 );

@@ -6,6 +6,7 @@ import { canAssignTask, canChangeTaskStatus, canCreateTask, canDeleteTask, canVi
 import { ForbiddenError, InvalidTransitionError, NotFoundError } from "@/lib/domain/errors";
 import type { CreateTaskInput, TaskFilters } from "@/lib/validation/tasks";
 import { TASK_STATUS_TRANSITIONS, type TaskPriority, type TaskStatus } from "@/lib/domain/task-status";
+import { advanceWorkflow } from "@/lib/domain/workflows";
 
 export interface Task {
   id: string;
@@ -18,6 +19,7 @@ export interface Task {
   creatorId: string | null;
   departmentId: string | null;
   relatedEmployeeId: string | null;
+  relatedWorkflowInstanceId: string | null;
   dueDate: string | null;
   completedAt: string | null;
   createdAt: string;
@@ -34,6 +36,7 @@ interface TaskRow {
   creator_id: string | null;
   department_id: string | null;
   related_employee_id: string | null;
+  related_workflow_instance_id: string | null;
   due_date: string | null;
   completed_at: string | null;
   created_at: string;
@@ -51,6 +54,7 @@ function toTask(row: TaskRow): Task {
     creatorId: row.creator_id,
     departmentId: row.department_id,
     relatedEmployeeId: row.related_employee_id,
+    relatedWorkflowInstanceId: row.related_workflow_instance_id,
     dueDate: row.due_date,
     completedAt: row.completed_at,
     createdAt: row.created_at,
@@ -58,7 +62,7 @@ function toTask(row: TaskRow): Task {
 }
 
 const TASK_COLUMNS =
-  "id, company_id, title, description, status, priority, assignee_id, creator_id, department_id, related_employee_id, due_date, completed_at, created_at";
+  "id, company_id, title, description, status, priority, assignee_id, creator_id, department_id, related_employee_id, related_workflow_instance_id, due_date, completed_at, created_at";
 
 const COMPANY_WIDE_VIEW_ROLES = new Set(["operations_manager", "it", "hr", "admin"]);
 
@@ -181,6 +185,15 @@ export async function updateTaskStatus(
   } catch (error) {
     console.error("broadcastChange failed:", error);
   }
+
+  if (newStatus === "completed" && updated.relatedWorkflowInstanceId) {
+    try {
+      await advanceWorkflow(profile, updated.relatedWorkflowInstanceId);
+    } catch (workflowError) {
+      console.error("advanceWorkflow failed:", workflowError);
+    }
+  }
+
   return updated;
 }
 

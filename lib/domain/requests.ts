@@ -112,6 +112,8 @@ async function loadApproverIdForRequest(requestId: string): Promise<string | nul
     .from("approvals")
     .select("approver_id")
     .eq("request_id", requestId)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (error) throw error;
   return data?.approver_id ?? null;
