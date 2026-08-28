@@ -49,6 +49,51 @@ export type Database = {
           },
         ]
       }
+      approvals: {
+        Row: {
+          approver_id: string | null
+          comment: string | null
+          created_at: string
+          decided_at: string | null
+          id: string
+          request_id: string
+          status: Database["public"]["Enums"]["approval_status"]
+        }
+        Insert: {
+          approver_id?: string | null
+          comment?: string | null
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          request_id: string
+          status?: Database["public"]["Enums"]["approval_status"]
+        }
+        Update: {
+          approver_id?: string | null
+          comment?: string | null
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          request_id?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approvals_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approvals_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attachments: {
         Row: {
           created_at: string
@@ -198,6 +243,47 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          message: string
+          profile_id: string
+          read_at: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          message: string
+          profile_id: string
+          read_at?: string | null
+          type: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          message?: string
+          profile_id?: string
+          read_at?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           auth_user_id: string
@@ -253,6 +339,64 @@ export type Database = {
           },
         ]
       }
+      requests: {
+        Row: {
+          category: Database["public"]["Enums"]["request_category"]
+          company_id: string
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          description: string | null
+          id: string
+          status: Database["public"]["Enums"]["request_status"]
+          title: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["request_category"]
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          description?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["request_status"]
+          title: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["request_category"]
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          description?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["request_status"]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requests_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assignee_id: string | null
@@ -266,6 +410,7 @@ export type Database = {
           id: string
           priority: Database["public"]["Enums"]["task_priority"]
           related_employee_id: string | null
+          related_request_id: string | null
           status: Database["public"]["Enums"]["task_status"]
           title: string
         }
@@ -281,6 +426,7 @@ export type Database = {
           id?: string
           priority?: Database["public"]["Enums"]["task_priority"]
           related_employee_id?: string | null
+          related_request_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title: string
         }
@@ -296,6 +442,7 @@ export type Database = {
           id?: string
           priority?: Database["public"]["Enums"]["task_priority"]
           related_employee_id?: string | null
+          related_request_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
         }
@@ -335,6 +482,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tasks_related_request_id_fkey"
+            columns: ["related_request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -345,6 +499,24 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      approval_status: "pending" | "approved" | "rejected"
+      request_category:
+        | "equipment"
+        | "software"
+        | "access"
+        | "maintenance"
+        | "purchase"
+        | "hr"
+        | "general"
+        | "other"
+      request_status:
+        | "draft"
+        | "submitted"
+        | "under_review"
+        | "approved"
+        | "rejected"
+        | "in_progress"
+        | "completed"
       task_priority: "low" | "medium" | "high" | "critical"
       task_status:
         | "todo"
@@ -486,6 +658,26 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      approval_status: ["pending", "approved", "rejected"],
+      request_category: [
+        "equipment",
+        "software",
+        "access",
+        "maintenance",
+        "purchase",
+        "hr",
+        "general",
+        "other",
+      ],
+      request_status: [
+        "draft",
+        "submitted",
+        "under_review",
+        "approved",
+        "rejected",
+        "in_progress",
+        "completed",
+      ],
       task_priority: ["low", "medium", "high", "critical"],
       task_status: ["todo", "in_progress", "blocked", "completed", "cancelled"],
       user_role: [

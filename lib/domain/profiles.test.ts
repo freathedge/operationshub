@@ -1,6 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createProfile, getProfileByAuthUserId, getProfileById } from "@/lib/domain/profiles";
+import {
+  createProfile,
+  getProfileByAuthUserId,
+  getProfileById,
+  listProfilesByRole,
+} from "@/lib/domain/profiles";
 
 // Integration test — hits the live Supabase project via the service-role key. Skipped
 // (not failed) when the key isn't available so `pnpm test:unit`/CI-without-secrets stays green.
@@ -107,6 +112,54 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
     it("returns null from getProfileById when no profile exists for the id", async () => {
       const result = await getProfileById(crypto.randomUUID());
       expect(result).toBeNull();
+    });
+
+    it("lists profiles by role within a company, excluding the given profile", async () => {
+      const { data: authUserA, error: authErrorA } = await supabase.auth.admin.createUser({
+        email: `profile-test-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+      if (authErrorA || !authUserA.user) throw authErrorA;
+      createdAuthUserIds.push(authUserA.user.id);
+      const managerA = await createProfile({
+        authUserId: authUserA.user.id,
+        companyId,
+        fullName: "Beta Manager",
+        role: "manager",
+      });
+
+      const { data: authUserB, error: authErrorB } = await supabase.auth.admin.createUser({
+        email: `profile-test-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+      if (authErrorB || !authUserB.user) throw authErrorB;
+      createdAuthUserIds.push(authUserB.user.id);
+      const managerB = await createProfile({
+        authUserId: authUserB.user.id,
+        companyId,
+        fullName: "Alpha Manager",
+        role: "manager",
+      });
+
+      const { data: authUserC, error: authErrorC } = await supabase.auth.admin.createUser({
+        email: `profile-test-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+      if (authErrorC || !authUserC.user) throw authErrorC;
+      createdAuthUserIds.push(authUserC.user.id);
+      await createProfile({
+        authUserId: authUserC.user.id,
+        companyId,
+        fullName: "An Employee",
+        role: "employee",
+      });
+
+      const managers = await listProfilesByRole(companyId, "manager", managerA.id);
+      expect(managers.map((p) => p.id)).toEqual([managerB.id]);
+      expect(managers[0].fullName).toBe("Alpha Manager");
     });
   }
 );

@@ -62,3 +62,52 @@ export function canDeleteTask(profile: Profile, task: TaskLike): boolean {
 
 export const canComment = canViewTask;
 export const canUploadAttachment = canViewTask;
+
+export interface RequestLike {
+  companyId: string;
+  createdBy: string | null;
+  departmentId: string | null;
+}
+
+export function canCreateRequest(_profile: Profile): boolean {
+  return true;
+}
+
+export function canViewRequest(
+  profile: Profile,
+  request: RequestLike,
+  approverId: string | null
+): boolean {
+  if (profile.companyId !== request.companyId) return false;
+  if (COMPANY_WIDE_VIEW_ROLES.has(profile.role)) return true;
+  if (profile.id === request.createdBy || profile.id === approverId) return true;
+  if (
+    profile.role === "manager" &&
+    profile.departmentId !== null &&
+    profile.departmentId === request.departmentId
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function canDecideApproval(
+  profile: Profile,
+  approval: { approverId: string | null }
+): boolean {
+  return profile.id === approval.approverId || ELEVATED_ROLES.has(profile.role);
+}
+
+export function canTransitionRequestStatus(
+  profile: Profile,
+  request: RequestLike,
+  approverId: string | null
+): boolean {
+  if (profile.companyId !== request.companyId) return false;
+  if (ELEVATED_ROLES.has(profile.role)) return true;
+  return profile.id === request.createdBy || profile.id === approverId;
+}
+
+export const canCommentOnRequest = canViewRequest;
+export const canUploadRequestAttachment = canViewRequest;
+export const canReassignApproval = canDecideApproval;

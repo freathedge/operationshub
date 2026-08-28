@@ -18,3 +18,10 @@ export class InvalidTransitionError extends Error {
     this.name = "InvalidTransitionError";
   }
 }
+
+export class UnprocessableRequestError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnprocessableRequestError";
+  }
+}
