@@ -2,12 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   canAssignTask,
   canChangeTaskStatus,
+  canCommentOnRequest,
+  canCreateRequest,
   canCreateTask,
+  canDecideApproval,
   canDeleteTask,
+  canTransitionRequestStatus,
+  canUploadRequestAttachment,
+  canViewRequest,
   canViewTask,
 } from "@/lib/domain/permissions";
 import type { Profile } from "@/lib/domain/profiles";
-import type { TaskLike } from "@/lib/domain/permissions";
+import type { RequestLike, TaskLike } from "@/lib/domain/permissions";
 
 function makeProfile(overrides: Partial<Profile> = {}): Profile {
   return {
@@ -27,6 +33,15 @@ function makeTask(overrides: Partial<TaskLike> = {}): TaskLike {
     companyId: "company-1",
     creatorId: "profile-1",
     assigneeId: null,
+    departmentId: null,
+    ...overrides,
+  };
+}
+
+function makeRequest(overrides: Partial<RequestLike> = {}): RequestLike {
+  return {
+    companyId: "company-1",
+    createdBy: "profile-1",
     departmentId: null,
     ...overrides,
   };
@@ -158,5 +173,102 @@ describe("canDeleteTask", () => {
   it("denies an unrelated employee", () => {
     const profile = makeProfile({ id: "someone-else" });
     expect(canDeleteTask(profile, makeTask())).toBe(false);
+  });
+});
+
+describe("canCreateRequest", () => {
+  it("allows any profile", () => {
+    expect(canCreateRequest(makeProfile())).toBe(true);
+  });
+});
+
+describe("canViewRequest", () => {
+  it("denies a profile from a different company", () => {
+    const profile = makeProfile({ companyId: "other-company" });
+    expect(canViewRequest(profile, makeRequest(), null)).toBe(false);
+  });
+
+  it("allows the creator", () => {
+    const profile = makeProfile({ id: "creator-1" });
+    expect(canViewRequest(profile, makeRequest({ createdBy: "creator-1" }), null)).toBe(true);
+  });
+
+  it("allows the approver", () => {
+    const profile = makeProfile({ id: "approver-1" });
+    expect(canViewRequest(profile, makeRequest(), "approver-1")).toBe(true);
+  });
+
+  it("denies an unrelated employee", () => {
+    const profile = makeProfile({ id: "someone-else" });
+    expect(canViewRequest(profile, makeRequest(), null)).toBe(false);
+  });
+
+  it("allows a manager for a request in their department", () => {
+    const profile = makeProfile({ id: "manager-1", role: "manager", departmentId: "dept-1" });
+    expect(canViewRequest(profile, makeRequest({ departmentId: "dept-1" }), null)).toBe(true);
+  });
+
+  it("denies a manager for a request in a different department", () => {
+    const profile = makeProfile({ id: "manager-1", role: "manager", departmentId: "dept-1" });
+    expect(canViewRequest(profile, makeRequest({ departmentId: "dept-2" }), null)).toBe(false);
+  });
+
+  it("allows operations_manager, it, hr, and admin to view any company request", () => {
+    for (const role of ["operations_manager", "it", "hr", "admin"] as const) {
+      const profile = makeProfile({ id: "someone-else", role });
+      expect(canViewRequest(profile, makeRequest(), null)).toBe(true);
+    }
+  });
+});
+
+describe("canDecideApproval", () => {
+  it("allows the assigned approver", () => {
+    const profile = makeProfile({ id: "approver-1" });
+    expect(canDecideApproval(profile, { approverId: "approver-1" })).toBe(true);
+  });
+
+  it("allows operations_manager and admin regardless of the assigned approver", () => {
+    for (const role of ["operations_manager", "admin"] as const) {
+      const profile = makeProfile({ id: "someone-else", role });
+      expect(canDecideApproval(profile, { approverId: "approver-1" })).toBe(true);
+    }
+  });
+
+  it("denies an unrelated employee", () => {
+    const profile = makeProfile({ id: "someone-else" });
+    expect(canDecideApproval(profile, { approverId: "approver-1" })).toBe(false);
+  });
+});
+
+describe("canTransitionRequestStatus", () => {
+  it("allows the creator", () => {
+    const profile = makeProfile({ id: "creator-1" });
+    expect(
+      canTransitionRequestStatus(profile, makeRequest({ createdBy: "creator-1" }), null)
+    ).toBe(true);
+  });
+
+  it("allows the approver", () => {
+    const profile = makeProfile({ id: "approver-1" });
+    expect(canTransitionRequestStatus(profile, makeRequest(), "approver-1")).toBe(true);
+  });
+
+  it("allows operations_manager and admin regardless of relation", () => {
+    for (const role of ["operations_manager", "admin"] as const) {
+      const profile = makeProfile({ id: "someone-else", role });
+      expect(canTransitionRequestStatus(profile, makeRequest(), null)).toBe(true);
+    }
+  });
+
+  it("denies an unrelated employee", () => {
+    const profile = makeProfile({ id: "someone-else" });
+    expect(canTransitionRequestStatus(profile, makeRequest(), null)).toBe(false);
+  });
+});
+
+describe("canCommentOnRequest / canUploadRequestAttachment", () => {
+  it("are aliases of canViewRequest", () => {
+    expect(canCommentOnRequest).toBe(canViewRequest);
+    expect(canUploadRequestAttachment).toBe(canViewRequest);
   });
 });
