@@ -7,6 +7,7 @@ import {
   canCreateTask,
   canDecideApproval,
   canDeleteTask,
+  canReassignApproval,
   canTransitionRequestStatus,
   canUploadRequestAttachment,
   canViewRequest,
@@ -270,5 +271,11 @@ describe("canCommentOnRequest / canUploadRequestAttachment", () => {
   it("are aliases of canViewRequest", () => {
     expect(canCommentOnRequest).toBe(canViewRequest);
     expect(canUploadRequestAttachment).toBe(canViewRequest);
+  });
+});
+
+describe("canReassignApproval", () => {
+  it("is an alias of canDecideApproval", () => {
+    expect(canReassignApproval).toBe(canDecideApproval);
   });
 });

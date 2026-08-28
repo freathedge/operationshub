@@ -37,3 +37,9 @@ export const decideApprovalSchema = z.object({
   comment: z.string().max(5000).optional(),
 });
 export type DecideApprovalInput = z.infer<typeof decideApprovalSchema>;
+
+export const reassignApprovalSchema = z.object({
+  newApproverId: z.string().uuid(),
+  comment: z.string().max(5000).optional(),
+});
+export type ReassignApprovalInput = z.infer<typeof reassignApprovalSchema>;

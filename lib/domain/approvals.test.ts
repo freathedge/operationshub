@@ -3,9 +3,14 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createProfile } from "@/lib/domain/profiles";
 import type { Profile } from "@/lib/domain/profiles";
 import { createRequest, submitRequest } from "@/lib/domain/requests";
-import { decideApproval, getApprovalForRequest } from "@/lib/domain/approvals";
+import { decideApproval, getApprovalForRequest, reassignApproval } from "@/lib/domain/approvals";
 import { listNotifications } from "@/lib/domain/notifications";
-import { ForbiddenError, InvalidTransitionError, NotFoundError } from "@/lib/domain/errors";
+import {
+  ForbiddenError,
+  InvalidTransitionError,
+  NotFoundError,
+  UnprocessableRequestError,
+} from "@/lib/domain/errors";
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
   "decideApproval / getApprovalForRequest",
@@ -15,6 +20,8 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
     const createdAuthUserIds: string[] = [];
     let requester: Profile;
     let opsManager: Profile;
+    let opsManagerPeer: Profile;
+    let manager: Profile;
 
     beforeAll(async () => {
       const { data: company, error: companyError } = await supabase
@@ -38,6 +45,8 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
 
       requester = await createTestProfile("Requester", "employee");
       opsManager = await createTestProfile("Ops Manager", "operations_manager");
+      opsManagerPeer = await createTestProfile("Ops Manager Peer", "operations_manager");
+      manager = await createTestProfile("Manager", "manager");
     });
 
     afterAll(async () => {
@@ -160,6 +169,103 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       await supabase.from("profiles").delete().eq("id", otherOpsManager.id);
       await supabase.auth.admin.deleteUser(otherAuthUser.user.id);
       await supabase.from("companies").delete().eq("id", otherCompany.id);
+    });
+
+    it("reassigns to a same-role peer, keeps status pending, and notifies the new approver", async () => {
+      const draft = await createRequest(requester, { title: "Reassign me", category: "general" });
+      const submitted = await submitRequest(requester, draft.id);
+      const approval = await getApprovalForRequest(submitted.id);
+
+      const reassigned = await reassignApproval(
+        opsManager,
+        approval!.id,
+        opsManagerPeer.id,
+        "You're better suited to review this"
+      );
+      expect(reassigned.status).toBe("pending");
+      expect(reassigned.approverId).toBe(opsManagerPeer.id);
+
+      const updatedApproval = await getApprovalForRequest(submitted.id);
+      expect(updatedApproval?.approverId).toBe(opsManagerPeer.id);
+
+      const notifications = await listNotifications(opsManagerPeer.id);
+      expect(
+        notifications.some(
+          (n) => n.entityId === submitted.id && n.type === "approval_required"
+        )
+      ).toBe(true);
+    });
+
+    it("denies reassignment to someone with a different role", async () => {
+      const draft = await createRequest(requester, {
+        title: "Reassign role mismatch",
+        category: "general",
+      });
+      const submitted = await submitRequest(requester, draft.id);
+      const approval = await getApprovalForRequest(submitted.id);
+
+      await expect(
+        reassignApproval(opsManager, approval!.id, manager.id)
+      ).rejects.toBeInstanceOf(UnprocessableRequestError);
+    });
+
+    it("denies reassignment from someone who is not the approver or elevated", async () => {
+      const draft = await createRequest(requester, {
+        title: "Unauthorized reassignment",
+        category: "general",
+      });
+      const submitted = await submitRequest(requester, draft.id);
+      const approval = await getApprovalForRequest(submitted.id);
+
+      await expect(
+        reassignApproval(requester, approval!.id, opsManagerPeer.id)
+      ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+
+    it("rejects reassigning an approval that has already been decided", async () => {
+      const draft = await createRequest(requester, {
+        title: "Already decided reassignment",
+        category: "general",
+      });
+      const submitted = await submitRequest(requester, draft.id);
+      const approval = await getApprovalForRequest(submitted.id);
+
+      await decideApproval(opsManager, approval!.id, "approved");
+      await expect(
+        reassignApproval(opsManager, approval!.id, opsManagerPeer.id)
+      ).rejects.toBeInstanceOf(InvalidTransitionError);
+    });
+
+    it("throws NotFoundError for a nonexistent approval", async () => {
+      await expect(
+        reassignApproval(opsManager, crypto.randomUUID(), opsManagerPeer.id)
+      ).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it("throws NotFoundError when the new approver does not exist", async () => {
+      const draft = await createRequest(requester, {
+        title: "Reassign to missing approver",
+        category: "general",
+      });
+      const submitted = await submitRequest(requester, draft.id);
+      const approval = await getApprovalForRequest(submitted.id);
+
+      await expect(
+        reassignApproval(opsManager, approval!.id, crypto.randomUUID())
+      ).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it("rejects reassigning an approval to its current approver", async () => {
+      const draft = await createRequest(requester, {
+        title: "Reassign to self",
+        category: "general",
+      });
+      const submitted = await submitRequest(requester, draft.id);
+      const approval = await getApprovalForRequest(submitted.id);
+
+      await expect(
+        reassignApproval(opsManager, approval!.id, opsManager.id)
+      ).rejects.toBeInstanceOf(UnprocessableRequestError);
     });
   }
 );

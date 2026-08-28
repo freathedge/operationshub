@@ -64,6 +64,23 @@ export async function getProfileById(id: string): Promise<Profile | null> {
   return toProfile(data);
 }
 
+export async function listProfilesByRole(
+  companyId: string,
+  role: Role,
+  excludeProfileId: string
+): Promise<Pick<Profile, "id" | "fullName">[]> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .eq("company_id", companyId)
+    .eq("role", role)
+    .neq("id", excludeProfileId)
+    .order("full_name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({ id: row.id, fullName: row.full_name }));
+}
+
 export async function createProfile(input: {
   authUserId: string;
   companyId: string;

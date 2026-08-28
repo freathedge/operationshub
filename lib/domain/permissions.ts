@@ -110,3 +110,4 @@ export function canTransitionRequestStatus(
 
 export const canCommentOnRequest = canViewRequest;
 export const canUploadRequestAttachment = canViewRequest;
+export const canReassignApproval = canDecideApproval;

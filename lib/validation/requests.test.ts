@@ -3,6 +3,7 @@ import {
   createRequestSchema,
   decideApprovalSchema,
   patchRequestSchema,
+  reassignApprovalSchema,
   requestFiltersSchema,
 } from "@/lib/validation/requests";
 
@@ -88,5 +89,32 @@ describe("decideApprovalSchema", () => {
 
   it("rejects an invalid decision value", () => {
     expect(decideApprovalSchema.safeParse({ decision: "maybe" }).success).toBe(false);
+  });
+});
+
+describe("reassignApprovalSchema", () => {
+  it("accepts a valid newApproverId with no comment", () => {
+    expect(
+      reassignApprovalSchema.safeParse({
+        newApproverId: "11111111-1111-4111-8111-111111111111",
+      }).success
+    ).toBe(true);
+  });
+
+  it("accepts a valid newApproverId with a comment", () => {
+    expect(
+      reassignApprovalSchema.safeParse({
+        newApproverId: "11111111-1111-4111-8111-111111111111",
+        comment: "Better suited to review this",
+      }).success
+    ).toBe(true);
+  });
+
+  it("rejects a missing newApproverId", () => {
+    expect(reassignApprovalSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("rejects a non-uuid newApproverId", () => {
+    expect(reassignApprovalSchema.safeParse({ newApproverId: "not-a-uuid" }).success).toBe(false);
   });
 });
