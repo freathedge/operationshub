@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/session";
+import { BackLink } from "@/components/back-link";
 import { RequestListView } from "@/components/requests/request-list-view";
 
 export default async function RequestsPage() {
@@ -10,7 +11,8 @@ export default async function RequestsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-4">Requests</h1>
+      <BackLink href="/dashboard" />
+      <h1 className="text-2xl font-semibold mb-4 mt-2">Requests</h1>
       <RequestListView companyId={profile.companyId} />
     </div>
   );
