@@ -81,6 +81,24 @@ export async function listProfilesByRole(
   return (data ?? []).map((row) => ({ id: row.id, fullName: row.full_name }));
 }
 
+export async function findEarliestProfileByRole(
+  companyId: string,
+  role: Role
+): Promise<Profile | null> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("role", role)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return getProfileById(data.id);
+}
+
 export async function createProfile(input: {
   authUserId: string;
   companyId: string;
