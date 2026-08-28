@@ -1,12 +1,8 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
-export async function broadcastChange(
-  companyId: string,
-  channel: string,
-  event: { type: string }
-): Promise<void> {
+async function sendBroadcast(channelName: string, event: { type: string }): Promise<void> {
   const supabase = createSupabaseAdminClient();
-  const realtimeChannel = supabase.channel(`company:${companyId}:${channel}`);
+  const realtimeChannel = supabase.channel(channelName);
 
   await new Promise<void>((resolve, reject) => {
     realtimeChannel.subscribe((status: string) => {
@@ -22,4 +18,20 @@ export async function broadcastChange(
   });
 
   await supabase.removeChannel(realtimeChannel);
+}
+
+export async function broadcastChange(
+  companyId: string,
+  channel: string,
+  event: { type: string }
+): Promise<void> {
+  await sendBroadcast(`company:${companyId}:${channel}`, event);
+}
+
+export async function broadcastToProfile(
+  profileId: string,
+  channel: string,
+  event: { type: string }
+): Promise<void> {
+  await sendBroadcast(`profile:${profileId}:${channel}`, event);
 }
