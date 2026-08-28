@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-08-27
+Last updated: 2026-08-28
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -19,13 +19,16 @@ Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline
 
 ## In Progress
 
-- **Phase 3 — Requests & Approvals**: request lifecycle, approvals, notifications. Builds on `tasks` (via `related_request_id`), the `comments`/`activity_log` generic modules, the permissions pattern, and the broadcast pattern from Phase 2. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline.md` for scope.
+_(nothing right now)_
 
 ## Review
 
 _(nothing right now)_
 
 ## Finished
+
+- **Phase 3 — Requests & Approvals**: request lifecycle, approvals, notifications. Builds on `tasks` (via `related_request_id`), the `comments`/`activity_log` generic modules, the permissions pattern, and the broadcast pattern from Phase 2. Spec: `docs/superpowers/specs/2026-08-27-phase3-requests-design.md`. Plan: `docs/superpowers/plans/2026-08-27-phase3-requests.md`.
+  - Merged to `main` via PR #4 (`9925f16`).
 
 - **Phase 2 — Tasks**: task CRUD, comments, activity log, attachments, first Realtime broadcast usage. Spec: `docs/superpowers/specs/2026-08-27-phase2-tasks-design.md`. Plan: `docs/superpowers/plans/2026-08-27-phase2-tasks.md`.
   - Deferred to Phase 3+ (not blockers): `listTasks`/`canViewTask` visibility-logic duplication, short signed-download-URL TTL, `deleteTask` not cleaning up child comments/activity/attachments.
