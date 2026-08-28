@@ -3,9 +3,11 @@ import { findEarliestProfileByRole, type Profile } from "@/lib/domain/profiles";
 import { logActivity } from "@/lib/domain/activity";
 import { broadcastChange } from "@/lib/realtime/broadcast";
 import { createNotification } from "@/lib/domain/notifications";
-import { NotFoundError, UnprocessableRequestError } from "@/lib/domain/errors";
+import { NotFoundError, UnprocessableRequestError, ForbiddenError } from "@/lib/domain/errors";
 import type { RequestCategory } from "@/lib/domain/request-status";
 import type { Role } from "@/lib/validation/auth";
+import { loadRequestOrThrow } from "@/lib/domain/requests";
+import { canViewWorkflowInstance } from "@/lib/domain/permissions";
 
 export interface WorkflowTemplate {
   id: string;
@@ -361,4 +363,209 @@ export async function startWorkflow(
   }
 
   return instance;
+}
+
+async function loadInstanceOrThrow(instanceId: string): Promise<WorkflowInstance> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("workflow_instances")
+    .select(WORKFLOW_INSTANCE_COLUMNS)
+    .eq("id", instanceId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new NotFoundError("Workflow instance not found");
+  return toWorkflowInstance(data);
+}
+
+async function loadInstanceSteps(instanceId: string): Promise<WorkflowInstanceStep[]> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("workflow_instance_steps")
+    .select(WORKFLOW_INSTANCE_STEP_COLUMNS)
+    .eq("instance_id", instanceId)
+    .order("step_order", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(toWorkflowInstanceStep);
+}
+
+async function loadApproverIdForRequest(requestId: string): Promise<string | null> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("approvals")
+    .select("approver_id")
+    .eq("request_id", requestId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.approver_id ?? null;
+}
+
+export async function getWorkflowInstanceForRequest(
+  requestId: string
+): Promise<WorkflowInstance | null> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("workflow_instances")
+    .select(WORKFLOW_INSTANCE_COLUMNS)
+    .eq("related_request_id", requestId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return toWorkflowInstance(data);
+}
+
+export async function findWorkflowStepByApprovalId(
+  approvalId: string
+): Promise<WorkflowInstanceStep | null> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("workflow_instance_steps")
+    .select(WORKFLOW_INSTANCE_STEP_COLUMNS)
+    .eq("generated_approval_id", approvalId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return toWorkflowInstanceStep(data);
+}
+
+export async function findWorkflowTemplateByTriggerCategory(
+  companyId: string,
+  category: RequestCategory
+): Promise<WorkflowTemplate | null> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("workflow_templates")
+    .select(WORKFLOW_TEMPLATE_COLUMNS)
+    .eq("company_id", companyId)
+    .eq("trigger_category", category)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return toWorkflowTemplate(data);
+}
+
+export async function advanceWorkflow(profile: Profile, instanceId: string): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  const instance = await loadInstanceOrThrow(instanceId);
+  if (instance.status !== "in_progress") return;
+
+  const { data: currentStepRow, error: currentStepError } = await supabase
+    .from("workflow_instance_steps")
+    .select("id, step_order")
+    .eq("instance_id", instanceId)
+    .eq("status", "in_progress")
+    .maybeSingle();
+  if (currentStepError) throw currentStepError;
+  if (!currentStepRow) return;
+
+  const { error: completeCurrentError } = await supabase
+    .from("workflow_instance_steps")
+    .update({ status: "completed", completed_at: new Date().toISOString() })
+    .eq("id", currentStepRow.id);
+  if (completeCurrentError) throw completeCurrentError;
+
+  const { data: nextTemplateStepRow, error: nextTemplateStepError } = await supabase
+    .from("workflow_template_steps")
+    .select(WORKFLOW_TEMPLATE_STEP_COLUMNS)
+    .eq("template_id", instance.templateId)
+    .eq("step_order", currentStepRow.step_order + 1)
+    .maybeSingle();
+  if (nextTemplateStepError) throw nextTemplateStepError;
+
+  if (nextTemplateStepRow) {
+    const nextStep = toWorkflowTemplateStep(nextTemplateStepRow);
+    const generated = await generateStepEntity(profile, instance, nextStep);
+    const { error: nextStepUpdateError } = await supabase
+      .from("workflow_instance_steps")
+      .update({
+        status: "in_progress",
+        generated_task_id: generated.generatedTaskId,
+        generated_approval_id: generated.generatedApprovalId,
+      })
+      .eq("instance_id", instanceId)
+      .eq("step_order", nextStep.stepOrder);
+    if (nextStepUpdateError) throw nextStepUpdateError;
+  } else {
+    const { error: completeInstanceError } = await supabase
+      .from("workflow_instances")
+      .update({ status: "completed" })
+      .eq("id", instanceId);
+    if (completeInstanceError) throw completeInstanceError;
+
+    if (instance.relatedRequestId) {
+      const { error: requestUpdateError } = await supabase
+        .from("requests")
+        .update({ status: "completed" })
+        .eq("id", instance.relatedRequestId);
+      if (requestUpdateError) throw requestUpdateError;
+
+      const template = await loadTemplateById(instance.templateId);
+      await logActivity(
+        "request",
+        instance.relatedRequestId,
+        profile.id,
+        `Workflow "${template.name}" completed`
+      );
+    }
+  }
+
+  try {
+    await broadcastChange(instance.companyId, "workflows", { type: "workflow_updated" });
+  } catch (broadcastError) {
+    console.error("broadcastChange failed:", broadcastError);
+  }
+}
+
+export interface WorkflowProgressStep extends WorkflowInstanceStep {
+  title: string;
+  description: string | null;
+  stepType: "task" | "approval";
+  responsibleRole: Role | null;
+  responsibleDepartmentName: string | null;
+}
+
+export interface WorkflowProgress {
+  instance: WorkflowInstance;
+  steps: WorkflowProgressStep[];
+}
+
+export async function getWorkflowProgress(
+  profile: Profile,
+  instanceId: string
+): Promise<WorkflowProgress> {
+  const instance = await loadInstanceOrThrow(instanceId);
+
+  if (instance.relatedRequestId) {
+    const request = await loadRequestOrThrow(instance.relatedRequestId);
+    const approverId = await loadApproverIdForRequest(instance.relatedRequestId);
+    if (!canViewWorkflowInstance(profile, instance, request, approverId)) {
+      throw new ForbiddenError("You cannot view this workflow instance");
+    }
+  } else if (!canViewWorkflowInstance(profile, instance, null, null)) {
+    throw new ForbiddenError("You cannot view this workflow instance");
+  }
+
+  const [instanceSteps, templateSteps] = await Promise.all([
+    loadInstanceSteps(instanceId),
+    loadTemplateSteps(instance.templateId),
+  ]);
+  const templateStepsById = new Map(templateSteps.map((step) => [step.id, step]));
+
+  const steps: WorkflowProgressStep[] = instanceSteps.map((instanceStep) => {
+    const templateStep = templateStepsById.get(instanceStep.templateStepId);
+    if (!templateStep) {
+      throw new NotFoundError(`Template step ${instanceStep.templateStepId} not found`);
+    }
+    return {
+      ...instanceStep,
+      title: templateStep.title,
+      description: templateStep.description,
+      stepType: templateStep.stepType,
+      responsibleRole: templateStep.responsibleRole,
+      responsibleDepartmentName: templateStep.responsibleDepartmentName,
+    };
+  });
+
+  return { instance, steps };
 }
