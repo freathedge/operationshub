@@ -10,7 +10,6 @@ Last updated: 2026-08-28
 
 Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline.md` for the full breakdown of each.
 
-- **Phase 4 — Workflow Engine**: generic workflow template/instance runner; seeds Onboarding/Equipment/Maintenance workflows.
 - **Phase 5 — Employees & Assets**: operational employee profiles, asset registry.
 - **Phase 6 — Operations**: higher-level grouping over tasks/requests/assets/employees.
 - **Phase 7 — Dashboard/Overview**: replaces the Foundation placeholder dashboard with the real one, built from a shadcn/ui dashboard block (see `docs/architecture.md` §3).
@@ -19,7 +18,7 @@ Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline
 
 ## In Progress
 
-_(nothing right now)_
+- **Phase 4 — Workflow Engine**: generic workflow template/instance runner; auto-starts Equipment/Maintenance workflows on request approval, seeds Employee Onboarding (not yet startable — needs Phase 5). Spec: `docs/superpowers/specs/2026-08-28-phase4-workflow-engine-design.md`. Plan: `docs/superpowers/plans/2026-08-28-phase4-workflow-engine.md`.
 
 ## Review
 
