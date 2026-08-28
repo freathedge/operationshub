@@ -1,7 +1,9 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { getRequest } from "@/lib/domain/requests";
 import { getApprovalForRequest } from "@/lib/domain/approvals";
+import { getWorkflowInstanceForRequest } from "@/lib/domain/workflows";
 import { getProfileById } from "@/lib/domain/profiles";
 import { listComments } from "@/lib/domain/comments";
 import { listActivity } from "@/lib/domain/activity";
@@ -38,11 +40,12 @@ export default async function RequestDetailPage({
     throw error;
   }
 
-  const [comments, activity, attachments, approval] = await Promise.all([
+  const [comments, activity, attachments, approval, workflowInstance] = await Promise.all([
     listComments("request", request.id),
     listActivity("request", request.id),
     listAttachments("request", request.id),
     getApprovalForRequest(request.id),
+    getWorkflowInstanceForRequest(request.id),
   ]);
 
   const attachmentsWithUrls = await Promise.all(
@@ -72,6 +75,15 @@ export default async function RequestDetailPage({
       </div>
 
       <RequestStatusTimeline status={request.status} />
+
+      {workflowInstance && (
+        <Link
+          href={`/workflows/${workflowInstance.id}`}
+          className="text-sm text-primary hover:underline"
+        >
+          View workflow progress
+        </Link>
+      )}
 
       {canDecide && approval && <RequestApprovalControl approvalId={approval.id} />}
 
