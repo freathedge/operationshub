@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -411,6 +411,7 @@ export type Database = {
           priority: Database["public"]["Enums"]["task_priority"]
           related_employee_id: string | null
           related_request_id: string | null
+          related_workflow_instance_id: string | null
           status: Database["public"]["Enums"]["task_status"]
           title: string
         }
@@ -427,6 +428,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["task_priority"]
           related_employee_id?: string | null
           related_request_id?: string | null
+          related_workflow_instance_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title: string
         }
@@ -443,6 +445,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["task_priority"]
           related_employee_id?: string | null
           related_request_id?: string | null
+          related_workflow_instance_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
         }
@@ -489,6 +492,209 @@ export type Database = {
             referencedRelation: "requests"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tasks_related_workflow_instance_id_fkey"
+            columns: ["related_workflow_instance_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_instance_steps: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          generated_approval_id: string | null
+          generated_task_id: string | null
+          id: string
+          instance_id: string
+          status: Database["public"]["Enums"]["workflow_instance_step_status"]
+          step_order: number
+          template_step_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          generated_approval_id?: string | null
+          generated_task_id?: string | null
+          id?: string
+          instance_id: string
+          status?: Database["public"]["Enums"]["workflow_instance_step_status"]
+          step_order: number
+          template_step_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          generated_approval_id?: string | null
+          generated_task_id?: string | null
+          id?: string
+          instance_id?: string
+          status?: Database["public"]["Enums"]["workflow_instance_step_status"]
+          step_order?: number
+          template_step_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_instance_steps_generated_approval_id_fkey"
+            columns: ["generated_approval_id"]
+            isOneToOne: false
+            referencedRelation: "approvals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_instance_steps_generated_task_id_fkey"
+            columns: ["generated_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_instance_steps_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_instance_steps_template_step_id_fkey"
+            columns: ["template_step_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_template_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_instances: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          related_request_id: string | null
+          status: Database["public"]["Enums"]["workflow_instance_status"]
+          template_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          related_request_id?: string | null
+          status?: Database["public"]["Enums"]["workflow_instance_status"]
+          template_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          related_request_id?: string | null
+          status?: Database["public"]["Enums"]["workflow_instance_status"]
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_instances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_instances_related_request_id_fkey"
+            columns: ["related_request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_instances_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_template_steps: {
+        Row: {
+          description: string | null
+          id: string
+          responsible_department_name: string | null
+          responsible_role: Database["public"]["Enums"]["user_role"] | null
+          step_order: number
+          step_type: Database["public"]["Enums"]["workflow_step_type"]
+          template_id: string
+          title: string
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          responsible_department_name?: string | null
+          responsible_role?: Database["public"]["Enums"]["user_role"] | null
+          step_order: number
+          step_type: Database["public"]["Enums"]["workflow_step_type"]
+          template_id: string
+          title: string
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          responsible_department_name?: string | null
+          responsible_role?: Database["public"]["Enums"]["user_role"] | null
+          step_order?: number
+          step_type?: Database["public"]["Enums"]["workflow_step_type"]
+          template_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_template_steps_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_templates: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+          slug: string
+          trigger_category:
+            | Database["public"]["Enums"]["request_category"]
+            | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+          slug: string
+          trigger_category?:
+            | Database["public"]["Enums"]["request_category"]
+            | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string
+          trigger_category?:
+            | Database["public"]["Enums"]["request_category"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -531,6 +737,9 @@ export type Database = {
         | "it"
         | "hr"
         | "admin"
+      workflow_instance_status: "in_progress" | "completed"
+      workflow_instance_step_status: "pending" | "in_progress" | "completed"
+      workflow_step_type: "task" | "approval"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -688,6 +897,9 @@ export const Constants = {
         "hr",
         "admin",
       ],
+      workflow_instance_status: ["in_progress", "completed"],
+      workflow_instance_step_status: ["pending", "in_progress", "completed"],
+      workflow_step_type: ["task", "approval"],
     },
   },
 } as const
