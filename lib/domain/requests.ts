@@ -1,10 +1,20 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import type { Profile } from "@/lib/domain/profiles";
+import { getProfileById, type Profile } from "@/lib/domain/profiles";
 import { logActivity } from "@/lib/domain/activity";
-import { canCreateRequest, canViewRequest } from "@/lib/domain/permissions";
-import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
+import { broadcastChange } from "@/lib/realtime/broadcast";
+import { createNotification } from "@/lib/domain/notifications";
+import {
+  canCreateRequest,
+  canTransitionRequestStatus,
+  canViewRequest,
+} from "@/lib/domain/permissions";
+import { ForbiddenError, InvalidTransitionError, NotFoundError } from "@/lib/domain/errors";
 import type { CreateRequestInput, RequestFilters } from "@/lib/validation/requests";
-import type { RequestCategory, RequestStatus } from "@/lib/domain/request-status";
+import {
+  REQUEST_STATUS_TRANSITIONS,
+  type RequestCategory,
+  type RequestStatus,
+} from "@/lib/domain/request-status";
 
 export interface Request {
   id: string;
@@ -132,4 +142,135 @@ export async function listRequests(profile: Profile, filters: RequestFilters): P
   const { data, error } = await query.order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []).map(toRequest);
+}
+
+async function findEarliestProfileByRole(
+  companyId: string,
+  role: "operations_manager" | "admin"
+): Promise<Profile | null> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("role", role)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return getProfileById(data.id);
+}
+
+async function resolveApprover(profile: Profile): Promise<Profile> {
+  if (profile.managerId) {
+    const manager = await getProfileById(profile.managerId);
+    if (manager) return manager;
+  }
+
+  const opsManager = await findEarliestProfileByRole(profile.companyId, "operations_manager");
+  if (opsManager) return opsManager;
+
+  const admin = await findEarliestProfileByRole(profile.companyId, "admin");
+  if (admin) return admin;
+
+  throw new Error(
+    `No approver could be resolved for company ${profile.companyId}: the requester has no manager, and the company has no operations_manager or admin profile.`
+  );
+}
+
+export async function submitRequest(profile: Profile, requestId: string): Promise<Request> {
+  const request = await loadRequestOrThrow(requestId);
+  const approverId = await loadApproverIdForRequest(requestId);
+
+  if (!canTransitionRequestStatus(profile, request, approverId)) {
+    throw new ForbiddenError("You cannot submit this request");
+  }
+  if (request.status !== "draft") {
+    throw new InvalidTransitionError(`Cannot submit a request with status "${request.status}"`);
+  }
+
+  const approver = await resolveApprover(profile);
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("requests")
+    .update({ status: "under_review" })
+    .eq("id", requestId)
+    .select(REQUEST_COLUMNS)
+    .single();
+  if (error) throw error;
+  const updated = toRequest(data);
+
+  const { error: approvalError } = await supabase.from("approvals").insert({
+    request_id: updated.id,
+    approver_id: approver.id,
+    status: "pending",
+  });
+  if (approvalError) throw approvalError;
+
+  await logActivity(
+    "request",
+    updated.id,
+    profile.id,
+    `${profile.fullName} submitted this request, awaiting approval from ${approver.fullName}`
+  );
+
+  await createNotification(
+    approver.id,
+    "request",
+    updated.id,
+    "approval_required",
+    `${profile.fullName} submitted "${updated.title}" for your approval`
+  );
+
+  try {
+    await broadcastChange(profile.companyId, "requests", { type: "request_updated" });
+  } catch (broadcastError) {
+    console.error("broadcastChange failed:", broadcastError);
+  }
+
+  return updated;
+}
+
+export async function transitionRequestStatus(
+  profile: Profile,
+  requestId: string,
+  status: RequestStatus
+): Promise<Request> {
+  const request = await loadRequestOrThrow(requestId);
+  const approverId = await loadApproverIdForRequest(requestId);
+
+  if (!canTransitionRequestStatus(profile, request, approverId)) {
+    throw new ForbiddenError("You cannot change this request's status");
+  }
+
+  if (!REQUEST_STATUS_TRANSITIONS[request.status].includes(status)) {
+    throw new InvalidTransitionError(
+      `Cannot move a request from "${request.status}" to "${status}"`
+    );
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("requests")
+    .update({ status })
+    .eq("id", requestId)
+    .select(REQUEST_COLUMNS)
+    .single();
+  if (error) throw error;
+
+  const updated = toRequest(data);
+  await logActivity(
+    "request",
+    updated.id,
+    profile.id,
+    `${profile.fullName} changed status from "${request.status}" to "${status}"`
+  );
+  try {
+    await broadcastChange(profile.companyId, "requests", { type: "request_updated" });
+  } catch (broadcastError) {
+    console.error("broadcastChange failed:", broadcastError);
+  }
+  return updated;
 }
