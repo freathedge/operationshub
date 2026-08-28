@@ -111,3 +111,14 @@ export function canTransitionRequestStatus(
 export const canCommentOnRequest = canViewRequest;
 export const canUploadRequestAttachment = canViewRequest;
 export const canReassignApproval = canDecideApproval;
+
+export function canViewWorkflowInstance(
+  profile: Profile,
+  instance: { companyId: string },
+  request: RequestLike | null,
+  approverId: string | null
+): boolean {
+  if (profile.companyId !== instance.companyId) return false;
+  if (request) return canViewRequest(profile, request, approverId);
+  return COMPANY_WIDE_VIEW_ROLES.has(profile.role);
+}

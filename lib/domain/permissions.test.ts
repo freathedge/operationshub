@@ -12,6 +12,7 @@ import {
   canUploadRequestAttachment,
   canViewRequest,
   canViewTask,
+  canViewWorkflowInstance,
 } from "@/lib/domain/permissions";
 import type { Profile } from "@/lib/domain/profiles";
 import type { RequestLike, TaskLike } from "@/lib/domain/permissions";
@@ -277,5 +278,43 @@ describe("canCommentOnRequest / canUploadRequestAttachment", () => {
 describe("canReassignApproval", () => {
   it("is an alias of canDecideApproval", () => {
     expect(canReassignApproval).toBe(canDecideApproval);
+  });
+});
+
+describe("canViewWorkflowInstance", () => {
+  it("denies a profile from a different company", () => {
+    const profile = makeProfile({ companyId: "other-company" });
+    expect(
+      canViewWorkflowInstance(profile, { companyId: "company-1" }, makeRequest(), null)
+    ).toBe(false);
+  });
+
+  it("delegates to canViewRequest when the instance is linked to a request", () => {
+    const creator = makeProfile({ id: "creator-1" });
+    expect(
+      canViewWorkflowInstance(
+        creator,
+        { companyId: "company-1" },
+        makeRequest({ createdBy: "creator-1" }),
+        null
+      )
+    ).toBe(true);
+
+    const stranger = makeProfile({ id: "someone-else" });
+    expect(
+      canViewWorkflowInstance(stranger, { companyId: "company-1" }, makeRequest(), null)
+    ).toBe(false);
+  });
+
+  it("falls back to COMPANY_WIDE_VIEW_ROLES when there is no linked request", () => {
+    const opsManager = makeProfile({ id: "someone-else", role: "operations_manager" });
+    expect(canViewWorkflowInstance(opsManager, { companyId: "company-1" }, null, null)).toBe(
+      true
+    );
+
+    const employee = makeProfile({ id: "someone-else" });
+    expect(canViewWorkflowInstance(employee, { companyId: "company-1" }, null, null)).toBe(
+      false
+    );
   });
 });
