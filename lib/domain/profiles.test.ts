@@ -67,6 +67,30 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       expect(fetched?.id).toBe(created.id);
     });
 
+    it("creates a profile with operational fields and defaults status to active", async () => {
+      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+        email: `profile-test-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+      if (authError || !authUser.user) throw authError;
+      createdAuthUserIds.push(authUser.user.id);
+
+      const created = await createProfile({
+        authUserId: authUser.user.id,
+        companyId,
+        fullName: "Operational Employee",
+        role: "employee",
+        positionTitle: "Software Engineer",
+        employeeNumber: `EMP-${crypto.randomUUID().slice(0, 8)}`,
+      });
+
+      expect(created.positionTitle).toBe("Software Engineer");
+      expect(created.employeeNumber).not.toBeNull();
+      expect(created.locationId).toBeNull();
+      expect(created.status).toBe("active");
+    });
+
     it("returns null when no profile exists for the auth user id", async () => {
       const result = await getProfileByAuthUserId(crypto.randomUUID());
       expect(result).toBeNull();

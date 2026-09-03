@@ -26,6 +26,10 @@ function makeProfile(overrides: Partial<Profile> = {}): Profile {
     role: "employee",
     departmentId: null,
     managerId: null,
+    positionTitle: null,
+    employeeNumber: null,
+    locationId: null,
+    status: "active",
     ...overrides,
   };
 }

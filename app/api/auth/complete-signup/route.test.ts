@@ -59,6 +59,10 @@ describe("POST /api/auth/complete-signup", () => {
       role: "employee",
       departmentId: null,
       managerId: null,
+      positionTitle: null,
+      employeeNumber: null,
+      locationId: null,
+      status: "active" as const,
     });
 
     const response = await POST(jsonRequest({ fullName: "Max", role: "employee" }));
@@ -79,6 +83,10 @@ describe("POST /api/auth/complete-signup", () => {
       role: "employee",
       departmentId: null,
       managerId: null,
+      positionTitle: null,
+      employeeNumber: null,
+      locationId: null,
+      status: "active" as const,
     });
 
     const response = await POST(jsonRequest({ fullName: "Max", role: "employee" }));
