@@ -22,11 +22,13 @@ _(nothing right now)_
 
 ## Review
 
-- **Phase 4 — Workflow Engine**: generic workflow template/instance runner; auto-starts Equipment/Maintenance workflows on request approval, seeds Employee Onboarding (not yet startable — needs Phase 5). Spec: `docs/superpowers/specs/2026-08-28-phase4-workflow-engine-design.md`. Plan: `docs/superpowers/plans/2026-08-28-phase4-workflow-engine.md`.
-  - Branch `worktree-phase4-workflow-engine-plan`, pushed; PR pending (open at https://github.com/freathedge/operationshub/pull/new/worktree-phase4-workflow-engine-plan).
-  - Deferred to Phase 5+ (not blockers, see PR description): cancelling a workflow-generated task strands its instance (no terminate/skip handling); an approving manager can lose request-detail visibility once a second (workflow) approval lands on the same request; no end-to-end test exercises a mixed task→approval→task template; `advanceWorkflow`'s multi-write sequence is non-transactional (matches the rest of the codebase's existing pattern).
+_(nothing right now)_
 
 ## Finished
+
+- **Phase 4 — Workflow Engine**: generic workflow template/instance runner; auto-starts Equipment/Maintenance workflows on request approval, seeds Employee Onboarding (not yet startable — needs Phase 5). Spec: `docs/superpowers/specs/2026-08-28-phase4-workflow-engine-design.md`. Plan: `docs/superpowers/plans/2026-08-28-phase4-workflow-engine.md`.
+  - Deferred to Phase 5+ (not blockers): cancelling a workflow-generated task strands its instance (no terminate/skip handling); an approving manager can lose request-detail visibility once a second (workflow) approval lands on the same request; no end-to-end test exercises a mixed task→approval→task template; `advanceWorkflow`'s multi-write sequence is non-transactional (matches the rest of the codebase's existing pattern).
+  - Merged to `main` via PR #5 (`5289d2d`).
 
 - **Phase 3 — Requests & Approvals**: request lifecycle, approvals, notifications. Builds on `tasks` (via `related_request_id`), the `comments`/`activity_log` generic modules, the permissions pattern, and the broadcast pattern from Phase 2. Spec: `docs/superpowers/specs/2026-08-27-phase3-requests-design.md`. Plan: `docs/superpowers/plans/2026-08-27-phase3-requests.md`.
   - Merged to `main` via PR #4 (`9925f16`).
