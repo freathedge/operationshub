@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-08-28
+Last updated: 2026-09-03
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -18,11 +18,13 @@ Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline
 
 ## In Progress
 
-- **Phase 4 — Workflow Engine**: generic workflow template/instance runner; auto-starts Equipment/Maintenance workflows on request approval, seeds Employee Onboarding (not yet startable — needs Phase 5). Spec: `docs/superpowers/specs/2026-08-28-phase4-workflow-engine-design.md`. Plan: `docs/superpowers/plans/2026-08-28-phase4-workflow-engine.md`.
+_(nothing right now)_
 
 ## Review
 
-_(nothing right now)_
+- **Phase 4 — Workflow Engine**: generic workflow template/instance runner; auto-starts Equipment/Maintenance workflows on request approval, seeds Employee Onboarding (not yet startable — needs Phase 5). Spec: `docs/superpowers/specs/2026-08-28-phase4-workflow-engine-design.md`. Plan: `docs/superpowers/plans/2026-08-28-phase4-workflow-engine.md`.
+  - Branch `worktree-phase4-workflow-engine-plan`, pushed; PR pending (open at https://github.com/freathedge/operationshub/pull/new/worktree-phase4-workflow-engine-plan).
+  - Deferred to Phase 5+ (not blockers, see PR description): cancelling a workflow-generated task strands its instance (no terminate/skip handling); an approving manager can lose request-detail visibility once a second (workflow) approval lands on the same request; no end-to-end test exercises a mixed task→approval→task template; `advanceWorkflow`'s multi-write sequence is non-transactional (matches the rest of the codebase's existing pattern).
 
 ## Finished
 
