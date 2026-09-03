@@ -1,15 +1,22 @@
 import { describe, expect, it } from "vitest";
 import {
+  canAssignAsset,
   canAssignTask,
+  canChangeAssetStatus,
   canChangeTaskStatus,
   canCommentOnRequest,
+  canCreateAsset,
+  canCreateEmployee,
   canCreateRequest,
   canCreateTask,
   canDecideApproval,
   canDeleteTask,
   canReassignApproval,
   canTransitionRequestStatus,
+  canUpdateEmployee,
   canUploadRequestAttachment,
+  canViewAsset,
+  canViewEmployeeProfile,
   canViewRequest,
   canViewTask,
   canViewWorkflowInstance,
@@ -359,5 +366,103 @@ describe("canViewWorkflowInstance", () => {
     expect(canViewWorkflowInstance(employee, { companyId: "company-1" }, null, null)).toBe(
       false
     );
+  });
+});
+
+describe("canCreateEmployee / canUpdateEmployee", () => {
+  it("allows hr and admin, denies everyone else", () => {
+    expect(canCreateEmployee(makeProfile({ role: "hr" }))).toBe(true);
+    expect(canCreateEmployee(makeProfile({ role: "admin" }))).toBe(true);
+    expect(canCreateEmployee(makeProfile({ role: "operations_manager" }))).toBe(false);
+    expect(canCreateEmployee(makeProfile({ role: "employee" }))).toBe(false);
+
+    expect(canUpdateEmployee(makeProfile({ role: "hr" }))).toBe(true);
+    expect(canUpdateEmployee(makeProfile({ role: "employee" }))).toBe(false);
+  });
+});
+
+describe("canViewEmployeeProfile", () => {
+  it("denies a profile from a different company", () => {
+    const profile = makeProfile({ companyId: "other-company" });
+    expect(
+      canViewEmployeeProfile(profile, { companyId: "company-1", id: "target-1", managerId: null })
+    ).toBe(false);
+  });
+
+  it("allows company-wide view roles, the profile itself, and its manager", () => {
+    const opsManager = makeProfile({ id: "someone-else", role: "operations_manager" });
+    expect(
+      canViewEmployeeProfile(opsManager, { companyId: "company-1", id: "target-1", managerId: null })
+    ).toBe(true);
+
+    const self = makeProfile({ id: "target-1" });
+    expect(
+      canViewEmployeeProfile(self, { companyId: "company-1", id: "target-1", managerId: null })
+    ).toBe(true);
+
+    const manager = makeProfile({ id: "manager-1" });
+    expect(
+      canViewEmployeeProfile(manager, {
+        companyId: "company-1",
+        id: "target-1",
+        managerId: "manager-1",
+      })
+    ).toBe(true);
+
+    const stranger = makeProfile({ id: "stranger-1" });
+    expect(
+      canViewEmployeeProfile(stranger, { companyId: "company-1", id: "target-1", managerId: null })
+    ).toBe(false);
+  });
+});
+
+describe("canCreateAsset / canAssignAsset / canChangeAssetStatus", () => {
+  it("allows it, operations_manager, and admin, denies everyone else", () => {
+    expect(canCreateAsset(makeProfile({ role: "it" }))).toBe(true);
+    expect(canCreateAsset(makeProfile({ role: "operations_manager" }))).toBe(true);
+    expect(canCreateAsset(makeProfile({ role: "admin" }))).toBe(true);
+    expect(canCreateAsset(makeProfile({ role: "hr" }))).toBe(false);
+    expect(canCreateAsset(makeProfile({ role: "employee" }))).toBe(false);
+
+    expect(canAssignAsset(makeProfile({ role: "it" }))).toBe(true);
+    expect(canAssignAsset(makeProfile({ role: "employee" }))).toBe(false);
+
+    expect(canChangeAssetStatus(makeProfile({ role: "it" }))).toBe(true);
+    expect(canChangeAssetStatus(makeProfile({ role: "employee" }))).toBe(false);
+  });
+});
+
+describe("canViewAsset", () => {
+  it("denies a profile from a different company", () => {
+    const profile = makeProfile({ companyId: "other-company" });
+    expect(
+      canViewAsset(profile, { companyId: "company-1", assignedTo: null, departmentId: null })
+    ).toBe(false);
+  });
+
+  it("allows company-wide view roles, the assigned employee, and same-department profiles", () => {
+    const it = makeProfile({ id: "someone-else", role: "it" });
+    expect(
+      canViewAsset(it, { companyId: "company-1", assignedTo: null, departmentId: null })
+    ).toBe(true);
+
+    const assignee = makeProfile({ id: "assignee-1" });
+    expect(
+      canViewAsset(assignee, { companyId: "company-1", assignedTo: "assignee-1", departmentId: null })
+    ).toBe(true);
+
+    const departmentPeer = makeProfile({ id: "peer-1", departmentId: "dept-1" });
+    expect(
+      canViewAsset(departmentPeer, {
+        companyId: "company-1",
+        assignedTo: "someone-else",
+        departmentId: "dept-1",
+      })
+    ).toBe(true);
+
+    const stranger = makeProfile({ id: "stranger-1" });
+    expect(
+      canViewAsset(stranger, { companyId: "company-1", assignedTo: "someone-else", departmentId: "dept-1" })
+    ).toBe(false);
   });
 });
