@@ -14,9 +14,14 @@ export function canViewTask(profile: Profile, task: TaskLike): boolean {
   if (profile.companyId !== task.companyId) return false;
   if (COMPANY_WIDE_VIEW_ROLES.has(profile.role)) return true;
   if (profile.id === task.assigneeId || profile.id === task.creatorId) return true;
-  // Department-scoped tasks (e.g. workflow-generated task steps with no assignee)
-  // are meant to be visible to anyone in that department, not just its manager.
-  if (profile.departmentId !== null && profile.departmentId === task.departmentId) {
+  // Unassigned, department-scoped tasks (e.g. workflow-generated task steps) are
+  // meant to be visible to anyone in that department, not just its manager. A task
+  // already assigned to someone else is not opened up to the rest of the department.
+  if (
+    task.assigneeId === null &&
+    profile.departmentId !== null &&
+    profile.departmentId === task.departmentId
+  ) {
     return true;
   }
   return false;
@@ -50,9 +55,16 @@ export function canChangeTaskStatus(
   if (ELEVATED_ROLES.has(profile.role)) return true;
   if (profile.id === task.assigneeId || profile.id === task.creatorId) return true;
   if (assignee && profile.id === assignee.managerId) return true;
-  // Department-scoped tasks (e.g. workflow-generated task steps with no assignee)
-  // are meant to be completable by anyone in that department.
-  if (profile.departmentId !== null && profile.departmentId === task.departmentId) return true;
+  // Unassigned, department-scoped tasks (e.g. workflow-generated task steps) are
+  // meant to be completable by anyone in that department. A task already assigned
+  // to someone else is not opened up to the rest of the department.
+  if (
+    task.assigneeId === null &&
+    profile.departmentId !== null &&
+    profile.departmentId === task.departmentId
+  ) {
+    return true;
+  }
   return false;
 }
 

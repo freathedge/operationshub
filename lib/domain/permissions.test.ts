@@ -90,6 +90,13 @@ describe("canViewTask", () => {
     expect(canViewTask(profile, makeTask({ departmentId: "dept-2" }))).toBe(false);
   });
 
+  it("denies a department peer when the task is already assigned to someone else", () => {
+    const profile = makeProfile({ id: "employee-1", role: "employee", departmentId: "dept-1" });
+    expect(
+      canViewTask(profile, makeTask({ departmentId: "dept-1", assigneeId: "someone-else" }))
+    ).toBe(false);
+  });
+
   it("allows operations_manager, it, hr, and admin to view any company task", () => {
     for (const role of ["operations_manager", "it", "hr", "admin"] as const) {
       const profile = makeProfile({ id: "someone-else", role });
@@ -178,6 +185,18 @@ describe("canChangeTaskStatus", () => {
   it("denies an employee in a different department from the task", () => {
     const profile = makeProfile({ id: "employee-1", role: "employee", departmentId: "dept-1" });
     expect(canChangeTaskStatus(profile, makeTask({ departmentId: "dept-2" }), null)).toBe(false);
+  });
+
+  it("denies a department peer when the task is already assigned to someone else", () => {
+    const profile = makeProfile({ id: "employee-1", role: "employee", departmentId: "dept-1" });
+    const assignee = makeProfile({ id: "someone-else", managerId: null });
+    expect(
+      canChangeTaskStatus(
+        profile,
+        makeTask({ departmentId: "dept-1", assigneeId: "someone-else" }),
+        assignee
+      )
+    ).toBe(false);
   });
 });
 
