@@ -318,28 +318,36 @@ export async function startWorkflow(
   if (instanceError) throw instanceError;
   const instance = toWorkflowInstance(instanceRow);
 
+  // Generate the first step's entity BEFORE the workflow_instance_steps rows exist.
+  // A task-type step's generated task references instance.id via a real FK
+  // (tasks.related_workflow_instance_id), so the instance row must already exist —
+  // but if generation fails (e.g. no profile with the step's required role), we must
+  // not leave a workflow instance stranded with zero in_progress steps (advanceWorkflow
+  // would then find nothing to advance and silently no-op forever). Since no steps have
+  // been inserted yet at this point, deleting the instance row on failure is a clean,
+  // single-row rollback with no orphaned children.
+  const firstStep = templateSteps[0];
+  let generated: { generatedTaskId: string | null; generatedApprovalId: string | null };
+  try {
+    generated = await generateStepEntity(profile, instance, firstStep);
+  } catch (generateError) {
+    await supabase.from("workflow_instances").delete().eq("id", instance.id);
+    throw generateError;
+  }
+
   const { error: stepsError } = await supabase.from("workflow_instance_steps").insert(
     templateSteps.map((step) => ({
       instance_id: instance.id,
       template_step_id: step.id,
       step_order: step.stepOrder,
-      status: "pending",
+      status: step.stepOrder === firstStep.stepOrder ? "in_progress" : "pending",
+      generated_task_id:
+        step.stepOrder === firstStep.stepOrder ? generated.generatedTaskId : null,
+      generated_approval_id:
+        step.stepOrder === firstStep.stepOrder ? generated.generatedApprovalId : null,
     }))
   );
   if (stepsError) throw stepsError;
-
-  const firstStep = templateSteps[0];
-  const generated = await generateStepEntity(profile, instance, firstStep);
-  const { error: firstStepUpdateError } = await supabase
-    .from("workflow_instance_steps")
-    .update({
-      status: "in_progress",
-      generated_task_id: generated.generatedTaskId,
-      generated_approval_id: generated.generatedApprovalId,
-    })
-    .eq("instance_id", instance.id)
-    .eq("step_order", firstStep.stepOrder);
-  if (firstStepUpdateError) throw firstStepUpdateError;
 
   if (context.requestId) {
     const { error: requestUpdateError } = await supabase
@@ -409,6 +417,8 @@ export async function getWorkflowInstanceForRequest(
     .from("workflow_instances")
     .select(WORKFLOW_INSTANCE_COLUMNS)
     .eq("related_request_id", requestId)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
@@ -439,6 +449,8 @@ export async function findWorkflowTemplateByTriggerCategory(
     .select(WORKFLOW_TEMPLATE_COLUMNS)
     .eq("company_id", companyId)
     .eq("trigger_category", category)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;

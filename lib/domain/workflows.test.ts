@@ -12,7 +12,7 @@ import {
   listWorkflowTemplates,
   startWorkflow,
 } from "@/lib/domain/workflows";
-import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
+import { ForbiddenError, NotFoundError, UnprocessableRequestError } from "@/lib/domain/errors";
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("workflow engine", () => {
   const supabase = createSupabaseAdminClient();
@@ -233,6 +233,45 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("workflow engine", () =>
         .single();
       if (requestError) throw requestError;
       expect(updatedRequest.status).toBe("in_progress");
+    });
+
+    it("does not strand a dead-link instance when the first step's entity generation fails", async () => {
+      // "admin" has no profile in this test company's fixtures (only "employee" and
+      // "it" are created in beforeAll), so the approval step's role lookup fails.
+      const { data: template, error: templateError } = await supabase
+        .from("workflow_templates")
+        .insert({ company_id: companyId, slug: "dead-link-test", name: "Dead Link Test" })
+        .select("id")
+        .single();
+      if (templateError) throw templateError;
+      const { error: stepError } = await supabase.from("workflow_template_steps").insert({
+        template_id: template.id,
+        step_order: 1,
+        step_type: "approval",
+        title: "Needs an admin",
+        responsible_role: "admin",
+      });
+      if (stepError) throw stepError;
+
+      const request = await createRequest(employee, {
+        title: "Dead link test",
+        category: "general",
+      });
+
+      await expect(
+        startWorkflow(employee, "dead-link-test", { requestId: request.id })
+      ).rejects.toBeInstanceOf(UnprocessableRequestError);
+
+      const { data: instances, error: instancesError } = await supabase
+        .from("workflow_instances")
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("template_id", template.id);
+      if (instancesError) throw instancesError;
+      expect(instances).toHaveLength(0);
+
+      await supabase.from("workflow_template_steps").delete().eq("template_id", template.id);
+      await supabase.from("workflow_templates").delete().eq("id", template.id);
     });
   });
 

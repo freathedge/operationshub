@@ -110,7 +110,11 @@ export async function decideApproval(
 
   const workflowStep = await findWorkflowStepByApprovalId(approvalId);
 
-  if (!workflowStep) {
+  // A rejected workflow-step approval still needs to set the request's status to
+  // "rejected" here — advanceWorkflow only ever gets called on approve, so nothing
+  // else would ever give the request a terminal state, and the notification sent
+  // below would otherwise contradict the request's stuck, non-rejected status.
+  if (!workflowStep || decision === "rejected") {
     const newRequestStatus = decision === "approved" ? "approved" : "rejected";
     const { error: requestUpdateError } = await supabase
       .from("requests")

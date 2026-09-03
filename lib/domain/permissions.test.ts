@@ -80,6 +80,16 @@ describe("canViewTask", () => {
     expect(canViewTask(profile, makeTask({ departmentId: "dept-2" }))).toBe(false);
   });
 
+  it("allows an employee (non-manager) in the same department as the task", () => {
+    const profile = makeProfile({ id: "employee-1", role: "employee", departmentId: "dept-1" });
+    expect(canViewTask(profile, makeTask({ departmentId: "dept-1" }))).toBe(true);
+  });
+
+  it("denies an employee in a different department from the task", () => {
+    const profile = makeProfile({ id: "employee-1", role: "employee", departmentId: "dept-1" });
+    expect(canViewTask(profile, makeTask({ departmentId: "dept-2" }))).toBe(false);
+  });
+
   it("allows operations_manager, it, hr, and admin to view any company task", () => {
     for (const role of ["operations_manager", "it", "hr", "admin"] as const) {
       const profile = makeProfile({ id: "someone-else", role });
@@ -158,6 +168,16 @@ describe("canChangeTaskStatus", () => {
   it("denies an unrelated employee", () => {
     const profile = makeProfile({ id: "someone-else" });
     expect(canChangeTaskStatus(profile, makeTask(), null)).toBe(false);
+  });
+
+  it("allows an employee (non-manager) in the same department as the task", () => {
+    const profile = makeProfile({ id: "employee-1", role: "employee", departmentId: "dept-1" });
+    expect(canChangeTaskStatus(profile, makeTask({ departmentId: "dept-1" }), null)).toBe(true);
+  });
+
+  it("denies an employee in a different department from the task", () => {
+    const profile = makeProfile({ id: "employee-1", role: "employee", departmentId: "dept-1" });
+    expect(canChangeTaskStatus(profile, makeTask({ departmentId: "dept-2" }), null)).toBe(false);
   });
 });
 
