@@ -11,6 +11,12 @@ import {
   NotFoundError,
   UnprocessableRequestError,
 } from "@/lib/domain/errors";
+import {
+  advanceWorkflow,
+  findWorkflowStepByApprovalId,
+  findWorkflowTemplateByTriggerCategory,
+  startWorkflow,
+} from "@/lib/domain/workflows";
 
 export interface Approval {
   id: string;
@@ -52,6 +58,8 @@ export async function getApprovalForRequest(requestId: string): Promise<Approval
     .from("approvals")
     .select(APPROVAL_COLUMNS)
     .eq("request_id", requestId)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
@@ -100,12 +108,20 @@ export async function decideApproval(
   if (updateError) throw updateError;
   const updatedApproval = toApproval(updatedRow);
 
-  const newRequestStatus = decision === "approved" ? "approved" : "rejected";
-  const { error: requestUpdateError } = await supabase
-    .from("requests")
-    .update({ status: newRequestStatus })
-    .eq("id", approval.requestId);
-  if (requestUpdateError) throw requestUpdateError;
+  const workflowStep = await findWorkflowStepByApprovalId(approvalId);
+
+  // A rejected workflow-step approval still needs to set the request's status to
+  // "rejected" here — advanceWorkflow only ever gets called on approve, so nothing
+  // else would ever give the request a terminal state, and the notification sent
+  // below would otherwise contradict the request's stuck, non-rejected status.
+  if (!workflowStep || decision === "rejected") {
+    const newRequestStatus = decision === "approved" ? "approved" : "rejected";
+    const { error: requestUpdateError } = await supabase
+      .from("requests")
+      .update({ status: newRequestStatus })
+      .eq("id", approval.requestId);
+    if (requestUpdateError) throw requestUpdateError;
+  }
 
   await logActivity(
     "request",
@@ -122,6 +138,28 @@ export async function decideApproval(
       "request_status_changed",
       `Your request "${request.title}" was ${decision}`
     );
+  }
+
+  if (decision === "approved") {
+    if (workflowStep) {
+      try {
+        await advanceWorkflow(profile, workflowStep.instanceId);
+      } catch (workflowError) {
+        console.error("advanceWorkflow failed:", workflowError);
+      }
+    } else {
+      try {
+        const template = await findWorkflowTemplateByTriggerCategory(
+          profile.companyId,
+          request.category
+        );
+        if (template) {
+          await startWorkflow(profile, template.slug, { requestId: request.id });
+        }
+      } catch (workflowError) {
+        console.error("startWorkflow failed:", workflowError);
+      }
+    }
   }
 
   try {

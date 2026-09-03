@@ -1,5 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getProfileById, type Profile } from "@/lib/domain/profiles";
+import { findEarliestProfileByRole, getProfileById, type Profile } from "@/lib/domain/profiles";
 import { logActivity } from "@/lib/domain/activity";
 import { broadcastChange } from "@/lib/realtime/broadcast";
 import { createNotification } from "@/lib/domain/notifications";
@@ -112,6 +112,8 @@ async function loadApproverIdForRequest(requestId: string): Promise<string | nul
     .from("approvals")
     .select("approver_id")
     .eq("request_id", requestId)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (error) throw error;
   return data?.approver_id ?? null;
@@ -147,24 +149,6 @@ export async function listRequests(profile: Profile, filters: RequestFilters): P
   const { data, error } = await query.order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []).map(toRequest);
-}
-
-async function findEarliestProfileByRole(
-  companyId: string,
-  role: "operations_manager" | "admin"
-): Promise<Profile | null> {
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("company_id", companyId)
-    .eq("role", role)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
-  return getProfileById(data.id);
 }
 
 async function resolveApprover(profile: Profile): Promise<Profile> {

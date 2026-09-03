@@ -11,6 +11,7 @@ import {
   NotFoundError,
   UnprocessableRequestError,
 } from "@/lib/domain/errors";
+import { findWorkflowTemplateByTriggerCategory, startWorkflow } from "@/lib/domain/workflows";
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
   "decideApproval / getApprovalForRequest",
@@ -169,6 +170,204 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       await supabase.from("profiles").delete().eq("id", otherOpsManager.id);
       await supabase.auth.admin.deleteUser(otherAuthUser.user.id);
       await supabase.from("companies").delete().eq("id", otherCompany.id);
+    });
+
+    it("auto-starts the matching workflow when the original approval for an equipment request is approved", async () => {
+      const { data: template, error: templateError } = await supabase
+        .from("workflow_templates")
+        .upsert(
+          {
+            company_id: companyId,
+            slug: "approvals-hook-equipment-test",
+            name: "Approvals Hook Equipment Test",
+            trigger_category: "equipment",
+          },
+          { onConflict: "company_id,slug" }
+        )
+        .select("id")
+        .single();
+      if (templateError) throw templateError;
+      await supabase.from("workflow_template_steps").upsert(
+        {
+          template_id: template.id,
+          step_order: 1,
+          step_type: "task",
+          title: "Only step",
+          responsible_department_name: null,
+        },
+        { onConflict: "template_id,step_order" }
+      );
+
+      const request = await createRequest(requester, {
+        title: "New laptop",
+        category: "equipment",
+      });
+      const submitted = await submitRequest(requester, request.id);
+      const { data: approvalRow, error: approvalError } = await supabase
+        .from("approvals")
+        .select("id")
+        .eq("request_id", submitted.id)
+        .single();
+      if (approvalError) throw approvalError;
+
+      await decideApproval(opsManager, approvalRow.id, "approved");
+
+      const { data: instances, error: instancesError } = await supabase
+        .from("workflow_instances")
+        .select("id, template_id")
+        .eq("related_request_id", submitted.id);
+      if (instancesError) throw instancesError;
+      expect(instances).toHaveLength(1);
+      expect(instances![0].template_id).toBe(template.id);
+
+      // This template's step is task-type, so it generated a task with
+      // related_workflow_instance_id set. Neither workflow_instance_steps.generated_task_id
+      // nor tasks.related_workflow_instance_id cascades, so the step must be deleted before
+      // the task and instance it references.
+      const instanceId = instances![0].id;
+      await supabase.from("workflow_instance_steps").delete().eq("instance_id", instanceId);
+      await supabase.from("tasks").delete().eq("related_workflow_instance_id", instanceId);
+      await supabase.from("workflow_instances").delete().eq("id", instanceId);
+    });
+
+    it("does not start a workflow for a category with no matching template", async () => {
+      const request = await createRequest(requester, { title: "Access request", category: "access" });
+      const submitted = await submitRequest(requester, request.id);
+      const { data: approvalRow, error: approvalError } = await supabase
+        .from("approvals")
+        .select("id")
+        .eq("request_id", submitted.id)
+        .single();
+      if (approvalError) throw approvalError;
+
+      await decideApproval(opsManager, approvalRow.id, "approved");
+
+      const template = await findWorkflowTemplateByTriggerCategory(companyId, "access");
+      expect(template).toBeNull();
+      const { data: instances, error: instancesError } = await supabase
+        .from("workflow_instances")
+        .select("id")
+        .eq("related_request_id", submitted.id);
+      if (instancesError) throw instancesError;
+      expect(instances).toHaveLength(0);
+    });
+
+    it("advances the workflow, instead of resetting request status, when a workflow-generated approval is decided", async () => {
+      const { data: template, error: templateError } = await supabase
+        .from("workflow_templates")
+        .upsert(
+          {
+            company_id: companyId,
+            slug: "approvals-hook-step-test",
+            name: "Approvals Hook Step Test",
+          },
+          { onConflict: "company_id,slug" }
+        )
+        .select("id")
+        .single();
+      if (templateError) throw templateError;
+      await supabase.from("workflow_template_steps").upsert(
+        {
+          template_id: template.id,
+          step_order: 1,
+          step_type: "approval",
+          title: "Only approval step",
+          responsible_role: "operations_manager",
+        },
+        { onConflict: "template_id,step_order" }
+      );
+
+      const request = await createRequest(requester, { title: "Step approval test", category: "general" });
+      const instance = await startWorkflow(requester, "approvals-hook-step-test", {
+        requestId: request.id,
+      });
+      const { data: stepRow, error: stepError } = await supabase
+        .from("workflow_instance_steps")
+        .select("generated_approval_id")
+        .eq("instance_id", instance.id)
+        .single();
+      if (stepError) throw stepError;
+
+      await decideApproval(opsManager, stepRow.generated_approval_id!, "approved");
+
+      const { data: instanceRow, error: instanceError } = await supabase
+        .from("workflow_instances")
+        .select("status")
+        .eq("id", instance.id)
+        .single();
+      if (instanceError) throw instanceError;
+      expect(instanceRow.status).toBe("completed");
+
+      const { data: requestRow, error: requestError } = await supabase
+        .from("requests")
+        .select("status")
+        .eq("id", request.id)
+        .single();
+      if (requestError) throw requestError;
+      expect(requestRow.status).toBe("completed");
+
+      await supabase.from("workflow_instances").delete().eq("id", instance.id);
+    });
+
+    it("marks the request rejected, instead of leaving it stuck, when a workflow-generated approval is rejected", async () => {
+      const { data: template, error: templateError } = await supabase
+        .from("workflow_templates")
+        .upsert(
+          {
+            company_id: companyId,
+            slug: "approvals-hook-reject-test",
+            name: "Approvals Hook Reject Test",
+          },
+          { onConflict: "company_id,slug" }
+        )
+        .select("id")
+        .single();
+      if (templateError) throw templateError;
+      await supabase.from("workflow_template_steps").upsert(
+        {
+          template_id: template.id,
+          step_order: 1,
+          step_type: "approval",
+          title: "Only approval step",
+          responsible_role: "operations_manager",
+        },
+        { onConflict: "template_id,step_order" }
+      );
+
+      const request = await createRequest(requester, {
+        title: "Step rejection test",
+        category: "general",
+      });
+      const instance = await startWorkflow(requester, "approvals-hook-reject-test", {
+        requestId: request.id,
+      });
+      const { data: stepRow, error: stepError } = await supabase
+        .from("workflow_instance_steps")
+        .select("generated_approval_id")
+        .eq("instance_id", instance.id)
+        .single();
+      if (stepError) throw stepError;
+
+      await decideApproval(opsManager, stepRow.generated_approval_id!, "rejected");
+
+      const { data: requestRow, error: requestError } = await supabase
+        .from("requests")
+        .select("status")
+        .eq("id", request.id)
+        .single();
+      if (requestError) throw requestError;
+      expect(requestRow.status).toBe("rejected");
+
+      // A rejected workflow-step approval must not advance the workflow.
+      const { data: instanceRow, error: instanceError } = await supabase
+        .from("workflow_instances")
+        .select("status")
+        .eq("id", instance.id)
+        .single();
+      if (instanceError) throw instanceError;
+      expect(instanceRow.status).toBe("in_progress");
+
+      await supabase.from("workflow_instances").delete().eq("id", instance.id);
     });
 
     it("reassigns to a same-role peer, keeps status pending, and notifies the new approver", async () => {

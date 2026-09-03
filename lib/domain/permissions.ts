@@ -14,8 +14,11 @@ export function canViewTask(profile: Profile, task: TaskLike): boolean {
   if (profile.companyId !== task.companyId) return false;
   if (COMPANY_WIDE_VIEW_ROLES.has(profile.role)) return true;
   if (profile.id === task.assigneeId || profile.id === task.creatorId) return true;
+  // Unassigned, department-scoped tasks (e.g. workflow-generated task steps) are
+  // meant to be visible to anyone in that department, not just its manager. A task
+  // already assigned to someone else is not opened up to the rest of the department.
   if (
-    profile.role === "manager" &&
+    task.assigneeId === null &&
     profile.departmentId !== null &&
     profile.departmentId === task.departmentId
   ) {
@@ -52,6 +55,16 @@ export function canChangeTaskStatus(
   if (ELEVATED_ROLES.has(profile.role)) return true;
   if (profile.id === task.assigneeId || profile.id === task.creatorId) return true;
   if (assignee && profile.id === assignee.managerId) return true;
+  // Unassigned, department-scoped tasks (e.g. workflow-generated task steps) are
+  // meant to be completable by anyone in that department. A task already assigned
+  // to someone else is not opened up to the rest of the department.
+  if (
+    task.assigneeId === null &&
+    profile.departmentId !== null &&
+    profile.departmentId === task.departmentId
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -111,3 +124,14 @@ export function canTransitionRequestStatus(
 export const canCommentOnRequest = canViewRequest;
 export const canUploadRequestAttachment = canViewRequest;
 export const canReassignApproval = canDecideApproval;
+
+export function canViewWorkflowInstance(
+  profile: Profile,
+  instance: { companyId: string },
+  request: RequestLike | null,
+  approverId: string | null
+): boolean {
+  if (profile.companyId !== instance.companyId) return false;
+  if (request) return canViewRequest(profile, request, approverId);
+  return COMPANY_WIDE_VIEW_ROLES.has(profile.role);
+}

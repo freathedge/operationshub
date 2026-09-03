@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   createProfile,
+  findEarliestProfileByRole,
   getProfileByAuthUserId,
   getProfileById,
   listProfilesByRole,
@@ -160,6 +161,42 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       const managers = await listProfilesByRole(companyId, "manager", managerA.id);
       expect(managers.map((p) => p.id)).toEqual([managerB.id]);
       expect(managers[0].fullName).toBe("Alpha Manager");
+    });
+
+    it("finds the earliest-created profile with a given role, or null if none exists", async () => {
+      const { data: authUserA, error: authErrorA } = await supabase.auth.admin.createUser({
+        email: `profile-test-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+      if (authErrorA || !authUserA.user) throw authErrorA;
+      createdAuthUserIds.push(authUserA.user.id);
+      const first = await createProfile({
+        authUserId: authUserA.user.id,
+        companyId,
+        fullName: "First IT",
+        role: "it",
+      });
+
+      const { data: authUserB, error: authErrorB } = await supabase.auth.admin.createUser({
+        email: `profile-test-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+      if (authErrorB || !authUserB.user) throw authErrorB;
+      createdAuthUserIds.push(authUserB.user.id);
+      await createProfile({
+        authUserId: authUserB.user.id,
+        companyId,
+        fullName: "Second IT",
+        role: "it",
+      });
+
+      const earliest = await findEarliestProfileByRole(companyId, "it");
+      expect(earliest?.id).toBe(first.id);
+
+      const none = await findEarliestProfileByRole(companyId, "hr");
+      expect(none).toBeNull();
     });
   }
 );
