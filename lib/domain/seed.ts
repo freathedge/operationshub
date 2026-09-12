@@ -56,6 +56,7 @@ interface WorkflowTemplateStepSeed {
   description: string | null;
   responsibleRole: Role | null;
   responsibleDepartmentName: string | null;
+  createsAsset?: boolean;
 }
 
 interface WorkflowTemplateSeed {
@@ -110,6 +111,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplateSeed[] = [
         description: null,
         responsibleRole: null,
         responsibleDepartmentName: "IT",
+        createsAsset: true,
       },
     ],
   },
@@ -221,6 +223,7 @@ export async function seedWorkflowTemplates(companyId: string): Promise<void> {
         description: step.description,
         responsible_role: step.responsibleRole,
         responsible_department_name: step.responsibleDepartmentName,
+        creates_asset: step.createsAsset ?? false,
       })),
       { onConflict: "template_id,step_order" }
     );
