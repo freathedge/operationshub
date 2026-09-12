@@ -162,9 +162,14 @@ export async function assignAsset(
   assetId: string,
   targetEmployeeId: string
 ): Promise<Asset> {
-  await loadAssetOrThrow(assetId);
-  if (!canAssignAsset(profile)) {
+  const asset = await loadAssetOrThrow(assetId);
+  if (!canAssignAsset(profile, asset)) {
     throw new ForbiddenError("You cannot assign assets");
+  }
+
+  const targetEmployee = await getProfileById(targetEmployeeId);
+  if (!targetEmployee || targetEmployee.companyId !== profile.companyId) {
+    throw new NotFoundError("Employee not found");
   }
 
   const supabase = createSupabaseAdminClient();
@@ -192,7 +197,7 @@ export async function changeAssetStatus(
   newStatus: AssetStatus
 ): Promise<Asset> {
   const asset = await loadAssetOrThrow(assetId);
-  if (!canChangeAssetStatus(profile)) {
+  if (!canChangeAssetStatus(profile, asset)) {
     throw new ForbiddenError("You cannot change this asset's status");
   }
 

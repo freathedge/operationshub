@@ -424,11 +424,19 @@ describe("canCreateAsset / canAssignAsset / canChangeAssetStatus", () => {
     expect(canCreateAsset(makeProfile({ role: "hr" }))).toBe(false);
     expect(canCreateAsset(makeProfile({ role: "employee" }))).toBe(false);
 
-    expect(canAssignAsset(makeProfile({ role: "it" }))).toBe(true);
-    expect(canAssignAsset(makeProfile({ role: "employee" }))).toBe(false);
+    const asset = { companyId: "company-1", assignedTo: null, departmentId: null };
+    expect(canAssignAsset(makeProfile({ role: "it" }), asset)).toBe(true);
+    expect(canAssignAsset(makeProfile({ role: "employee" }), asset)).toBe(false);
 
-    expect(canChangeAssetStatus(makeProfile({ role: "it" }))).toBe(true);
-    expect(canChangeAssetStatus(makeProfile({ role: "employee" }))).toBe(false);
+    expect(canChangeAssetStatus(makeProfile({ role: "it" }), asset)).toBe(true);
+    expect(canChangeAssetStatus(makeProfile({ role: "employee" }), asset)).toBe(false);
+  });
+
+  it("denies a profile from a different company even with an allowed role", () => {
+    const asset = { companyId: "company-1", assignedTo: null, departmentId: null };
+    const otherCompanyIt = makeProfile({ role: "it", companyId: "other-company" });
+    expect(canAssignAsset(otherCompanyIt, asset)).toBe(false);
+    expect(canChangeAssetStatus(otherCompanyIt, asset)).toBe(false);
   });
 });
 

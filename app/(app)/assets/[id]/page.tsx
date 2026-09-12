@@ -44,8 +44,8 @@ export default async function AssetDetailPage({
         </p>
       </div>
 
-      {canAssignAsset(profile) && <AssetAssignControl assetId={asset.id} />}
-      {canChangeAssetStatus(profile) && (
+      {canAssignAsset(profile, asset) && <AssetAssignControl assetId={asset.id} />}
+      {canChangeAssetStatus(profile, asset) && (
         <AssetStatusControl assetId={asset.id} currentStatus={asset.status} />
       )}
       <AssetReportIssueForm assetId={asset.id} />

@@ -170,11 +170,13 @@ export function canCreateAsset(profile: Profile): boolean {
   return ASSET_MANAGER_ROLES.has(profile.role);
 }
 
-export function canAssignAsset(profile: Profile): boolean {
+export function canAssignAsset(profile: Profile, asset: AssetLike): boolean {
+  if (profile.companyId !== asset.companyId) return false;
   return ASSET_MANAGER_ROLES.has(profile.role);
 }
 
-export function canChangeAssetStatus(profile: Profile): boolean {
+export function canChangeAssetStatus(profile: Profile, asset: AssetLike): boolean {
+  if (profile.companyId !== asset.companyId) return false;
   return ASSET_MANAGER_ROLES.has(profile.role);
 }
 
