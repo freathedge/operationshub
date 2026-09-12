@@ -1,17 +1,21 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import type { Profile } from "@/lib/domain/profiles";
+import { getProfileById, type Profile } from "@/lib/domain/profiles";
 import { logActivity } from "@/lib/domain/activity";
 import { broadcastChange } from "@/lib/realtime/broadcast";
 import {
   canAssignAsset,
   canChangeAssetStatus,
+  canChangeTaskStatus,
   canCreateAsset,
   canViewAsset,
 } from "@/lib/domain/permissions";
-import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
+import { ForbiddenError, NotFoundError, UnprocessableRequestError } from "@/lib/domain/errors";
 import type { AssetStatus } from "@/lib/domain/asset-status";
 import type { AssetFilters, CreateAssetInput } from "@/lib/validation/assets";
 import type { Json } from "@/lib/supabase/database.types";
+import { loadTaskOrThrow, updateTaskStatus, type Task } from "@/lib/domain/tasks";
+import { findWorkflowStepByTaskId } from "@/lib/domain/workflows";
+import { loadRequestOrThrow } from "@/lib/domain/requests";
 
 export interface Asset {
   id: string;
@@ -214,4 +218,51 @@ export async function changeAssetStatus(
     console.error("broadcastChange failed:", broadcastError);
   }
   return updated;
+}
+
+export async function completeAssetAssignmentTask(
+  profile: Profile,
+  taskId: string,
+  input: CreateAssetInput
+): Promise<{ task: Task; asset: Asset }> {
+  const task = await loadTaskOrThrow(taskId);
+  const assignee = task.assigneeId ? await getProfileById(task.assigneeId) : null;
+  if (!canChangeTaskStatus(profile, task, assignee)) {
+    throw new ForbiddenError("You cannot complete this task");
+  }
+
+  const workflowStep = await findWorkflowStepByTaskId(taskId);
+  if (!workflowStep || !workflowStep.createsAsset) {
+    throw new UnprocessableRequestError("This task does not create an asset");
+  }
+  if (!workflowStep.relatedRequestId) {
+    throw new UnprocessableRequestError("This workflow instance has no related request");
+  }
+
+  const request = await loadRequestOrThrow(workflowStep.relatedRequestId);
+
+  const asset = await insertAsset(profile.companyId, {
+    name: input.name,
+    category: input.category,
+    status: "assigned",
+    assignedTo: request.createdBy,
+    departmentId: request.departmentId,
+    purchaseInfo: input.purchaseInfo ?? null,
+    warrantyInfo: input.warrantyInfo ?? null,
+  });
+  await logActivity(
+    "asset",
+    asset.id,
+    profile.id,
+    `${profile.fullName} created this asset and assigned it via workflow`
+  );
+  try {
+    await broadcastChange(profile.companyId, "assets", { type: "asset_created" });
+  } catch (broadcastError) {
+    console.error("broadcastChange failed:", broadcastError);
+  }
+
+  const updatedTask = await updateTaskStatus(profile, taskId, "completed");
+
+  return { task: updatedTask, asset };
 }
