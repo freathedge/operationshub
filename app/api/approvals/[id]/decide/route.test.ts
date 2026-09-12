@@ -20,6 +20,10 @@ const PROFILE = {
   role: "employee" as const,
   departmentId: null,
   managerId: null,
+  positionTitle: null,
+  employeeNumber: null,
+  locationId: null,
+  status: "active" as const,
 };
 
 function params(id: string) {

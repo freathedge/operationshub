@@ -19,6 +19,10 @@ const PROFILE = {
   role: "operations_manager" as const,
   departmentId: null,
   managerId: null,
+  positionTitle: null,
+  employeeNumber: null,
+  locationId: null,
+  status: "active" as const,
 };
 
 beforeEach(() => {

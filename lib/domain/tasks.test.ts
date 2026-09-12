@@ -91,6 +91,21 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       await supabase.from("companies").delete().eq("slug", "test-co-tasks");
     });
 
+    it("creates a task with a related asset", async () => {
+      const { data: asset, error: assetError } = await supabase
+        .from("assets")
+        .insert({ company_id: companyId, asset_code: "AST-TASKS-TEST", name: "Test Asset", category: "laptop" })
+        .select("id")
+        .single();
+      if (assetError) throw assetError;
+
+      const task = await createTask(employee, { title: "Fix asset", relatedAssetId: asset.id });
+      expect(task.relatedAssetId).toBe(asset.id);
+
+      await supabase.from("tasks").delete().eq("id", task.id);
+      await supabase.from("assets").delete().eq("id", asset.id);
+    });
+
     it("creates a task with the creator and company set, and defaults", async () => {
       const task = await createTask(employee, { title: "Prepare laptop" });
       expect(task.creatorId).toBe(employee.id);

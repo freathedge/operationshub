@@ -80,5 +80,23 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("seedWorkflowTemplates",
       responsible_role: null,
       responsible_department_name: "Procurement",
     });
+    expect(equipmentSteps?.[4]).toMatchObject({ title: "Asset Assigned" });
+
+    const { data: assetStep, error: assetStepError } = await supabase
+      .from("workflow_template_steps")
+      .select("creates_asset")
+      .eq("template_id", equipmentTemplate.id)
+      .eq("step_order", 5)
+      .single();
+    if (assetStepError) throw assetStepError;
+    expect(assetStep.creates_asset).toBe(true);
+
+    const { data: otherSteps, error: otherStepsError } = await supabase
+      .from("workflow_template_steps")
+      .select("creates_asset")
+      .eq("template_id", equipmentTemplate.id)
+      .neq("step_order", 5);
+    if (otherStepsError) throw otherStepsError;
+    expect(otherSteps?.every((s) => s.creates_asset === false)).toBe(true);
   });
 });

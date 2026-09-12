@@ -10,7 +10,6 @@ Last updated: 2026-09-03
 
 Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline.md` for the full breakdown of each.
 
-- **Phase 5 — Employees & Assets**: operational employee profiles, asset registry.
 - **Phase 6 — Operations**: higher-level grouping over tasks/requests/assets/employees.
 - **Phase 7 — Dashboard/Overview**: replaces the Foundation placeholder dashboard with the real one, built from a shadcn/ui dashboard block (see `docs/architecture.md` §3).
 - **Phase 8 — Reports & Search**: operational metrics, global search.
@@ -18,7 +17,8 @@ Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline
 
 ## In Progress
 
-_(nothing right now)_
+- **Phase 5 — Employees & Assets**: operational employee profiles, asset registry; completing the Equipment workflow's final task now creates and assigns a real asset; HR/admin can invite a new employee, which starts the Employee Onboarding workflow. Spec: `docs/superpowers/specs/2026-09-03-phase5-employees-assets-design.md`. Plan: `docs/superpowers/plans/2026-09-03-phase5-employees-assets.md`. Branch: `worktree-phase5-employees-assets-plan`.
+  - Known limitation: `createEmployee`'s invite-by-email path can't be verified end-to-end in this environment — the Supabase project has no custom SMTP provider configured, so `inviteUserByEmail` is rejected by the built-in test mail relay. Needs a Resend integration (via Vercel Marketplace) once a sending domain is available.
 
 ## Review
 

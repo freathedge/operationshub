@@ -24,6 +24,7 @@ export interface Task {
   creatorId: string | null;
   departmentId: string | null;
   relatedEmployeeId: string | null;
+  relatedAssetId: string | null;
   relatedWorkflowInstanceId: string | null;
   dueDate: string | null;
   completedAt: string | null;
@@ -41,6 +42,7 @@ interface TaskRow {
   creator_id: string | null;
   department_id: string | null;
   related_employee_id: string | null;
+  related_asset_id: string | null;
   related_workflow_instance_id: string | null;
   due_date: string | null;
   completed_at: string | null;
@@ -59,6 +61,7 @@ function toTask(row: TaskRow): Task {
     creatorId: row.creator_id,
     departmentId: row.department_id,
     relatedEmployeeId: row.related_employee_id,
+    relatedAssetId: row.related_asset_id,
     relatedWorkflowInstanceId: row.related_workflow_instance_id,
     dueDate: row.due_date,
     completedAt: row.completed_at,
@@ -67,7 +70,7 @@ function toTask(row: TaskRow): Task {
 }
 
 const TASK_COLUMNS =
-  "id, company_id, title, description, status, priority, assignee_id, creator_id, department_id, related_employee_id, related_workflow_instance_id, due_date, completed_at, created_at";
+  "id, company_id, title, description, status, priority, assignee_id, creator_id, department_id, related_employee_id, related_asset_id, related_workflow_instance_id, due_date, completed_at, created_at";
 
 const COMPANY_WIDE_VIEW_ROLES = new Set(["operations_manager", "it", "hr", "admin"]);
 
@@ -88,6 +91,7 @@ export async function createTask(profile: Profile, input: CreateTaskInput): Prom
       creator_id: profile.id,
       department_id: input.departmentId ?? null,
       related_employee_id: input.relatedEmployeeId ?? null,
+      related_asset_id: input.relatedAssetId ?? null,
       due_date: input.dueDate ?? null,
     })
     .select(TASK_COLUMNS)

@@ -20,6 +20,7 @@ export const createTaskSchema = z.object({
   departmentId: z.string().uuid().optional(),
   assigneeId: z.string().uuid().optional(),
   relatedEmployeeId: z.string().uuid().optional(),
+  relatedAssetId: z.string().uuid().optional(),
   dueDate: z.string().datetime().optional(),
 });
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;

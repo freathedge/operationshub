@@ -83,6 +83,7 @@ export interface WorkflowInstance {
   companyId: string;
   templateId: string;
   relatedRequestId: string | null;
+  relatedEmployeeId: string | null;
   status: "in_progress" | "completed";
   createdAt: string;
 }
@@ -92,6 +93,7 @@ interface WorkflowInstanceRow {
   company_id: string;
   template_id: string;
   related_request_id: string | null;
+  related_employee_id: string | null;
   status: "in_progress" | "completed";
   created_at: string;
 }
@@ -102,13 +104,14 @@ function toWorkflowInstance(row: WorkflowInstanceRow): WorkflowInstance {
     companyId: row.company_id,
     templateId: row.template_id,
     relatedRequestId: row.related_request_id,
+    relatedEmployeeId: row.related_employee_id,
     status: row.status,
     createdAt: row.created_at,
   };
 }
 
 const WORKFLOW_INSTANCE_COLUMNS =
-  "id, company_id, template_id, related_request_id, status, created_at";
+  "id, company_id, template_id, related_request_id, related_employee_id, status, created_at";
 
 export interface WorkflowInstanceStep {
   id: string;
@@ -296,7 +299,7 @@ async function generateStepEntity(
 export async function startWorkflow(
   profile: Profile,
   templateSlug: string,
-  context: { requestId?: string }
+  context: { requestId?: string; employeeId?: string }
 ): Promise<WorkflowInstance> {
   const template = await loadTemplateBySlug(profile.companyId, templateSlug);
   const templateSteps = await loadTemplateSteps(template.id);
@@ -305,12 +308,25 @@ export async function startWorkflow(
   }
 
   const supabase = createSupabaseAdminClient();
+
+  let relatedEmployeeId = context.employeeId ?? null;
+  if (!relatedEmployeeId && context.requestId) {
+    const { data: requestRow, error: requestLookupError } = await supabase
+      .from("requests")
+      .select("created_by")
+      .eq("id", context.requestId)
+      .maybeSingle();
+    if (requestLookupError) throw requestLookupError;
+    relatedEmployeeId = requestRow?.created_by ?? null;
+  }
+
   const { data: instanceRow, error: instanceError } = await supabase
     .from("workflow_instances")
     .insert({
       company_id: profile.companyId,
       template_id: template.id,
       related_request_id: context.requestId ?? null,
+      related_employee_id: relatedEmployeeId,
       status: "in_progress",
     })
     .select(WORKFLOW_INSTANCE_COLUMNS)
@@ -580,4 +596,39 @@ export async function getWorkflowProgress(
   });
 
   return { instance, steps };
+}
+
+export interface WorkflowStepForTask {
+  step: WorkflowInstanceStep;
+  createsAsset: boolean;
+  relatedRequestId: string | null;
+}
+
+export async function findWorkflowStepByTaskId(
+  taskId: string
+): Promise<WorkflowStepForTask | null> {
+  const supabase = createSupabaseAdminClient();
+  const { data: stepRow, error: stepError } = await supabase
+    .from("workflow_instance_steps")
+    .select(WORKFLOW_INSTANCE_STEP_COLUMNS)
+    .eq("generated_task_id", taskId)
+    .maybeSingle();
+  if (stepError) throw stepError;
+  if (!stepRow) return null;
+  const step = toWorkflowInstanceStep(stepRow);
+
+  const { data: templateStepRow, error: templateStepError } = await supabase
+    .from("workflow_template_steps")
+    .select("creates_asset")
+    .eq("id", step.templateStepId)
+    .maybeSingle();
+  if (templateStepError) throw templateStepError;
+
+  const instance = await loadInstanceOrThrow(step.instanceId);
+
+  return {
+    step,
+    createsAsset: templateStepRow?.creates_asset ?? false,
+    relatedRequestId: instance.relatedRequestId,
+  };
 }

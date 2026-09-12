@@ -135,3 +135,54 @@ export function canViewWorkflowInstance(
   if (request) return canViewRequest(profile, request, approverId);
   return COMPANY_WIDE_VIEW_ROLES.has(profile.role);
 }
+
+const EMPLOYEE_MANAGER_ROLES = new Set(["hr", "admin"]);
+const ASSET_MANAGER_ROLES = new Set(["it", "operations_manager", "admin"]);
+
+export function canCreateEmployee(profile: Profile): boolean {
+  return EMPLOYEE_MANAGER_ROLES.has(profile.role);
+}
+
+export function canUpdateEmployee(profile: Profile): boolean {
+  return EMPLOYEE_MANAGER_ROLES.has(profile.role);
+}
+
+export interface EmployeeLike {
+  companyId: string;
+  id: string;
+  managerId: string | null;
+}
+
+export function canViewEmployeeProfile(profile: Profile, target: EmployeeLike): boolean {
+  if (profile.companyId !== target.companyId) return false;
+  if (COMPANY_WIDE_VIEW_ROLES.has(profile.role)) return true;
+  if (profile.id === target.id) return true;
+  return profile.id === target.managerId;
+}
+
+export interface AssetLike {
+  companyId: string;
+  assignedTo: string | null;
+  departmentId: string | null;
+}
+
+export function canCreateAsset(profile: Profile): boolean {
+  return ASSET_MANAGER_ROLES.has(profile.role);
+}
+
+export function canAssignAsset(profile: Profile, asset: AssetLike): boolean {
+  if (profile.companyId !== asset.companyId) return false;
+  return ASSET_MANAGER_ROLES.has(profile.role);
+}
+
+export function canChangeAssetStatus(profile: Profile, asset: AssetLike): boolean {
+  if (profile.companyId !== asset.companyId) return false;
+  return ASSET_MANAGER_ROLES.has(profile.role);
+}
+
+export function canViewAsset(profile: Profile, asset: AssetLike): boolean {
+  if (profile.companyId !== asset.companyId) return false;
+  if (COMPANY_WIDE_VIEW_ROLES.has(profile.role)) return true;
+  if (profile.id === asset.assignedTo) return true;
+  return profile.departmentId !== null && profile.departmentId === asset.departmentId;
+}

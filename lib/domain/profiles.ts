@@ -1,5 +1,8 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Role } from "@/lib/validation/auth";
+import { PROFILE_STATUSES, type ProfileStatus } from "@/lib/domain/profile-status";
+
+export { PROFILE_STATUSES, type ProfileStatus };
 
 export interface Profile {
   id: string;
@@ -9,6 +12,10 @@ export interface Profile {
   role: Role;
   departmentId: string | null;
   managerId: string | null;
+  positionTitle: string | null;
+  employeeNumber: string | null;
+  locationId: string | null;
+  status: ProfileStatus;
 }
 
 interface ProfileRow {
@@ -19,6 +26,10 @@ interface ProfileRow {
   role: Role;
   department_id: string | null;
   manager_id: string | null;
+  position_title: string | null;
+  employee_number: string | null;
+  location_id: string | null;
+  status: ProfileStatus;
 }
 
 function toProfile(row: ProfileRow): Profile {
@@ -30,11 +41,15 @@ function toProfile(row: ProfileRow): Profile {
     role: row.role,
     departmentId: row.department_id,
     managerId: row.manager_id,
+    positionTitle: row.position_title,
+    employeeNumber: row.employee_number,
+    locationId: row.location_id,
+    status: row.status,
   };
 }
 
 const PROFILE_COLUMNS =
-  "id, auth_user_id, company_id, full_name, role, department_id, manager_id";
+  "id, auth_user_id, company_id, full_name, role, department_id, manager_id, position_title, employee_number, location_id, status";
 
 export async function getProfileByAuthUserId(
   authUserId: string
@@ -106,6 +121,9 @@ export async function createProfile(input: {
   role: Role;
   departmentId?: string | null;
   managerId?: string | null;
+  locationId?: string | null;
+  positionTitle?: string | null;
+  employeeNumber?: string | null;
 }): Promise<Profile> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
@@ -117,10 +135,55 @@ export async function createProfile(input: {
       role: input.role,
       department_id: input.departmentId ?? null,
       manager_id: input.managerId ?? null,
+      location_id: input.locationId ?? null,
+      position_title: input.positionTitle ?? null,
+      employee_number: input.employeeNumber ?? null,
     })
     .select(PROFILE_COLUMNS)
     .single();
 
   if (error) throw error;
   return toProfile(data);
+}
+
+export async function updateProfile(
+  id: string,
+  updates: {
+    positionTitle?: string | null;
+    employeeNumber?: string | null;
+    departmentId?: string | null;
+    managerId?: string | null;
+    locationId?: string | null;
+    status?: ProfileStatus;
+  }
+): Promise<Profile> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      ...(updates.positionTitle !== undefined && { position_title: updates.positionTitle }),
+      ...(updates.employeeNumber !== undefined && { employee_number: updates.employeeNumber }),
+      ...(updates.departmentId !== undefined && { department_id: updates.departmentId }),
+      ...(updates.managerId !== undefined && { manager_id: updates.managerId }),
+      ...(updates.locationId !== undefined && { location_id: updates.locationId }),
+      ...(updates.status !== undefined && { status: updates.status }),
+    })
+    .eq("id", id)
+    .select(PROFILE_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toProfile(data);
+}
+
+export async function listProfilesByCompany(
+  companyId: string,
+  filters: { departmentId?: string; status?: ProfileStatus }
+): Promise<Profile[]> {
+  const supabase = createSupabaseAdminClient();
+  let query = supabase.from("profiles").select(PROFILE_COLUMNS).eq("company_id", companyId);
+  if (filters.departmentId) query = query.eq("department_id", filters.departmentId);
+  if (filters.status) query = query.eq("status", filters.status);
+  const { data, error } = await query.order("full_name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(toProfile);
 }

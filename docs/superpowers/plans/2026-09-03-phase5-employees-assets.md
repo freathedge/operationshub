@@ -2200,10 +2200,26 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
         assignee_id: target.id,
       });
       if (taskError) throw taskError;
+
+      const { data: template, error: templateError } = await supabase
+        .from("workflow_templates")
+        .insert({ company_id: companyId, slug: "employee-profile-test", name: "Employee Profile Test" })
+        .select("id")
+        .single();
+      if (templateError) throw templateError;
+      const { error: instanceError } = await supabase.from("workflow_instances").insert({
+        company_id: companyId,
+        template_id: template.id,
+        related_employee_id: target.id,
+        status: "in_progress",
+      });
+      if (instanceError) throw instanceError;
     });
 
     afterAll(async () => {
       await supabase.from("tasks").delete().eq("company_id", companyId);
+      await supabase.from("workflow_instances").delete().eq("company_id", companyId);
+      await supabase.from("workflow_templates").delete().eq("company_id", companyId);
       await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
       for (const id of createdAuthUserIds) {
         await supabase.auth.admin.deleteUser(id);
@@ -2211,11 +2227,12 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       await supabase.from("companies").delete().eq("slug", "test-co-employee-profile");
     });
 
-    it("aggregates open task count and returns the profile and activity", async () => {
+    it("aggregates open task count, active workflow count, and returns the profile and activity", async () => {
       const result = await getEmployeeProfile(hr, target.id);
       expect(result.profile.id).toBe(target.id);
       expect(result.counts.openTasks).toBe(1);
       expect(result.counts.requests).toBe(0);
+      expect(result.counts.activeWorkflows).toBe(1);
       expect(result.counts.assets).toBe(0);
       expect(Array.isArray(result.activity)).toBe(true);
     });
