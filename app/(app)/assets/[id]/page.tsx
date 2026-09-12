@@ -7,6 +7,7 @@ import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
 import { AssetAssignControl } from "@/components/assets/asset-assign-control";
 import { AssetStatusControl } from "@/components/assets/asset-status-control";
+import { AssetReportIssueForm } from "@/components/assets/asset-report-issue-form";
 
 export default async function AssetDetailPage({
   params,
@@ -47,6 +48,7 @@ export default async function AssetDetailPage({
       {canChangeAssetStatus(profile) && (
         <AssetStatusControl assetId={asset.id} currentStatus={asset.status} />
       )}
+      <AssetReportIssueForm assetId={asset.id} />
 
       <section>
         <h2 className="text-lg font-medium mb-2">Activity</h2>
