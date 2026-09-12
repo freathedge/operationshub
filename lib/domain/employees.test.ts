@@ -103,7 +103,9 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("createEmployee", () => 
       role: "hr",
     });
 
-    const newHireEmail = `new-hire-${crypto.randomUUID()}@example.com`;
+    // mailinator.com has real MX records, unlike example.com, so the SMTP relay
+    // actually accepts the invite send instead of hard-bouncing at hand-off.
+    const newHireEmail = `new-hire-${crypto.randomUUID()}@mailinator.com`;
     const employee = await createEmployee(hrProfile, {
       email: newHireEmail,
       fullName: "New Hire",
@@ -127,7 +129,7 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("createEmployee", () => 
   });
 
   it("does not start onboarding when startOnboarding is false", async () => {
-    const newHireEmail = `new-hire-no-onboarding-${crypto.randomUUID()}@example.com`;
+    const newHireEmail = `new-hire-no-onboarding-${crypto.randomUUID()}@mailinator.com`;
     const employee = await createEmployee(hrProfile, {
       email: newHireEmail,
       fullName: "No Onboarding Hire",

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-03
+Last updated: 2026-09-12
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -17,14 +17,19 @@ Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline
 
 ## In Progress
 
-- **Phase 5 — Employees & Assets**: operational employee profiles, asset registry; completing the Equipment workflow's final task now creates and assigns a real asset; HR/admin can invite a new employee, which starts the Employee Onboarding workflow. Spec: `docs/superpowers/specs/2026-09-03-phase5-employees-assets-design.md`. Plan: `docs/superpowers/plans/2026-09-03-phase5-employees-assets.md`. Branch: `worktree-phase5-employees-assets-plan`.
-  - Known limitation: `createEmployee`'s invite-by-email path can't be verified end-to-end in this environment — the Supabase project has no custom SMTP provider configured, so `inviteUserByEmail` is rejected by the built-in test mail relay. Needs a Resend integration (via Vercel Marketplace) once a sending domain is available.
+_(nothing right now)_
 
 ## Review
 
 _(nothing right now)_
 
 ## Finished
+
+- **Phase 5 — Employees & Assets**: operational employee profiles, asset registry; completing the Equipment workflow's final task now creates and assigns a real asset; HR/admin can invite a new employee, which starts the Employee Onboarding workflow. Spec: `docs/superpowers/specs/2026-09-03-phase5-employees-assets-design.md`. Plan: `docs/superpowers/plans/2026-09-03-phase5-employees-assets.md`.
+  - Full-branch code review found one Important gap (`canAssignAsset`/`canChangeAssetStatus` missing company-scoping) and one Minor gap (task-detail asset form reachable before `in_progress`) — both fixed before merge.
+  - Deferred (not blockers): `createEmployee` invites the auth user before creating the profile, so a later `createProfile` failure (e.g. duplicate `employee_number`) leaves an orphaned, profile-less auth user; `AssetStatusControl`/`changeAssetStatus` allow any status → any status with no state machine, unlike tasks/requests (accepted as YAGNI in the design spec).
+  - Supabase Auth's SMTP was custom-configured against a verified Resend sending domain after merge, resolving the invite-email limitation noted during review; `lib/domain/employees.test.ts`'s two invite tests were updated to use `@mailinator.com` (real MX) instead of `@example.com` (no MX, hard-bounces regardless of sender config).
+  - Merged to `main` via PR #6 (`956284c`).
 
 - **Phase 4 — Workflow Engine**: generic workflow template/instance runner; auto-starts Equipment/Maintenance workflows on request approval, seeds Employee Onboarding (not yet startable — needs Phase 5). Spec: `docs/superpowers/specs/2026-08-28-phase4-workflow-engine-design.md`. Plan: `docs/superpowers/plans/2026-08-28-phase4-workflow-engine.md`.
   - Deferred to Phase 5+ (not blockers): cancelling a workflow-generated task strands its instance (no terminate/skip handling); an approving manager can lose request-detail visibility once a second (workflow) approval lands on the same request; no end-to-end test exercises a mixed task→approval→task template; `advanceWorkflow`'s multi-write sequence is non-transactional (matches the rest of the codebase's existing pattern).
