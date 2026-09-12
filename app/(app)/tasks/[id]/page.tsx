@@ -51,7 +51,7 @@ export default async function TaskDetailPage({
   const workflowStep = task.relatedWorkflowInstanceId
     ? await findWorkflowStepByTaskId(task.id)
     : null;
-  const showAssetForm = Boolean(workflowStep?.createsAsset) && task.status !== "completed";
+  const showAssetForm = Boolean(workflowStep?.createsAsset) && task.status === "in_progress";
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
