@@ -145,3 +145,45 @@ export async function createProfile(input: {
   if (error) throw error;
   return toProfile(data);
 }
+
+export async function updateProfile(
+  id: string,
+  updates: {
+    positionTitle?: string | null;
+    employeeNumber?: string | null;
+    departmentId?: string | null;
+    managerId?: string | null;
+    locationId?: string | null;
+    status?: ProfileStatus;
+  }
+): Promise<Profile> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      ...(updates.positionTitle !== undefined && { position_title: updates.positionTitle }),
+      ...(updates.employeeNumber !== undefined && { employee_number: updates.employeeNumber }),
+      ...(updates.departmentId !== undefined && { department_id: updates.departmentId }),
+      ...(updates.managerId !== undefined && { manager_id: updates.managerId }),
+      ...(updates.locationId !== undefined && { location_id: updates.locationId }),
+      ...(updates.status !== undefined && { status: updates.status }),
+    })
+    .eq("id", id)
+    .select(PROFILE_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toProfile(data);
+}
+
+export async function listProfilesByCompany(
+  companyId: string,
+  filters: { departmentId?: string; status?: ProfileStatus }
+): Promise<Profile[]> {
+  const supabase = createSupabaseAdminClient();
+  let query = supabase.from("profiles").select(PROFILE_COLUMNS).eq("company_id", companyId);
+  if (filters.departmentId) query = query.eq("department_id", filters.departmentId);
+  if (filters.status) query = query.eq("status", filters.status);
+  const { data, error } = await query.order("full_name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(toProfile);
+}

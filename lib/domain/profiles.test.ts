@@ -5,7 +5,9 @@ import {
   findEarliestProfileByRole,
   getProfileByAuthUserId,
   getProfileById,
+  listProfilesByCompany,
   listProfilesByRole,
+  updateProfile,
 } from "@/lib/domain/profiles";
 
 // Integration test — hits the live Supabase project via the service-role key. Skipped
@@ -221,6 +223,112 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
 
       const none = await findEarliestProfileByRole(companyId, "hr");
       expect(none).toBeNull();
+    });
+  }
+);
+
+describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
+  "updateProfile / listProfilesByCompany",
+  () => {
+    const supabase = createSupabaseAdminClient();
+    let companyId: string;
+    const createdAuthUserIds: string[] = [];
+
+    beforeAll(async () => {
+      const { data, error } = await supabase
+        .from("companies")
+        .upsert(
+          { name: "Test Co (profiles-2)", slug: "test-co-profiles-2" },
+          { onConflict: "slug" }
+        )
+        .select("id")
+        .single();
+      if (error) throw error;
+      companyId = data.id;
+    });
+
+    afterAll(async () => {
+      await supabase.from("companies").delete().eq("slug", "test-co-profiles-2");
+    });
+
+    afterEach(async () => {
+      if (createdAuthUserIds.length === 0) return;
+      await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
+      for (const id of createdAuthUserIds) {
+        await supabase.auth.admin.deleteUser(id);
+      }
+      createdAuthUserIds.length = 0;
+    });
+
+    it("updates operational fields on a profile", async () => {
+      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+        email: `profile-test-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+      if (authError || !authUser.user) throw authError;
+      createdAuthUserIds.push(authUser.user.id);
+      const created = await createProfile({
+        authUserId: authUser.user.id,
+        companyId,
+        fullName: "Updatable Employee",
+        role: "employee",
+      });
+
+      const updated = await updateProfile(created.id, {
+        positionTitle: "Senior Engineer",
+        status: "inactive",
+      });
+      expect(updated.positionTitle).toBe("Senior Engineer");
+      expect(updated.status).toBe("inactive");
+      expect(updated.fullName).toBe("Updatable Employee");
+    });
+
+    it("lists profiles for a company, optionally filtered by department and status", async () => {
+      const { data: department, error: departmentError } = await supabase
+        .from("departments")
+        .upsert(
+          { company_id: companyId, name: "Filtering Dept" },
+          { onConflict: "company_id,name" }
+        )
+        .select("id")
+        .single();
+      if (departmentError) throw departmentError;
+
+      const { data: authUserA, error: authErrorA } = await supabase.auth.admin.createUser({
+        email: `profile-test-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+      if (authErrorA || !authUserA.user) throw authErrorA;
+      createdAuthUserIds.push(authUserA.user.id);
+      const inDept = await createProfile({
+        authUserId: authUserA.user.id,
+        companyId,
+        fullName: "In Dept",
+        role: "employee",
+        departmentId: department.id,
+      });
+
+      const { data: authUserB, error: authErrorB } = await supabase.auth.admin.createUser({
+        email: `profile-test-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+      if (authErrorB || !authUserB.user) throw authErrorB;
+      createdAuthUserIds.push(authUserB.user.id);
+      await createProfile({
+        authUserId: authUserB.user.id,
+        companyId,
+        fullName: "Out Of Dept",
+        role: "employee",
+      });
+
+      const inDeptResults = await listProfilesByCompany(companyId, { departmentId: department.id });
+      expect(inDeptResults.map((p) => p.id)).toEqual([inDept.id]);
+
+      const all = await listProfilesByCompany(companyId, {});
+      expect(all.length).toBeGreaterThanOrEqual(2);
     });
   }
 );
