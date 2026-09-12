@@ -1,0 +1,217 @@
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import type { Profile } from "@/lib/domain/profiles";
+import { logActivity } from "@/lib/domain/activity";
+import { broadcastChange } from "@/lib/realtime/broadcast";
+import {
+  canAssignAsset,
+  canChangeAssetStatus,
+  canCreateAsset,
+  canViewAsset,
+} from "@/lib/domain/permissions";
+import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
+import type { AssetStatus } from "@/lib/domain/asset-status";
+import type { AssetFilters, CreateAssetInput } from "@/lib/validation/assets";
+import type { Json } from "@/lib/supabase/database.types";
+
+export interface Asset {
+  id: string;
+  companyId: string;
+  assetCode: string;
+  name: string;
+  category: string;
+  status: AssetStatus;
+  assignedTo: string | null;
+  departmentId: string | null;
+  locationId: string | null;
+  purchaseInfo: Record<string, unknown> | null;
+  warrantyInfo: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+interface AssetRow {
+  id: string;
+  company_id: string;
+  asset_code: string;
+  name: string;
+  category: string;
+  status: AssetStatus;
+  assigned_to: string | null;
+  department_id: string | null;
+  location_id: string | null;
+  purchase_info: Json | null;
+  warranty_info: Json | null;
+  created_at: string;
+}
+
+function toAsset(row: AssetRow): Asset {
+  return {
+    id: row.id,
+    companyId: row.company_id,
+    assetCode: row.asset_code,
+    name: row.name,
+    category: row.category,
+    status: row.status,
+    assignedTo: row.assigned_to,
+    departmentId: row.department_id,
+    locationId: row.location_id,
+    purchaseInfo: row.purchase_info as Record<string, unknown> | null,
+    warrantyInfo: row.warranty_info as Record<string, unknown> | null,
+    createdAt: row.created_at,
+  };
+}
+
+const ASSET_COLUMNS =
+  "id, company_id, asset_code, name, category, status, assigned_to, department_id, location_id, purchase_info, warranty_info, created_at";
+
+async function generateAssetCode(companyId: string): Promise<string> {
+  const supabase = createSupabaseAdminClient();
+  const { count, error } = await supabase
+    .from("assets")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId);
+  if (error) throw error;
+  return `AST-${String((count ?? 0) + 1).padStart(5, "0")}`;
+}
+
+interface InsertAssetInput {
+  name: string;
+  category: string;
+  status?: AssetStatus;
+  assignedTo?: string | null;
+  departmentId?: string | null;
+  locationId?: string | null;
+  purchaseInfo?: Record<string, unknown> | null;
+  warrantyInfo?: Record<string, unknown> | null;
+}
+
+async function insertAsset(companyId: string, input: InsertAssetInput): Promise<Asset> {
+  const assetCode = await generateAssetCode(companyId);
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("assets")
+    .insert({
+      company_id: companyId,
+      asset_code: assetCode,
+      name: input.name,
+      category: input.category,
+      status: input.status ?? "available",
+      assigned_to: input.assignedTo ?? null,
+      department_id: input.departmentId ?? null,
+      location_id: input.locationId ?? null,
+      purchase_info: (input.purchaseInfo as Json) ?? null,
+      warranty_info: (input.warrantyInfo as Json) ?? null,
+    })
+    .select(ASSET_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toAsset(data);
+}
+
+export async function createAsset(profile: Profile, input: CreateAssetInput): Promise<Asset> {
+  if (!canCreateAsset(profile)) {
+    throw new ForbiddenError("You cannot create assets");
+  }
+
+  const asset = await insertAsset(profile.companyId, input);
+  await logActivity("asset", asset.id, profile.id, `${profile.fullName} created this asset`);
+  try {
+    await broadcastChange(profile.companyId, "assets", { type: "asset_created" });
+  } catch (broadcastError) {
+    console.error("broadcastChange failed:", broadcastError);
+  }
+  return asset;
+}
+
+export async function loadAssetOrThrow(assetId: string): Promise<Asset> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("assets")
+    .select(ASSET_COLUMNS)
+    .eq("id", assetId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new NotFoundError("Asset not found");
+  return toAsset(data);
+}
+
+export async function getAsset(profile: Profile, assetId: string): Promise<Asset> {
+  const asset = await loadAssetOrThrow(assetId);
+  if (!canViewAsset(profile, asset)) {
+    throw new ForbiddenError("You cannot view this asset");
+  }
+  return asset;
+}
+
+export async function listAssets(profile: Profile, filters: AssetFilters): Promise<Asset[]> {
+  const supabase = createSupabaseAdminClient();
+  let query = supabase.from("assets").select(ASSET_COLUMNS).eq("company_id", profile.companyId);
+  if (filters.category) query = query.eq("category", filters.category);
+  if (filters.status) query = query.eq("status", filters.status);
+  if (filters.departmentId) query = query.eq("department_id", filters.departmentId);
+  const { data, error } = await query.order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(toAsset);
+}
+
+export async function assignAsset(
+  profile: Profile,
+  assetId: string,
+  targetEmployeeId: string
+): Promise<Asset> {
+  await loadAssetOrThrow(assetId);
+  if (!canAssignAsset(profile)) {
+    throw new ForbiddenError("You cannot assign assets");
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("assets")
+    .update({ assigned_to: targetEmployeeId, status: "assigned" })
+    .eq("id", assetId)
+    .select(ASSET_COLUMNS)
+    .single();
+  if (error) throw error;
+
+  const updated = toAsset(data);
+  await logActivity("asset", updated.id, profile.id, `${profile.fullName} assigned this asset`);
+  try {
+    await broadcastChange(profile.companyId, "assets", { type: "asset_updated" });
+  } catch (broadcastError) {
+    console.error("broadcastChange failed:", broadcastError);
+  }
+  return updated;
+}
+
+export async function changeAssetStatus(
+  profile: Profile,
+  assetId: string,
+  newStatus: AssetStatus
+): Promise<Asset> {
+  const asset = await loadAssetOrThrow(assetId);
+  if (!canChangeAssetStatus(profile)) {
+    throw new ForbiddenError("You cannot change this asset's status");
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("assets")
+    .update({ status: newStatus })
+    .eq("id", assetId)
+    .select(ASSET_COLUMNS)
+    .single();
+  if (error) throw error;
+
+  const updated = toAsset(data);
+  await logActivity(
+    "asset",
+    updated.id,
+    profile.id,
+    `${profile.fullName} changed status from "${asset.status}" to "${newStatus}"`
+  );
+  try {
+    await broadcastChange(profile.companyId, "assets", { type: "asset_updated" });
+  } catch (broadcastError) {
+    console.error("broadcastChange failed:", broadcastError);
+  }
+  return updated;
+}
