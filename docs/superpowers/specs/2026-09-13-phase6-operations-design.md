@@ -165,23 +165,23 @@ export const operationFiltersSchema = z.object({
   ownerId: z.string().uuid().optional(),
 });
 
-export const linkEntitySchema = z.object({
-  entityType: z.enum(["task", "request", "asset", "employee"]),
-  entityId: z.string().uuid(),
-});
+export const linkActionSchema = z.union([
+  z.object({ action: z.literal("link"), entityType: z.enum(["task", "request", "asset", "employee"]), entityId: z.string().uuid() }),
+  z.object({ action: z.literal("unlink"), entityType: z.enum(["task", "request", "asset", "employee"]), entityId: z.string().uuid() }),
+]);
 ```
 
 ## API Routes
 
 - `GET /api/operations` — list, `operationFiltersSchema` query params. `POST /api/operations` — create.
 - `GET /api/operations/[id]` — detail (`OperationDetail`). `PATCH /api/operations/[id]` — update.
-- `POST /api/operations/[id]/link` — body `linkEntitySchema`. Used by both the operation page's "add existing X" picker and each entity detail page's "attach to operation" control (the latter already knows its own `entityType`/`entityId`; the user just picks which operation from a `GET /api/operations` list).
-- `POST /api/operations/[id]/unlink` — same body shape.
+- `POST /api/operations/[id]/link` — body `linkActionSchema` (`action: "link" | "unlink"`), matching the existing `action`-discriminated-union convention already used for `patchAssetSchema`. Used by both the operation page's "add existing X" picker and each entity detail page's "attach to operation" control (the latter already knows its own `entityType`/`entityId`; the user just picks which operation from a `GET /api/operations` list, and unlink needs no picker at all).
+- `GET/POST /api/operations/[id]/comments` — standard comments sub-route, following `app/api/tasks/[id]/comments/route.ts` exactly (including reusing its `addCommentSchema`), backing the comments field the Frontend section below requires.
 
 ## Frontend
 
-- `/operations` — list page, shadcn table block, filters (status, department). `BackLink` not needed (this is one of the app's root sections, reached from the dashboard nav like `/tasks`/`/requests`).
-- `/operations/new` — creation form (title, description, owner picker, department picker, priority, start/target date). `BackLink` → `/operations`.
+- `/operations` — list page, shadcn table block, filters (status, department). `BackLink` → `/dashboard`, matching `/tasks`, `/requests`, `/assets`, `/employees`.
+- `/operations/new` — creation form (title, description, department picker, priority, start/target date). No owner picker: `createOperation` already defaults `ownerId` to the caller when omitted, and exposing a picker for a rarely-changed field the caller usually IS isn't worth the extra profiles-list fetch. `BackLink` → `/operations`.
 - `/operations/[id]` — detail page. `BackLink` → `/operations`. Shows title/status/priority (editable inline if `canManageOperation`), progress bar (`completedTasks / totalTasks`), four sections (tasks/requests/assets/employees) each rendering its linked items plus a "+ Link existing" picker when the caller can manage; comments + activity feed (reusing the existing generic components from Phase 2).
 - Task/Request/Asset/Employee detail pages each get a small "Operation" control: shows the linked operation (if any) as a link to `/operations/[id]`, plus a picker to attach/detach when the caller is `operations_manager`/`admin`. Four small, near-identical components (`TaskOperationControl`, etc.) rather than one generalized one — matches this codebase's existing preference for small per-entity components (e.g. `AssetAssignControl` vs `TaskAssetAssignmentForm` are separate today) over a shared abstraction fighting four slightly different contexts.
 
@@ -193,4 +193,4 @@ export const linkEntitySchema = z.object({
 
 ## Testing Plan
 
-Standard Phase 2–5 shape: `lib/domain/operations.test.ts` (integration, `describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)`, real Supabase project, per-file company slug fixtures) covering create/update/list/get/link/unlink and their permission boundaries; `lib/validation/operations.test.ts` (unit); `lib/domain/permissions.test.ts` additions for the three new functions; route tests for the four new route files (six endpoint methods total) following the existing `route.test.ts` pattern; component tests for the new frontend pieces following the existing `*.test.tsx` pattern (React Testing Library, mocked fetch).
+Standard Phase 2–5 shape: `lib/domain/operations.test.ts` (integration, `describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)`, real Supabase project, per-file company slug fixtures) covering create/update/list/get/link/unlink and their permission boundaries; `lib/validation/operations.test.ts` (unit); `lib/domain/permissions.test.ts` additions for the three new functions; route tests for the four new route files (seven endpoint methods total) following the existing `route.test.ts` pattern; component tests for the new frontend pieces following the existing `*.test.tsx` pattern (React Testing Library, mocked fetch).
