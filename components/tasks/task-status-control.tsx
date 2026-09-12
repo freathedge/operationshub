@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 export function TaskStatusControl({
   taskId,
   currentStatus,
+  hideCompletedTransition = false,
 }: {
   taskId: string;
   currentStatus: TaskStatus;
+  hideCompletedTransition?: boolean;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +37,9 @@ export function TaskStatusControl({
     router.refresh();
   }
 
-  const nextStatuses = getValidNextStatuses(currentStatus);
+  const nextStatuses = getValidNextStatuses(currentStatus).filter(
+    (status) => !(hideCompletedTransition && status === "completed")
+  );
 
   return (
     <div className="flex flex-col gap-2">

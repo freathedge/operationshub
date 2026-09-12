@@ -50,4 +50,14 @@ describe("TaskStatusControl", () => {
       })
     );
   });
+
+  it("hides the completed transition when hideCompletedTransition is true", () => {
+    render(
+      <TaskStatusControl taskId="task-1" currentStatus="in_progress" hideCompletedTransition />
+    );
+
+    expect(screen.queryByRole("button", { name: /move to completed/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /move to blocked/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /move to cancelled/i })).toBeInTheDocument();
+  });
 });

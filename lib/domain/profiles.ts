@@ -1,8 +1,8 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Role } from "@/lib/validation/auth";
+import { PROFILE_STATUSES, type ProfileStatus } from "@/lib/domain/profile-status";
 
-export type ProfileStatus = "active" | "inactive";
-export const PROFILE_STATUSES: ProfileStatus[] = ["active", "inactive"];
+export { PROFILE_STATUSES, type ProfileStatus };
 
 export interface Profile {
   id: string;

@@ -4,10 +4,12 @@ import { getTask } from "@/lib/domain/tasks";
 import { listComments } from "@/lib/domain/comments";
 import { listActivity } from "@/lib/domain/activity";
 import { createSignedDownloadUrl, listAttachments } from "@/lib/domain/attachments";
+import { findWorkflowStepByTaskId } from "@/lib/domain/workflows";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
 import { TaskRealtimeRefresh } from "@/components/tasks/task-realtime-refresh";
 import { TaskStatusControl } from "@/components/tasks/task-status-control";
+import { TaskAssetAssignmentForm } from "@/components/tasks/task-asset-assignment-form";
 import { TaskComments } from "@/components/tasks/task-comments";
 import { TaskAttachments } from "@/components/tasks/task-attachments";
 
@@ -46,6 +48,11 @@ export default async function TaskDetailPage({
     }))
   );
 
+  const workflowStep = task.relatedWorkflowInstanceId
+    ? await findWorkflowStepByTaskId(task.id)
+    : null;
+  const showAssetForm = Boolean(workflowStep?.createsAsset) && task.status !== "completed";
+
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
       <TaskRealtimeRefresh companyId={profile.companyId} />
@@ -59,7 +66,12 @@ export default async function TaskDetailPage({
         )}
       </div>
 
-      <TaskStatusControl taskId={task.id} currentStatus={task.status} />
+      <TaskStatusControl
+        taskId={task.id}
+        currentStatus={task.status}
+        hideCompletedTransition={showAssetForm}
+      />
+      {showAssetForm && <TaskAssetAssignmentForm taskId={task.id} />}
 
       <section>
         <h2 className="text-lg font-medium mb-2">Activity</h2>

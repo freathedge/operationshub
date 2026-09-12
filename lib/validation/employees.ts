@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { roleSchema } from "@/lib/validation/auth";
-import { PROFILE_STATUSES, type ProfileStatus } from "@/lib/domain/profiles";
+import { PROFILE_STATUSES, type ProfileStatus } from "@/lib/domain/profile-status";
 
 export const profileStatusSchema = z.enum(PROFILE_STATUSES as [ProfileStatus, ...ProfileStatus[]]);
 
