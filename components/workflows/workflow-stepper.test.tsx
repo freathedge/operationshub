@@ -10,6 +10,7 @@ const PROGRESS: WorkflowProgress = {
     companyId: "company-1",
     templateId: "template-1",
     relatedRequestId: "request-1",
+    relatedEmployeeId: null,
     status: "in_progress",
     createdAt: "2026-08-28T00:00:00.000Z",
   },

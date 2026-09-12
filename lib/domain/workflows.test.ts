@@ -6,6 +6,7 @@ import { createRequest } from "@/lib/domain/requests";
 import {
   advanceWorkflow,
   findWorkflowStepByApprovalId,
+  findWorkflowStepByTaskId,
   findWorkflowTemplateByTriggerCategory,
   getWorkflowInstanceForRequest,
   getWorkflowProgress,
@@ -273,6 +274,35 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("workflow engine", () =>
       await supabase.from("workflow_template_steps").delete().eq("template_id", template.id);
       await supabase.from("workflow_templates").delete().eq("id", template.id);
     });
+
+    it("derives related_employee_id from the request's creator when only requestId is given", async () => {
+      const request = await createRequest(employee, { title: "New monitor", category: "equipment" });
+
+      const instance = await startWorkflow(employee, "approval-first-test", {
+        requestId: request.id,
+      });
+
+      const { data: instanceRow, error } = await supabase
+        .from("workflow_instances")
+        .select("related_employee_id")
+        .eq("id", instance.id)
+        .single();
+      if (error) throw error;
+      expect(instanceRow.related_employee_id).toBe(employee.id);
+    });
+
+    it("uses employeeId directly when given, with no request involved", async () => {
+      const instance = await startWorkflow(employee, "task-only-test", { employeeId: employee.id });
+
+      const { data: instanceRow, error } = await supabase
+        .from("workflow_instances")
+        .select("related_employee_id, related_request_id")
+        .eq("id", instance.id)
+        .single();
+      if (error) throw error;
+      expect(instanceRow.related_employee_id).toBe(employee.id);
+      expect(instanceRow.related_request_id).toBeNull();
+    });
   });
 
   describe("advanceWorkflow / getWorkflowProgress / finders", () => {
@@ -431,5 +461,113 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("workflow engine", () =>
       const notFound = await getWorkflowInstanceForRequest(otherRequest.id);
       expect(notFound).toBeNull();
     });
+  });
+});
+
+describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("findWorkflowStepByTaskId", () => {
+  const supabase = createSupabaseAdminClient();
+  let companyId: string;
+  const createdAuthUserIds: string[] = [];
+  let employee: Profile;
+  let templateId: string;
+
+  beforeAll(async () => {
+    console.error("DEBUG beforeAll invoked", new Error().stack);
+    const { data: company, error: companyError } = await supabase
+      .from("companies")
+      .upsert(
+        { name: "Test Co (find-step)", slug: "test-co-find-step" },
+        { onConflict: "slug" }
+      )
+      .select("id")
+      .single();
+    if (companyError) throw companyError;
+    companyId = company.id;
+
+    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+      email: `find-step-test-${crypto.randomUUID()}@example.com`,
+      password: "password123",
+      email_confirm: true,
+    });
+    if (authError || !authUser.user) throw authError;
+    createdAuthUserIds.push(authUser.user.id);
+    employee = await createProfile({
+      authUserId: authUser.user.id,
+      companyId,
+      fullName: "Employee (find-step)",
+      role: "employee",
+    });
+
+    const { data: department, error: departmentError } = await supabase
+      .from("departments")
+      .upsert(
+        { company_id: companyId, name: "Ops (find-step)" },
+        { onConflict: "company_id,name" }
+      )
+      .select("id")
+      .single();
+    if (departmentError) throw departmentError;
+
+    const { data: template, error: templateError } = await supabase
+      .from("workflow_templates")
+      .insert({ company_id: companyId, slug: "asset-step-test", name: "Asset Step Test" })
+      .select("id")
+      .single();
+    if (templateError) throw templateError;
+    templateId = template.id;
+
+    const { error: stepsError } = await supabase.from("workflow_template_steps").insert([
+      {
+        template_id: templateId,
+        step_order: 1,
+        step_type: "task",
+        title: "Creates an asset",
+        responsible_department_name: "Ops (find-step)",
+        creates_asset: true,
+      },
+      {
+        template_id: templateId,
+        step_order: 2,
+        step_type: "task",
+        title: "Does not create an asset",
+        responsible_department_name: "Ops (find-step)",
+        creates_asset: false,
+      },
+    ]);
+    if (stepsError) throw stepsError;
+
+    void department;
+  });
+
+  afterAll(async () => {
+    await supabase.from("workflow_instances").delete().eq("company_id", companyId);
+    await supabase.from("workflow_template_steps").delete().eq("template_id", templateId);
+    await supabase.from("workflow_templates").delete().eq("id", templateId);
+    await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
+    for (const id of createdAuthUserIds) {
+      await supabase.auth.admin.deleteUser(id);
+    }
+    await supabase.from("companies").delete().eq("slug", "test-co-find-step");
+  });
+
+  it("returns null when the task has no workflow step", async () => {
+    const result = await findWorkflowStepByTaskId(crypto.randomUUID());
+    expect(result).toBeNull();
+  });
+
+  it("reports createsAsset true for the asset-creating step, false for the other", async () => {
+    const instance = await startWorkflow(employee, "asset-step-test", {});
+
+    const { data: firstStep, error } = await supabase
+      .from("workflow_instance_steps")
+      .select("generated_task_id")
+      .eq("instance_id", instance.id)
+      .eq("step_order", 1)
+      .single();
+    if (error) throw error;
+
+    const result = await findWorkflowStepByTaskId(firstStep.generated_task_id!);
+    expect(result?.createsAsset).toBe(true);
+    expect(result?.relatedRequestId).toBeNull();
   });
 });
