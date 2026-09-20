@@ -2,7 +2,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createProfile } from "@/lib/domain/profiles";
 import type { Profile } from "@/lib/domain/profiles";
-import { createRequest, getRequest, listRequests, submitRequest, transitionRequestStatus } from "@/lib/domain/requests";
+import {
+  createRequest,
+  getRequest,
+  listRequests,
+  setRequestOperation,
+  submitRequest,
+  transitionRequestStatus,
+} from "@/lib/domain/requests";
 import { ForbiddenError, InvalidTransitionError, UnprocessableRequestError } from "@/lib/domain/errors";
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
@@ -16,6 +23,7 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
     let employee: Profile;
     let managerA: Profile;
     let opsManager: Profile;
+    let operationId: string;
 
     beforeAll(async () => {
       const { data: company, error: companyError } = await supabase
@@ -64,10 +72,19 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       employee = await createTestProfile("Employee A", "employee", departmentAId);
       managerA = await createTestProfile("Manager A", "manager", departmentAId);
       opsManager = await createTestProfile("Ops Manager", "operations_manager", null);
+
+      const { data: operation, error: operationError } = await supabase
+        .from("operations")
+        .insert({ company_id: companyId, title: "Test Operation (requests)", owner_id: employee.id })
+        .select("id")
+        .single();
+      if (operationError) throw operationError;
+      operationId = operation.id;
     });
 
     afterAll(async () => {
       await supabase.from("requests").delete().eq("company_id", companyId);
+      await supabase.from("operations").delete().eq("id", operationId);
       await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
       for (const id of createdAuthUserIds) {
         await supabase.auth.admin.deleteUser(id);
@@ -416,6 +433,17 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       await expect(getRequest(opsManager, submitted.id)).resolves.toMatchObject({
         id: submitted.id,
       });
+    });
+
+    it("sets and clears a request's related operation", async () => {
+      const request = await createRequest(employee, { title: "Linkable request", category: "equipment" });
+      expect(request.relatedOperationId).toBeNull();
+
+      const linked = await setRequestOperation(request.id, operationId);
+      expect(linked.relatedOperationId).toBe(operationId);
+
+      const unlinked = await setRequestOperation(request.id, null);
+      expect(unlinked.relatedOperationId).toBeNull();
     });
   }
 );
