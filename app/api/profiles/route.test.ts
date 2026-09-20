@@ -22,6 +22,7 @@ const PROFILE = {
   positionTitle: null,
   employeeNumber: null,
   locationId: null,
+  relatedOperationId: null,
   status: "active" as const,
 };
 
