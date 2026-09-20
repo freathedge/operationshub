@@ -11,6 +11,7 @@ import {
   createAsset,
   getAsset,
   listAssets,
+  setAssetOperation,
 } from "@/lib/domain/assets";
 import { ForbiddenError, NotFoundError, UnprocessableRequestError } from "@/lib/domain/errors";
 
@@ -20,6 +21,7 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("assets", () => {
   const createdAuthUserIds: string[] = [];
   let itProfile: Profile;
   let employeeProfile: Profile;
+  let operationId: string;
 
   beforeAll(async () => {
     const { data: company, error: companyError } = await supabase
@@ -52,10 +54,19 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("assets", () => {
       fullName: "Regular Employee",
       role: "employee",
     });
+
+    const { data: operation, error: operationError } = await supabase
+      .from("operations")
+      .insert({ company_id: companyId, title: "Test Operation (assets)", owner_id: itProfile.id })
+      .select("id")
+      .single();
+    if (operationError) throw operationError;
+    operationId = operation.id;
   });
 
   afterAll(async () => {
     await supabase.from("assets").delete().eq("company_id", companyId);
+    await supabase.from("operations").delete().eq("id", operationId);
     await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
     for (const id of createdAuthUserIds) {
       await supabase.auth.admin.deleteUser(id);
@@ -104,6 +115,17 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("assets", () => {
     const asset = await createAsset(itProfile, { name: "Broken Laptop", category: "laptop" });
     const updated = await changeAssetStatus(itProfile, asset.id, "maintenance");
     expect(updated.status).toBe("maintenance");
+  });
+
+  it("sets and clears an asset's related operation", async () => {
+    const asset = await createAsset(itProfile, { name: "Linkable Laptop", category: "laptop" });
+    expect(asset.relatedOperationId).toBeNull();
+
+    const linked = await setAssetOperation(asset.id, operationId);
+    expect(linked.relatedOperationId).toBe(operationId);
+
+    const unlinked = await setAssetOperation(asset.id, null);
+    expect(unlinked.relatedOperationId).toBeNull();
   });
 });
 

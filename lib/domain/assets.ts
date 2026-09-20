@@ -27,6 +27,7 @@ export interface Asset {
   assignedTo: string | null;
   departmentId: string | null;
   locationId: string | null;
+  relatedOperationId: string | null;
   purchaseInfo: Record<string, unknown> | null;
   warrantyInfo: Record<string, unknown> | null;
   createdAt: string;
@@ -42,12 +43,13 @@ interface AssetRow {
   assigned_to: string | null;
   department_id: string | null;
   location_id: string | null;
+  related_operation_id: string | null;
   purchase_info: Json | null;
   warranty_info: Json | null;
   created_at: string;
 }
 
-function toAsset(row: AssetRow): Asset {
+export function toAsset(row: AssetRow): Asset {
   return {
     id: row.id,
     companyId: row.company_id,
@@ -58,14 +60,15 @@ function toAsset(row: AssetRow): Asset {
     assignedTo: row.assigned_to,
     departmentId: row.department_id,
     locationId: row.location_id,
+    relatedOperationId: row.related_operation_id,
     purchaseInfo: row.purchase_info as Record<string, unknown> | null,
     warrantyInfo: row.warranty_info as Record<string, unknown> | null,
     createdAt: row.created_at,
   };
 }
 
-const ASSET_COLUMNS =
-  "id, company_id, asset_code, name, category, status, assigned_to, department_id, location_id, purchase_info, warranty_info, created_at";
+export const ASSET_COLUMNS =
+  "id, company_id, asset_code, name, category, status, assigned_to, department_id, location_id, related_operation_id, purchase_info, warranty_info, created_at";
 
 async function generateAssetCode(companyId: string): Promise<string> {
   const supabase = createSupabaseAdminClient();
@@ -270,4 +273,19 @@ export async function completeAssetAssignmentTask(
   const updatedTask = await updateTaskStatus(profile, taskId, "completed");
 
   return { task: updatedTask, asset };
+}
+
+export async function setAssetOperation(
+  assetId: string,
+  operationId: string | null
+): Promise<Asset> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("assets")
+    .update({ related_operation_id: operationId })
+    .eq("id", assetId)
+    .select(ASSET_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toAsset(data);
 }
