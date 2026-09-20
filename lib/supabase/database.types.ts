@@ -106,6 +106,7 @@ export type Database = {
           location_id: string | null
           name: string
           purchase_info: Json | null
+          related_operation_id: string | null
           status: Database["public"]["Enums"]["asset_status"]
           warranty_info: Json | null
         }
@@ -120,6 +121,7 @@ export type Database = {
           location_id?: string | null
           name: string
           purchase_info?: Json | null
+          related_operation_id?: string | null
           status?: Database["public"]["Enums"]["asset_status"]
           warranty_info?: Json | null
         }
@@ -134,6 +136,7 @@ export type Database = {
           location_id?: string | null
           name?: string
           purchase_info?: Json | null
+          related_operation_id?: string | null
           status?: Database["public"]["Enums"]["asset_status"]
           warranty_info?: Json | null
         }
@@ -164,6 +167,13 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_related_operation_id_fkey"
+            columns: ["related_operation_id"]
+            isOneToOne: false
+            referencedRelation: "operations"
             referencedColumns: ["id"]
           },
         ]
@@ -358,6 +368,70 @@ export type Database = {
           },
         ]
       }
+      operations: {
+        Row: {
+          company_id: string
+          created_at: string
+          department_id: string | null
+          description: string | null
+          id: string
+          owner_id: string
+          priority: Database["public"]["Enums"]["operation_priority"]
+          start_date: string | null
+          status: Database["public"]["Enums"]["operation_status"]
+          target_date: string | null
+          title: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          id?: string
+          owner_id: string
+          priority?: Database["public"]["Enums"]["operation_priority"]
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["operation_status"]
+          target_date?: string | null
+          title: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          id?: string
+          owner_id?: string
+          priority?: Database["public"]["Enums"]["operation_priority"]
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["operation_status"]
+          target_date?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           auth_user_id: string
@@ -370,6 +444,7 @@ export type Database = {
           location_id: string | null
           manager_id: string | null
           position_title: string | null
+          related_operation_id: string | null
           role: Database["public"]["Enums"]["user_role"]
           status: Database["public"]["Enums"]["profile_status"]
         }
@@ -384,6 +459,7 @@ export type Database = {
           location_id?: string | null
           manager_id?: string | null
           position_title?: string | null
+          related_operation_id?: string | null
           role: Database["public"]["Enums"]["user_role"]
           status?: Database["public"]["Enums"]["profile_status"]
         }
@@ -398,6 +474,7 @@ export type Database = {
           location_id?: string | null
           manager_id?: string | null
           position_title?: string | null
+          related_operation_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           status?: Database["public"]["Enums"]["profile_status"]
         }
@@ -430,6 +507,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_related_operation_id_fkey"
+            columns: ["related_operation_id"]
+            isOneToOne: false
+            referencedRelation: "operations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       requests: {
@@ -441,6 +525,7 @@ export type Database = {
           department_id: string | null
           description: string | null
           id: string
+          related_operation_id: string | null
           status: Database["public"]["Enums"]["request_status"]
           title: string
         }
@@ -452,6 +537,7 @@ export type Database = {
           department_id?: string | null
           description?: string | null
           id?: string
+          related_operation_id?: string | null
           status?: Database["public"]["Enums"]["request_status"]
           title: string
         }
@@ -463,6 +549,7 @@ export type Database = {
           department_id?: string | null
           description?: string | null
           id?: string
+          related_operation_id?: string | null
           status?: Database["public"]["Enums"]["request_status"]
           title?: string
         }
@@ -488,6 +575,13 @@ export type Database = {
             referencedRelation: "departments"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "requests_related_operation_id_fkey"
+            columns: ["related_operation_id"]
+            isOneToOne: false
+            referencedRelation: "operations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       tasks: {
@@ -504,6 +598,7 @@ export type Database = {
           priority: Database["public"]["Enums"]["task_priority"]
           related_asset_id: string | null
           related_employee_id: string | null
+          related_operation_id: string | null
           related_request_id: string | null
           related_workflow_instance_id: string | null
           status: Database["public"]["Enums"]["task_status"]
@@ -522,6 +617,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["task_priority"]
           related_asset_id?: string | null
           related_employee_id?: string | null
+          related_operation_id?: string | null
           related_request_id?: string | null
           related_workflow_instance_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
@@ -540,6 +636,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["task_priority"]
           related_asset_id?: string | null
           related_employee_id?: string | null
+          related_operation_id?: string | null
           related_request_id?: string | null
           related_workflow_instance_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
@@ -586,6 +683,13 @@ export type Database = {
             columns: ["related_employee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_related_operation_id_fkey"
+            columns: ["related_operation_id"]
+            isOneToOne: false
+            referencedRelation: "operations"
             referencedColumns: ["id"]
           },
           {
@@ -828,6 +932,13 @@ export type Database = {
         | "maintenance"
         | "retired"
         | "lost"
+      operation_priority: "low" | "medium" | "high" | "critical"
+      operation_status:
+        | "planning"
+        | "in_progress"
+        | "on_hold"
+        | "completed"
+        | "cancelled"
       profile_status: "active" | "inactive"
       request_category:
         | "equipment"
@@ -992,6 +1103,14 @@ export const Constants = {
     Enums: {
       approval_status: ["pending", "approved", "rejected"],
       asset_status: ["available", "assigned", "maintenance", "retired", "lost"],
+      operation_priority: ["low", "medium", "high", "critical"],
+      operation_status: [
+        "planning",
+        "in_progress",
+        "on_hold",
+        "completed",
+        "cancelled",
+      ],
       profile_status: ["active", "inactive"],
       request_category: [
         "equipment",
