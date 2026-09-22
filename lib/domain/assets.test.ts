@@ -215,14 +215,49 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("completeAssetAssignment
   });
 
   afterAll(async () => {
-    await supabase.from("assets").delete().eq("company_id", companyId);
-    await supabase.from("workflow_instances").delete().eq("company_id", companyId);
-    await supabase.from("requests").delete().eq("company_id", companyId);
-    await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
-    for (const id of createdAuthUserIds) {
-      await supabase.auth.admin.deleteUser(id);
+    // workflow_instance_steps.generated_task_id -> tasks and tasks.related_workflow_instance_id
+    // -> workflow_instances have no ON DELETE CASCADE, and workflow_instances.template_id ->
+    // workflow_templates has none either, so those three must be torn down explicitly and in
+    // this order before the company delete's cascade can remove everything else (assets,
+    // requests, profiles, workflow_templates, departments, locations all have company_id with
+    // ON DELETE CASCADE).
+    const { data: instances, error: instancesFetchError } = await supabase
+      .from("workflow_instances")
+      .select("id")
+      .eq("company_id", companyId);
+    if (instancesFetchError) throw instancesFetchError;
+
+    const instanceIds = (instances ?? []).map((instance) => instance.id);
+    if (instanceIds.length > 0) {
+      const { error: stepsDeleteError } = await supabase
+        .from("workflow_instance_steps")
+        .delete()
+        .in("instance_id", instanceIds);
+      if (stepsDeleteError) throw stepsDeleteError;
     }
-    await supabase.from("companies").delete().eq("slug", "test-co-complete-asset");
+
+    const { error: tasksDeleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("company_id", companyId);
+    if (tasksDeleteError) throw tasksDeleteError;
+
+    const { error: instancesDeleteError } = await supabase
+      .from("workflow_instances")
+      .delete()
+      .eq("company_id", companyId);
+    if (instancesDeleteError) throw instancesDeleteError;
+
+    const { error: companyDeleteError } = await supabase
+      .from("companies")
+      .delete()
+      .eq("slug", "test-co-complete-asset");
+    if (companyDeleteError) throw companyDeleteError;
+
+    for (const id of createdAuthUserIds) {
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(id);
+      if (authDeleteError) throw authDeleteError;
+    }
   });
 
   it("throws UnprocessableRequestError for a task that isn't an asset-creating step", async () => {
