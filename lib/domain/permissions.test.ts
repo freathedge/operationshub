@@ -9,6 +9,7 @@ import {
   canCreateAsset,
   canCreateEmployee,
   canCreateOperation,
+  canLinkEntityToOperation,
   canCreateRequest,
   canCreateTask,
   canDecideApproval,
@@ -486,6 +487,12 @@ describe("canCreateOperation / canManageOperation / canViewOperation", () => {
     expect(canCreateOperation(makeProfile({ role: "admin" }))).toBe(true);
     expect(canCreateOperation(makeProfile({ role: "hr" }))).toBe(false);
     expect(canCreateOperation(makeProfile({ role: "employee" }))).toBe(false);
+  });
+
+  it("canLinkEntityToOperation matches canCreateOperation's role check", () => {
+    expect(canLinkEntityToOperation(makeProfile({ role: "operations_manager" }))).toBe(true);
+    expect(canLinkEntityToOperation(makeProfile({ role: "admin" }))).toBe(true);
+    expect(canLinkEntityToOperation(makeProfile({ role: "employee" }))).toBe(false);
   });
 
   it("canManageOperation checks company scope before role", () => {

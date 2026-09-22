@@ -15,7 +15,7 @@ beforeEach(() => {
 });
 
 describe("TaskOperationControl", () => {
-  it("shows a picker and links the selected operation when unlinked", async () => {
+  it("shows a picker and links the selected operation when unlinked and the caller can manage", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation((url: string) => {
@@ -29,7 +29,7 @@ describe("TaskOperationControl", () => {
       })
     );
 
-    render(<TaskOperationControl taskId="task-1" relatedOperationId={null} />);
+    render(<TaskOperationControl taskId="task-1" relatedOperationId={null} canManage />);
 
     const select = await screen.findByLabelText(/operation/i);
     await userEvent.selectOptions(select, "op-1");
@@ -45,7 +45,7 @@ describe("TaskOperationControl", () => {
     );
   });
 
-  it("shows the linked operation's title and unlinks it when already linked", async () => {
+  it("shows the linked operation's title and unlinks it when the caller can manage", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation((url: string) => {
@@ -59,7 +59,7 @@ describe("TaskOperationControl", () => {
       })
     );
 
-    render(<TaskOperationControl taskId="task-1" relatedOperationId="op-1" />);
+    render(<TaskOperationControl taskId="task-1" relatedOperationId="op-1" canManage />);
 
     expect(await screen.findByText("Vienna Relocation")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /unlink/i }));
@@ -85,7 +85,7 @@ describe("TaskOperationControl", () => {
       })
     );
 
-    render(<TaskOperationControl taskId="task-1" relatedOperationId={null} />);
+    render(<TaskOperationControl taskId="task-1" relatedOperationId={null} canManage />);
 
     expect(await screen.findByText(/failed to load operations/i)).toBeInTheDocument();
   });
@@ -101,9 +101,40 @@ describe("TaskOperationControl", () => {
       })
     );
 
-    render(<TaskOperationControl taskId="task-1" relatedOperationId="op-1" />);
+    render(<TaskOperationControl taskId="task-1" relatedOperationId="op-1" canManage />);
 
     expect(await screen.findByText(/failed to load operation/i)).toBeInTheDocument();
     expect(screen.queryByText("Loading...")).not.toBeInTheDocument();
+  });
+
+  it("shows the linked operation without an unlink button when the caller cannot manage", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url === "/api/operations/op-1") {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ operation: { id: "op-1", title: "Vienna Relocation" } }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      })
+    );
+
+    render(<TaskOperationControl taskId="task-1" relatedOperationId="op-1" canManage={false} />);
+
+    expect(await screen.findByText("Vienna Relocation")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /unlink/i })).not.toBeInTheDocument();
+  });
+
+  it("renders nothing when unlinked and the caller cannot manage", () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
+
+    const { container } = render(
+      <TaskOperationControl taskId="task-1" relatedOperationId={null} canManage={false} />
+    );
+
+    expect(container).toBeEmptyDOMElement();
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

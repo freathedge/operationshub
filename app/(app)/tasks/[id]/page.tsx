@@ -5,7 +5,7 @@ import { listComments } from "@/lib/domain/comments";
 import { listActivity } from "@/lib/domain/activity";
 import { createSignedDownloadUrl, listAttachments } from "@/lib/domain/attachments";
 import { findWorkflowStepByTaskId } from "@/lib/domain/workflows";
-import { canCreateOperation } from "@/lib/domain/permissions";
+import { canLinkEntityToOperation } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
 import { TaskRealtimeRefresh } from "@/components/tasks/task-realtime-refresh";
@@ -74,9 +74,11 @@ export default async function TaskDetailPage({
         hideCompletedTransition={showAssetForm}
       />
       {showAssetForm && <TaskAssetAssignmentForm taskId={task.id} />}
-      {canCreateOperation(profile) && (
-        <TaskOperationControl taskId={task.id} relatedOperationId={task.relatedOperationId} />
-      )}
+      <TaskOperationControl
+        taskId={task.id}
+        relatedOperationId={task.relatedOperationId}
+        canManage={canLinkEntityToOperation(profile)}
+      />
 
       <section>
         <h2 className="text-lg font-medium mb-2">Activity</h2>

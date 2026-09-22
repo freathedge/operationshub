@@ -14,9 +14,11 @@ interface OperationOption {
 export function EmployeeOperationControl({
   employeeId,
   relatedOperationId,
+  canManage,
 }: {
   employeeId: string;
   relatedOperationId: string | null;
+  canManage: boolean;
 }) {
   const router = useRouter();
   const [operations, setOperations] = useState<OperationOption[]>([]);
@@ -43,7 +45,7 @@ export function EmployeeOperationControl({
         .catch(() => {
           if (!cancelled) setTitleLoadFailed(true);
         });
-    } else {
+    } else if (canManage) {
       fetch("/api/operations")
         .then(async (response) => {
           if (cancelled) return;
@@ -65,7 +67,7 @@ export function EmployeeOperationControl({
     return () => {
       cancelled = true;
     };
-  }, [relatedOperationId]);
+  }, [relatedOperationId, canManage]);
 
   async function link() {
     if (!selectedId) return;
@@ -118,12 +120,18 @@ export function EmployeeOperationControl({
             {linkedTitle ?? "Loading..."}
           </Link>
         )}
-        <Button variant="ghost" size="sm" disabled={isSubmitting} onClick={unlink}>
-          Unlink
-        </Button>
+        {canManage && (
+          <Button variant="ghost" size="sm" disabled={isSubmitting} onClick={unlink}>
+            Unlink
+          </Button>
+        )}
         {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
     );
+  }
+
+  if (!canManage) {
+    return null;
   }
 
   return (

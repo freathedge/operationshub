@@ -8,7 +8,7 @@ import { getProfileById } from "@/lib/domain/profiles";
 import { listComments } from "@/lib/domain/comments";
 import { listActivity } from "@/lib/domain/activity";
 import { createSignedDownloadUrl, listAttachments } from "@/lib/domain/attachments";
-import { canCreateOperation, canDecideApproval } from "@/lib/domain/permissions";
+import { canDecideApproval, canLinkEntityToOperation } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
 import { RequestRealtimeRefresh } from "@/components/requests/request-realtime-refresh";
@@ -95,12 +95,11 @@ export default async function RequestDetailPage({
         />
       )}
 
-      {canCreateOperation(profile) && (
-        <RequestOperationControl
-          requestId={request.id}
-          relatedOperationId={request.relatedOperationId}
-        />
-      )}
+      <RequestOperationControl
+        requestId={request.id}
+        relatedOperationId={request.relatedOperationId}
+        canManage={canLinkEntityToOperation(profile)}
+      />
 
       <section>
         <h2 className="text-lg font-medium mb-2">Activity</h2>

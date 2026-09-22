@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { getEmployeeProfile } from "@/lib/domain/employees";
-import { canCreateOperation } from "@/lib/domain/permissions";
+import { canLinkEntityToOperation } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
 import { EmployeeOperationControl } from "@/components/employees/employee-operation-control";
@@ -62,12 +62,11 @@ export default async function EmployeeDetailPage({
         </div>
       </div>
 
-      {canCreateOperation(profile) && (
-        <EmployeeOperationControl
-          employeeId={employee.id}
-          relatedOperationId={employee.relatedOperationId}
-        />
-      )}
+      <EmployeeOperationControl
+        employeeId={employee.id}
+        relatedOperationId={employee.relatedOperationId}
+        canManage={canLinkEntityToOperation(profile)}
+      />
 
       <section>
         <h2 className="text-lg font-medium mb-2">Activity</h2>
