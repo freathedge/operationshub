@@ -227,7 +227,7 @@ export async function updateOperation(
     .update({
       ...(input.title !== undefined && { title: input.title }),
       ...(input.description !== undefined && { description: input.description }),
-      owner_id: ownerId,
+      ...(input.ownerId !== undefined && { owner_id: ownerId }),
       ...(input.departmentId !== undefined && { department_id: input.departmentId }),
       ...(input.status !== undefined && { status: input.status }),
       ...(input.priority !== undefined && { priority: input.priority }),

@@ -62,6 +62,22 @@ describe("OperationLinkPicker", () => {
 
     expect(await screen.findByText(/failed to load items to link/i)).toBeInTheDocument();
   });
+
+  it("shows an error instead of a permanently-empty picker when the fetch rejects", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url === "/api/tasks") {
+          return Promise.reject(new Error("network error"));
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      })
+    );
+
+    render(<OperationLinkPicker operationId="op-1" entityType="task" />);
+
+    expect(await screen.findByText(/failed to load items to link/i)).toBeInTheDocument();
+  });
 });
 
 describe("OperationUnlinkButton", () => {

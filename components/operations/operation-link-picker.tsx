@@ -46,18 +46,24 @@ export function OperationLinkPicker({
   useEffect(() => {
     let cancelled = false;
     const config = ENTITY_CONFIG[entityType];
-    fetch(config.endpoint).then(async (response) => {
-      if (cancelled) return;
-      if (!response.ok) {
+    fetch(config.endpoint)
+      .then(async (response) => {
+        if (cancelled) return;
+        if (!response.ok) {
+          setError("Failed to load items to link");
+          setItemsLoaded(true);
+          return;
+        }
+        const body = await response.json();
+        const list = (body[config.responseKey] ?? []) as Record<string, unknown>[];
+        setItems(list.map((item) => ({ id: String(item.id), label: config.label(item) })));
+        setItemsLoaded(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
         setError("Failed to load items to link");
         setItemsLoaded(true);
-        return;
-      }
-      const body = await response.json();
-      const list = (body[config.responseKey] ?? []) as Record<string, unknown>[];
-      setItems(list.map((item) => ({ id: String(item.id), label: config.label(item) })));
-      setItemsLoaded(true);
-    });
+      });
     return () => {
       cancelled = true;
     };

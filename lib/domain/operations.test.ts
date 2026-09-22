@@ -55,13 +55,34 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("createOperation / getOp
   });
 
   afterAll(async () => {
-    await supabase.from("tasks").delete().eq("company_id", companyId);
-    await supabase.from("operations").delete().eq("company_id", companyId);
-    await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
+    const { error: tasksDeleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("company_id", companyId);
+    if (tasksDeleteError) throw tasksDeleteError;
+
+    const { error: operationsDeleteError } = await supabase
+      .from("operations")
+      .delete()
+      .eq("company_id", companyId);
+    if (operationsDeleteError) throw operationsDeleteError;
+
+    const { error: profilesDeleteError } = await supabase
+      .from("profiles")
+      .delete()
+      .in("auth_user_id", createdAuthUserIds);
+    if (profilesDeleteError) throw profilesDeleteError;
+
     for (const id of createdAuthUserIds) {
-      await supabase.auth.admin.deleteUser(id);
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(id);
+      if (authDeleteError) throw authDeleteError;
     }
-    await supabase.from("companies").delete().eq("slug", "test-co-operations");
+
+    const { error: companyDeleteError } = await supabase
+      .from("companies")
+      .delete()
+      .eq("slug", "test-co-operations");
+    if (companyDeleteError) throw companyDeleteError;
   });
 
   it("rejects operation creation from a non-elevated role", async () => {
@@ -260,12 +281,28 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("updateOperation / listO
   });
 
   afterAll(async () => {
-    await supabase.from("operations").delete().eq("company_id", companyId);
-    await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
+    const { error: operationsDeleteError } = await supabase
+      .from("operations")
+      .delete()
+      .eq("company_id", companyId);
+    if (operationsDeleteError) throw operationsDeleteError;
+
+    const { error: profilesDeleteError } = await supabase
+      .from("profiles")
+      .delete()
+      .in("auth_user_id", createdAuthUserIds);
+    if (profilesDeleteError) throw profilesDeleteError;
+
     for (const id of createdAuthUserIds) {
-      await supabase.auth.admin.deleteUser(id);
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(id);
+      if (authDeleteError) throw authDeleteError;
     }
-    await supabase.from("companies").delete().eq("slug", "test-co-operations-update");
+
+    const { error: companyDeleteError } = await supabase
+      .from("companies")
+      .delete()
+      .eq("slug", "test-co-operations-update");
+    if (companyDeleteError) throw companyDeleteError;
   });
 
   it("rejects an update from a non-elevated role", async () => {
@@ -395,15 +432,46 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("linkEntity / unlinkEnti
   });
 
   afterAll(async () => {
-    await supabase.from("tasks").delete().eq("company_id", companyId);
-    await supabase.from("requests").delete().eq("company_id", companyId);
-    await supabase.from("assets").delete().eq("company_id", companyId);
-    await supabase.from("operations").delete().eq("company_id", companyId);
-    await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
+    const { error: tasksDeleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("company_id", companyId);
+    if (tasksDeleteError) throw tasksDeleteError;
+
+    const { error: requestsDeleteError } = await supabase
+      .from("requests")
+      .delete()
+      .eq("company_id", companyId);
+    if (requestsDeleteError) throw requestsDeleteError;
+
+    const { error: assetsDeleteError } = await supabase
+      .from("assets")
+      .delete()
+      .eq("company_id", companyId);
+    if (assetsDeleteError) throw assetsDeleteError;
+
+    const { error: operationsDeleteError } = await supabase
+      .from("operations")
+      .delete()
+      .eq("company_id", companyId);
+    if (operationsDeleteError) throw operationsDeleteError;
+
+    const { error: profilesDeleteError } = await supabase
+      .from("profiles")
+      .delete()
+      .in("auth_user_id", createdAuthUserIds);
+    if (profilesDeleteError) throw profilesDeleteError;
+
     for (const id of createdAuthUserIds) {
-      await supabase.auth.admin.deleteUser(id);
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(id);
+      if (authDeleteError) throw authDeleteError;
     }
-    await supabase.from("companies").delete().eq("slug", "test-co-operations-link");
+
+    const { error: companyDeleteError } = await supabase
+      .from("companies")
+      .delete()
+      .eq("slug", "test-co-operations-link");
+    if (companyDeleteError) throw companyDeleteError;
   });
 
   it("rejects linking from a non-elevated role", async () => {

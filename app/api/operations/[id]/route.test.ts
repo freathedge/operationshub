@@ -11,7 +11,7 @@ vi.mock("@/lib/domain/operations", () => ({
 import { getCurrentProfile } from "@/lib/auth/session";
 import { getOperation, updateOperation } from "@/lib/domain/operations";
 import { GET, PATCH } from "@/app/api/operations/[id]/route";
-import { NotFoundError } from "@/lib/domain/errors";
+import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 
 const PROFILE = {
   id: "profile-1",
@@ -78,10 +78,23 @@ describe("PATCH /api/operations/[id]", () => {
     });
   }
 
+  it("returns 401 when unauthenticated", async () => {
+    vi.mocked(getCurrentProfile).mockResolvedValue(null);
+    const response = await PATCH(jsonRequest({ status: "in_progress" }), params("op-1"));
+    expect(response.status).toBe(401);
+  });
+
   it("returns 400 for an invalid status", async () => {
     vi.mocked(getCurrentProfile).mockResolvedValue(PROFILE);
     const response = await PATCH(jsonRequest({ status: "archived" }), params("op-1"));
     expect(response.status).toBe(400);
+  });
+
+  it("returns 403 when the domain layer rejects the caller", async () => {
+    vi.mocked(getCurrentProfile).mockResolvedValue(PROFILE);
+    vi.mocked(updateOperation).mockRejectedValue(new ForbiddenError());
+    const response = await PATCH(jsonRequest({ status: "in_progress" }), params("op-1"));
+    expect(response.status).toBe(403);
   });
 
   it("updates the operation", async () => {
