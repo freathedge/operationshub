@@ -73,4 +73,37 @@ describe("RequestOperationControl", () => {
       })
     );
   });
+
+  it("shows an error instead of an empty picker when the operations list fails to load", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url === "/api/operations") {
+          return Promise.resolve({ ok: false, json: async () => ({ error: "nope" }) });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      })
+    );
+
+    render(<RequestOperationControl requestId="request-1" relatedOperationId={null} />);
+
+    expect(await screen.findByText(/failed to load operations/i)).toBeInTheDocument();
+  });
+
+  it("does not stay stuck on Loading... when the linked operation fails to load", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url === "/api/operations/op-1") {
+          return Promise.resolve({ ok: false, json: async () => ({ error: "nope" }) });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      })
+    );
+
+    render(<RequestOperationControl requestId="request-1" relatedOperationId="op-1" />);
+
+    expect(await screen.findByText(/failed to load operation/i)).toBeInTheDocument();
+    expect(screen.queryByText("Loading...")).not.toBeInTheDocument();
+  });
 });
