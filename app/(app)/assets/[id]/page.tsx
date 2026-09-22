@@ -2,12 +2,13 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { getAsset } from "@/lib/domain/assets";
 import { listActivity } from "@/lib/domain/activity";
-import { canAssignAsset, canChangeAssetStatus } from "@/lib/domain/permissions";
+import { canAssignAsset, canChangeAssetStatus, canCreateOperation } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
 import { AssetAssignControl } from "@/components/assets/asset-assign-control";
 import { AssetStatusControl } from "@/components/assets/asset-status-control";
 import { AssetReportIssueForm } from "@/components/assets/asset-report-issue-form";
+import { AssetOperationControl } from "@/components/assets/asset-operation-control";
 
 export default async function AssetDetailPage({
   params,
@@ -49,6 +50,9 @@ export default async function AssetDetailPage({
         <AssetStatusControl assetId={asset.id} currentStatus={asset.status} />
       )}
       <AssetReportIssueForm assetId={asset.id} />
+      {canCreateOperation(profile) && (
+        <AssetOperationControl assetId={asset.id} relatedOperationId={asset.relatedOperationId} />
+      )}
 
       <section>
         <h2 className="text-lg font-medium mb-2">Activity</h2>
