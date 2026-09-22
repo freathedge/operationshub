@@ -273,6 +273,13 @@ export async function listOperations(
 
 export type LinkableEntityType = "task" | "request" | "asset" | "employee";
 
+// activity_log's entity_type is free text matching each entity's own logActivity call sites
+// (see tasks.ts/requests.ts/assets.ts using "task"/"request"/"asset", and employees.ts using
+// "profile" for what this module calls "employee") — not the LinkableEntityType value itself.
+function activityEntityType(entityType: LinkableEntityType): string {
+  return entityType === "employee" ? "profile" : entityType;
+}
+
 async function assertEntityInCompany(
   entityType: LinkableEntityType,
   entityId: string,
@@ -364,6 +371,12 @@ export async function linkEntity(
     profile.id,
     `${profile.fullName} linked a ${entityType} to this operation`
   );
+  await logActivity(
+    activityEntityType(entityType),
+    entityId,
+    profile.id,
+    `${profile.fullName} linked this ${entityType} to operation "${operation.title}"`
+  );
   try {
     await broadcastChange(profile.companyId, "operations", { type: "operation_updated" });
   } catch (broadcastError) {
@@ -393,6 +406,12 @@ export async function unlinkEntity(
     operation.id,
     profile.id,
     `${profile.fullName} unlinked a ${entityType} from this operation`
+  );
+  await logActivity(
+    activityEntityType(entityType),
+    entityId,
+    profile.id,
+    `${profile.fullName} unlinked this ${entityType} from operation "${operation.title}"`
   );
   try {
     await broadcastChange(profile.companyId, "operations", { type: "operation_updated" });
