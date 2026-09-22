@@ -38,6 +38,7 @@ export function OperationLinkPicker({
 }) {
   const router = useRouter();
   const [items, setItems] = useState<PickableItem[]>([]);
+  const [itemsLoaded, setItemsLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,10 +47,16 @@ export function OperationLinkPicker({
     let cancelled = false;
     const config = ENTITY_CONFIG[entityType];
     fetch(config.endpoint).then(async (response) => {
-      if (cancelled || !response.ok) return;
+      if (cancelled) return;
+      if (!response.ok) {
+        setError("Failed to load items to link");
+        setItemsLoaded(true);
+        return;
+      }
       const body = await response.json();
       const list = (body[config.responseKey] ?? []) as Record<string, unknown>[];
       setItems(list.map((item) => ({ id: String(item.id), label: config.label(item) })));
+      setItemsLoaded(true);
     });
     return () => {
       cancelled = true;
@@ -83,8 +90,9 @@ export function OperationLinkPicker({
         value={selectedId}
         onChange={(event) => setSelectedId(event.target.value)}
         className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+        disabled={!itemsLoaded}
       >
-        <option value="">Select an item to link</option>
+        <option value="">{itemsLoaded ? "Select an item to link" : "Loading..."}</option>
         {items.map((item) => (
           <option key={item.id} value={item.id}>
             {item.label}
@@ -110,23 +118,33 @@ export function OperationUnlinkButton({
 }) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function unlink() {
     setIsSubmitting(true);
+    setError(null);
     const response = await fetch(`/api/operations/${operationId}/link`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ action: "unlink", entityType, entityId }),
     });
     setIsSubmitting(false);
-    if (response.ok) {
-      router.refresh();
+
+    if (!response.ok) {
+      const body = await response.json();
+      setError(typeof body.error === "string" ? body.error : "Failed to unlink");
+      return;
     }
+
+    router.refresh();
   }
 
   return (
-    <Button variant="ghost" size="sm" disabled={isSubmitting} onClick={unlink}>
-      Unlink
-    </Button>
+    <div className="flex flex-col gap-1">
+      <Button variant="ghost" size="sm" disabled={isSubmitting} onClick={unlink}>
+        Unlink
+      </Button>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
   );
 }

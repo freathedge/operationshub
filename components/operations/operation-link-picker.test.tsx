@@ -43,6 +43,25 @@ describe("OperationLinkPicker", () => {
       })
     );
   });
+
+  it("shows an error when the item list fails to load", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url === "/api/tasks") {
+          return Promise.resolve({
+            ok: false,
+            json: async () => ({ error: "Failed to load tasks" }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      })
+    );
+
+    render(<OperationLinkPicker operationId="op-1" entityType="task" />);
+
+    expect(await screen.findByText(/failed to load items to link/i)).toBeInTheDocument();
+  });
 });
 
 describe("OperationUnlinkButton", () => {
@@ -59,5 +78,24 @@ describe("OperationUnlinkButton", () => {
         body: JSON.stringify({ action: "unlink", entityType: "task", entityId: "task-1" }),
       })
     );
+  });
+
+  it("shows an error when unlink fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() =>
+        Promise.resolve({
+          ok: false,
+          json: async () => ({ error: "Cannot unlink this entity" }),
+        })
+      )
+    );
+
+    render(<OperationUnlinkButton operationId="op-1" entityType="task" entityId="task-1" />);
+
+    await userEvent.click(screen.getByRole("button", { name: /unlink/i }));
+
+    expect(await screen.findByText(/cannot unlink this entity/i)).toBeInTheDocument();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 });
