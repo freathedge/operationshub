@@ -10,14 +10,13 @@ Last updated: 2026-09-12
 
 Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline.md` for the full breakdown of each.
 
-- **Phase 6 — Operations**: higher-level grouping over tasks/requests/assets/employees.
 - **Phase 7 — Dashboard/Overview**: replaces the Foundation placeholder dashboard with the real one, built from a shadcn/ui dashboard block (see `docs/architecture.md` §3).
 - **Phase 8 — Reports & Search**: operational metrics, global search.
 - **Phase 9 — Realtime & Notifications Polish**: notification bell UI, audit pass on Realtime/activity-log/notification coverage.
 
 ## In Progress
 
-_(nothing right now)_
+- **Phase 6 — Operations**: higher-level grouping object linking tasks/requests/assets/employees to a larger initiative, with a company-wide-visible operation detail page showing linked-item lists and task-completion progress. Spec: `docs/superpowers/specs/2026-09-13-phase6-operations-design.md`. Plan: `docs/superpowers/plans/2026-09-13-phase6-operations.md`.
 
 ## Review
 
