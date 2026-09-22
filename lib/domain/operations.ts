@@ -1,5 +1,6 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getProfileById, PROFILE_COLUMNS, toProfile, type Profile } from "@/lib/domain/profiles";
+import { getDepartmentById } from "@/lib/domain/departments";
 import { logActivity } from "@/lib/domain/activity";
 import { broadcastChange } from "@/lib/realtime/broadcast";
 import { canCreateOperation, canManageOperation, canViewOperation } from "@/lib/domain/permissions";
@@ -76,6 +77,13 @@ export async function createOperation(
       throw new NotFoundError("Owner not found");
     }
     ownerId = owner.id;
+  }
+
+  if (input.departmentId) {
+    const department = await getDepartmentById(input.departmentId);
+    if (!department || department.companyId !== profile.companyId) {
+      throw new NotFoundError("Department not found");
+    }
   }
 
   const supabase = createSupabaseAdminClient();
@@ -204,6 +212,13 @@ export async function updateOperation(
       throw new NotFoundError("Owner not found");
     }
     ownerId = owner.id;
+  }
+
+  if (input.departmentId !== undefined && input.departmentId !== null) {
+    const department = await getDepartmentById(input.departmentId);
+    if (!department || department.companyId !== profile.companyId) {
+      throw new NotFoundError("Department not found");
+    }
   }
 
   const supabase = createSupabaseAdminClient();

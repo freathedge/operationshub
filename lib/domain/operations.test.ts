@@ -115,6 +115,35 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("createOperation / getOp
     await supabase.from("companies").delete().eq("id", otherCompany.id);
   });
 
+  it("rejects a department from a different company", async () => {
+    const { data: otherCompany, error: otherCompanyError } = await supabase
+      .from("companies")
+      .upsert({ name: "Other Co 3", slug: "test-co-operations-other-3" }, { onConflict: "slug" })
+      .select("id")
+      .single();
+    if (otherCompanyError) throw otherCompanyError;
+
+    const { data: otherDepartment, error: otherDepartmentError } = await supabase
+      .from("departments")
+      .upsert(
+        { company_id: otherCompany.id, name: "Other Dept" },
+        { onConflict: "company_id,name" }
+      )
+      .select("id")
+      .single();
+    if (otherDepartmentError) throw otherDepartmentError;
+
+    await expect(
+      createOperation(opsManagerProfile, {
+        title: "Cross-company department",
+        departmentId: otherDepartment.id,
+      })
+    ).rejects.toBeInstanceOf(NotFoundError);
+
+    await supabase.from("departments").delete().eq("id", otherDepartment.id);
+    await supabase.from("companies").delete().eq("id", otherCompany.id);
+  });
+
   it("throws NotFoundError for an unknown operation id", async () => {
     await expect(getOperation(opsManagerProfile, crypto.randomUUID())).rejects.toBeInstanceOf(
       NotFoundError
@@ -263,6 +292,38 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("updateOperation / listO
     });
     const updated = await updateOperation(opsManagerProfile, operation.id, { departmentId: null });
     expect(updated.departmentId).toBeNull();
+  });
+
+  it("rejects a department from a different company", async () => {
+    const operation = await createOperation(opsManagerProfile, {
+      title: "Cross-company Department Update Test",
+    });
+    const { data: otherCompany, error: otherCompanyError } = await supabase
+      .from("companies")
+      .upsert(
+        { name: "Other Co (operations-update)", slug: "test-co-operations-update-other" },
+        { onConflict: "slug" }
+      )
+      .select("id")
+      .single();
+    if (otherCompanyError) throw otherCompanyError;
+
+    const { data: otherDepartment, error: otherDepartmentError } = await supabase
+      .from("departments")
+      .upsert(
+        { company_id: otherCompany.id, name: "Other Dept" },
+        { onConflict: "company_id,name" }
+      )
+      .select("id")
+      .single();
+    if (otherDepartmentError) throw otherDepartmentError;
+
+    await expect(
+      updateOperation(opsManagerProfile, operation.id, { departmentId: otherDepartment.id })
+    ).rejects.toBeInstanceOf(NotFoundError);
+
+    await supabase.from("departments").delete().eq("id", otherDepartment.id);
+    await supabase.from("companies").delete().eq("id", otherCompany.id);
   });
 
   it("lists operations filtered by status and department", async () => {
