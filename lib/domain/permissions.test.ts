@@ -20,6 +20,7 @@ import {
   canUpdateEmployee,
   canUploadRequestAttachment,
   canViewAsset,
+  canViewCompanyOverview,
   canViewEmployeeProfile,
   canViewOperation,
   canViewRequest,
@@ -510,5 +511,16 @@ describe("canCreateOperation / canManageOperation / canViewOperation", () => {
     expect(
       canViewOperation(makeProfile({ role: "employee", companyId: "other-company" }), operation)
     ).toBe(false);
+  });
+});
+
+describe("canViewCompanyOverview", () => {
+  it("allows operations_manager and admin, denies every other role", () => {
+    expect(canViewCompanyOverview(makeProfile({ role: "operations_manager" }))).toBe(true);
+    expect(canViewCompanyOverview(makeProfile({ role: "admin" }))).toBe(true);
+    expect(canViewCompanyOverview(makeProfile({ role: "employee" }))).toBe(false);
+    expect(canViewCompanyOverview(makeProfile({ role: "manager" }))).toBe(false);
+    expect(canViewCompanyOverview(makeProfile({ role: "it" }))).toBe(false);
+    expect(canViewCompanyOverview(makeProfile({ role: "hr" }))).toBe(false);
   });
 });
