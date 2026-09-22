@@ -222,6 +222,31 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getPersonalOverview", (
     expect(messages).toContain("Activity from my company");
     expect(messages).not.toContain("Activity from a different company");
   });
+
+  it("counts only approvals pending for me, scoped to my company", async () => {
+    const { data: request, error: requestError } = await supabase
+      .from("requests")
+      .insert({
+        company_id: companyId,
+        title: "Needs my approval",
+        category: "general",
+        status: "under_review",
+        created_by: coworker.id,
+      })
+      .select("id")
+      .single();
+    if (requestError) throw requestError;
+
+    const { error: approvalError } = await supabase.from("approvals").insert({
+      request_id: request.id,
+      approver_id: me.id,
+      status: "pending",
+    });
+    if (approvalError) throw approvalError;
+
+    const overview = await getPersonalOverview(me);
+    expect(overview.counts.pendingApprovals).toBe(1);
+  });
 });
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getCompanyOverview", () => {
@@ -336,5 +361,30 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getCompanyOverview", ()
     expect(found).toBeDefined();
     expect(found?.totalTasks).toBe(0);
     expect(found?.completedTasks).toBe(0);
+  });
+
+  it("attention.pendingApprovals counts every pending approval in the company, not just one approver's", async () => {
+    const { data: request, error: requestError } = await supabase
+      .from("requests")
+      .insert({
+        company_id: companyId,
+        title: "Company-wide pending approval",
+        category: "general",
+        status: "under_review",
+        created_by: employee.id,
+      })
+      .select("id")
+      .single();
+    if (requestError) throw requestError;
+
+    const { error: approvalError } = await supabase.from("approvals").insert({
+      request_id: request.id,
+      approver_id: opsManager.id,
+      status: "pending",
+    });
+    if (approvalError) throw approvalError;
+
+    const overview = await getCompanyOverview(opsManager);
+    expect(overview.attention.pendingApprovals).toBeGreaterThanOrEqual(1);
   });
 });
