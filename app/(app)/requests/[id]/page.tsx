@@ -8,13 +8,14 @@ import { getProfileById } from "@/lib/domain/profiles";
 import { listComments } from "@/lib/domain/comments";
 import { listActivity } from "@/lib/domain/activity";
 import { createSignedDownloadUrl, listAttachments } from "@/lib/domain/attachments";
-import { canDecideApproval } from "@/lib/domain/permissions";
+import { canCreateOperation, canDecideApproval } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
 import { RequestRealtimeRefresh } from "@/components/requests/request-realtime-refresh";
 import { RequestStatusTimeline } from "@/components/requests/request-status-timeline";
 import { RequestApprovalControl } from "@/components/requests/request-approval-control";
 import { RequestReassignControl } from "@/components/requests/request-reassign-control";
+import { RequestOperationControl } from "@/components/requests/request-operation-control";
 import { RequestComments } from "@/components/requests/request-comments";
 import { RequestAttachments } from "@/components/requests/request-attachments";
 
@@ -91,6 +92,13 @@ export default async function RequestDetailPage({
         <RequestReassignControl
           approvalId={approval.id}
           currentApproverRole={approverProfile.role}
+        />
+      )}
+
+      {canCreateOperation(profile) && (
+        <RequestOperationControl
+          requestId={request.id}
+          relatedOperationId={request.relatedOperationId}
         />
       )}
 
