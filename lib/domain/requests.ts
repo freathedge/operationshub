@@ -30,6 +30,7 @@ export interface Request {
   status: RequestStatus;
   createdBy: string | null;
   departmentId: string | null;
+  relatedOperationId: string | null;
   createdAt: string;
 }
 
@@ -42,10 +43,11 @@ interface RequestRow {
   status: RequestStatus;
   created_by: string | null;
   department_id: string | null;
+  related_operation_id: string | null;
   created_at: string;
 }
 
-function toRequest(row: RequestRow): Request {
+export function toRequest(row: RequestRow): Request {
   return {
     id: row.id,
     companyId: row.company_id,
@@ -55,12 +57,13 @@ function toRequest(row: RequestRow): Request {
     status: row.status,
     createdBy: row.created_by,
     departmentId: row.department_id,
+    relatedOperationId: row.related_operation_id,
     createdAt: row.created_at,
   };
 }
 
-const REQUEST_COLUMNS =
-  "id, company_id, title, description, category, status, created_by, department_id, created_at";
+export const REQUEST_COLUMNS =
+  "id, company_id, title, description, category, status, created_by, department_id, related_operation_id, created_at";
 
 const COMPANY_WIDE_VIEW_ROLES = new Set(["operations_manager", "it", "hr", "admin"]);
 
@@ -268,4 +271,19 @@ export async function transitionRequestStatus(
     console.error("broadcastChange failed:", broadcastError);
   }
   return updated;
+}
+
+export async function setRequestOperation(
+  requestId: string,
+  operationId: string | null
+): Promise<Request> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("requests")
+    .update({ related_operation_id: operationId })
+    .eq("id", requestId)
+    .select(REQUEST_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toRequest(data);
 }

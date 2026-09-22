@@ -2,7 +2,15 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createProfile } from "@/lib/domain/profiles";
 import type { Profile } from "@/lib/domain/profiles";
-import { assignTask, createTask, deleteTask, getTask, listTasks, updateTaskStatus } from "@/lib/domain/tasks";
+import {
+  assignTask,
+  createTask,
+  deleteTask,
+  getTask,
+  listTasks,
+  setTaskOperation,
+  updateTaskStatus,
+} from "@/lib/domain/tasks";
 import {
   ForbiddenError,
   InvalidTransitionError,
@@ -22,6 +30,7 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
     let employee: Profile;
     let managerA: Profile;
     let opsManager: Profile;
+    let operationId: string;
 
     beforeAll(async () => {
       const { data: company, error: companyError } = await supabase
@@ -66,6 +75,14 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       employee = await createTestProfile("Employee A", "employee", departmentAId);
       managerA = await createTestProfile("Manager A", "manager", departmentAId);
       opsManager = await createTestProfile("Ops Manager", "operations_manager", null);
+
+      const { data: operation, error: operationError } = await supabase
+        .from("operations")
+        .insert({ company_id: companyId, title: "Test Operation (tasks)", owner_id: employee.id })
+        .select("id")
+        .single();
+      if (operationError) throw operationError;
+      operationId = operation.id;
     });
 
     afterAll(async () => {
@@ -84,6 +101,7 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       }
 
       await supabase.from("tasks").delete().eq("company_id", companyId);
+      await supabase.from("operations").delete().eq("id", operationId);
       await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
       for (const id of createdAuthUserIds) {
         await supabase.auth.admin.deleteUser(id);
@@ -381,6 +399,17 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       await supabase.from("workflow_instances").delete().eq("id", instance.id);
       await supabase.from("workflow_template_steps").delete().eq("template_id", template.id);
       await supabase.from("workflow_templates").delete().eq("id", template.id);
+    });
+
+    it("sets and clears a task's related operation", async () => {
+      const task = await createTask(employee, { title: "Linkable task" });
+      expect(task.relatedOperationId).toBeNull();
+
+      const linked = await setTaskOperation(task.id, operationId);
+      expect(linked.relatedOperationId).toBe(operationId);
+
+      const unlinked = await setTaskOperation(task.id, null);
+      expect(unlinked.relatedOperationId).toBeNull();
     });
   }
 );

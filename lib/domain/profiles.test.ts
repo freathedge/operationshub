@@ -9,6 +9,7 @@ import {
   listProfilesByRole,
   updateProfile,
 } from "@/lib/domain/profiles";
+import type { Profile } from "@/lib/domain/profiles";
 
 // Integration test — hits the live Supabase project via the service-role key. Skipped
 // (not failed) when the key isn't available so `pnpm test:unit`/CI-without-secrets stays green.
@@ -233,6 +234,9 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
     const supabase = createSupabaseAdminClient();
     let companyId: string;
     const createdAuthUserIds: string[] = [];
+    let operationOwnerProfile: Profile;
+    let operationOwnerAuthUserId: string;
+    let operationId: string;
 
     beforeAll(async () => {
       const { data, error } = await supabase
@@ -245,9 +249,46 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
         .single();
       if (error) throw error;
       companyId = data.id;
+
+      // Fixture profile that doubles as the operation's owner, forming a deliberate
+      // cycle with the operation it will be linked to via relatedOperationId (see
+      // afterAll for the required teardown order).
+      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+        email: `profile-test-operation-owner-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+      if (authError || !authUser.user) throw authError;
+      operationOwnerAuthUserId = authUser.user.id;
+
+      operationOwnerProfile = await createProfile({
+        authUserId: operationOwnerAuthUserId,
+        companyId,
+        fullName: "Operation Owner Profile",
+        role: "employee",
+      });
+
+      const { data: operation, error: operationError } = await supabase
+        .from("operations")
+        .insert({
+          company_id: companyId,
+          title: "Test Operation (profiles)",
+          owner_id: operationOwnerProfile.id,
+        })
+        .select("id")
+        .single();
+      if (operationError) throw operationError;
+      operationId = operation.id;
     });
 
     afterAll(async () => {
+      // Delete the operation first: profiles.related_operation_id is ON DELETE SET
+      // NULL, so this clears the back-reference from operationOwnerProfile before we
+      // delete that profile. Deleting the profile first would fail, since
+      // operations.owner_id has no cascade/set-null behavior.
+      await supabase.from("operations").delete().eq("id", operationId);
+      await supabase.from("profiles").delete().eq("id", operationOwnerProfile.id);
+      await supabase.auth.admin.deleteUser(operationOwnerAuthUserId);
       await supabase.from("companies").delete().eq("slug", "test-co-profiles-2");
     });
 
@@ -329,6 +370,18 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
 
       const all = await listProfilesByCompany(companyId, {});
       expect(all.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("sets and clears a profile's related operation via updateProfile", async () => {
+      const linked = await updateProfile(operationOwnerProfile.id, {
+        relatedOperationId: operationId,
+      });
+      expect(linked.relatedOperationId).toBe(operationId);
+
+      const unlinked = await updateProfile(operationOwnerProfile.id, {
+        relatedOperationId: null,
+      });
+      expect(unlinked.relatedOperationId).toBeNull();
     });
   }
 );

@@ -26,6 +26,7 @@ export interface Task {
   relatedEmployeeId: string | null;
   relatedAssetId: string | null;
   relatedWorkflowInstanceId: string | null;
+  relatedOperationId: string | null;
   dueDate: string | null;
   completedAt: string | null;
   createdAt: string;
@@ -44,12 +45,13 @@ interface TaskRow {
   related_employee_id: string | null;
   related_asset_id: string | null;
   related_workflow_instance_id: string | null;
+  related_operation_id: string | null;
   due_date: string | null;
   completed_at: string | null;
   created_at: string;
 }
 
-function toTask(row: TaskRow): Task {
+export function toTask(row: TaskRow): Task {
   return {
     id: row.id,
     companyId: row.company_id,
@@ -63,14 +65,15 @@ function toTask(row: TaskRow): Task {
     relatedEmployeeId: row.related_employee_id,
     relatedAssetId: row.related_asset_id,
     relatedWorkflowInstanceId: row.related_workflow_instance_id,
+    relatedOperationId: row.related_operation_id,
     dueDate: row.due_date,
     completedAt: row.completed_at,
     createdAt: row.created_at,
   };
 }
 
-const TASK_COLUMNS =
-  "id, company_id, title, description, status, priority, assignee_id, creator_id, department_id, related_employee_id, related_asset_id, related_workflow_instance_id, due_date, completed_at, created_at";
+export const TASK_COLUMNS =
+  "id, company_id, title, description, status, priority, assignee_id, creator_id, department_id, related_employee_id, related_asset_id, related_workflow_instance_id, related_operation_id, due_date, completed_at, created_at";
 
 const COMPANY_WIDE_VIEW_ROLES = new Set(["operations_manager", "it", "hr", "admin"]);
 
@@ -267,4 +270,19 @@ export async function deleteTask(profile: Profile, taskId: string): Promise<void
   } catch (error) {
     console.error("broadcastChange failed:", error);
   }
+}
+
+export async function setTaskOperation(
+  taskId: string,
+  operationId: string | null
+): Promise<Task> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({ related_operation_id: operationId })
+    .eq("id", taskId)
+    .select(TASK_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toTask(data);
 }

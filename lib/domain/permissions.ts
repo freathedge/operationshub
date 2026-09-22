@@ -186,3 +186,30 @@ export function canViewAsset(profile: Profile, asset: AssetLike): boolean {
   if (profile.id === asset.assignedTo) return true;
   return profile.departmentId !== null && profile.departmentId === asset.departmentId;
 }
+
+export interface OperationLike {
+  companyId: string;
+}
+
+export function canCreateOperation(profile: Profile): boolean {
+  return ELEVATED_ROLES.has(profile.role);
+}
+
+// Same ELEVATED_ROLES check as canCreateOperation, named separately for its use at each entity
+// detail page's "attach/detach operation" gate rather than at operation creation — the linked
+// operation itself is always visible to anyone who can view the entity (company-wide
+// visibility, idea.md), only the attach/detach action is role-gated.
+export function canLinkEntityToOperation(profile: Profile): boolean {
+  return canCreateOperation(profile);
+}
+
+export function canManageOperation(profile: Profile, operation: OperationLike): boolean {
+  if (profile.companyId !== operation.companyId) return false;
+  return ELEVATED_ROLES.has(profile.role);
+}
+
+export function canViewOperation(profile: Profile, operation: OperationLike): boolean {
+  return profile.companyId === operation.companyId;
+}
+
+export const canCommentOnOperation = canViewOperation;

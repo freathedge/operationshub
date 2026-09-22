@@ -1,8 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { getEmployeeProfile } from "@/lib/domain/employees";
+import { canLinkEntityToOperation } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
+import { EmployeeOperationControl } from "@/components/employees/employee-operation-control";
 
 export default async function EmployeeDetailPage({
   params,
@@ -59,6 +61,12 @@ export default async function EmployeeDetailPage({
           <p className="text-2xl font-semibold">{counts.assets}</p>
         </div>
       </div>
+
+      <EmployeeOperationControl
+        employeeId={employee.id}
+        relatedOperationId={employee.relatedOperationId}
+        canManage={canLinkEntityToOperation(profile)}
+      />
 
       <section>
         <h2 className="text-lg font-medium mb-2">Activity</h2>

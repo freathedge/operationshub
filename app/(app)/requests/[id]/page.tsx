@@ -8,13 +8,14 @@ import { getProfileById } from "@/lib/domain/profiles";
 import { listComments } from "@/lib/domain/comments";
 import { listActivity } from "@/lib/domain/activity";
 import { createSignedDownloadUrl, listAttachments } from "@/lib/domain/attachments";
-import { canDecideApproval } from "@/lib/domain/permissions";
+import { canDecideApproval, canLinkEntityToOperation } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
 import { RequestRealtimeRefresh } from "@/components/requests/request-realtime-refresh";
 import { RequestStatusTimeline } from "@/components/requests/request-status-timeline";
 import { RequestApprovalControl } from "@/components/requests/request-approval-control";
 import { RequestReassignControl } from "@/components/requests/request-reassign-control";
+import { RequestOperationControl } from "@/components/requests/request-operation-control";
 import { RequestComments } from "@/components/requests/request-comments";
 import { RequestAttachments } from "@/components/requests/request-attachments";
 
@@ -93,6 +94,12 @@ export default async function RequestDetailPage({
           currentApproverRole={approverProfile.role}
         />
       )}
+
+      <RequestOperationControl
+        requestId={request.id}
+        relatedOperationId={request.relatedOperationId}
+        canManage={canLinkEntityToOperation(profile)}
+      />
 
       <section>
         <h2 className="text-lg font-medium mb-2">Activity</h2>

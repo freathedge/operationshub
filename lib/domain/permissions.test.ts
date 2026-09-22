@@ -5,18 +5,23 @@ import {
   canChangeAssetStatus,
   canChangeTaskStatus,
   canCommentOnRequest,
+  canCommentOnOperation,
   canCreateAsset,
   canCreateEmployee,
+  canCreateOperation,
+  canLinkEntityToOperation,
   canCreateRequest,
   canCreateTask,
   canDecideApproval,
   canDeleteTask,
+  canManageOperation,
   canReassignApproval,
   canTransitionRequestStatus,
   canUpdateEmployee,
   canUploadRequestAttachment,
   canViewAsset,
   canViewEmployeeProfile,
+  canViewOperation,
   canViewRequest,
   canViewTask,
   canViewWorkflowInstance,
@@ -36,6 +41,7 @@ function makeProfile(overrides: Partial<Profile> = {}): Profile {
     positionTitle: null,
     employeeNumber: null,
     locationId: null,
+    relatedOperationId: null,
     status: "active",
     ...overrides,
   };
@@ -471,6 +477,38 @@ describe("canViewAsset", () => {
     const stranger = makeProfile({ id: "stranger-1" });
     expect(
       canViewAsset(stranger, { companyId: "company-1", assignedTo: "someone-else", departmentId: "dept-1" })
+    ).toBe(false);
+  });
+});
+
+describe("canCreateOperation / canManageOperation / canViewOperation", () => {
+  it("allows operations_manager and admin to create, denies everyone else", () => {
+    expect(canCreateOperation(makeProfile({ role: "operations_manager" }))).toBe(true);
+    expect(canCreateOperation(makeProfile({ role: "admin" }))).toBe(true);
+    expect(canCreateOperation(makeProfile({ role: "hr" }))).toBe(false);
+    expect(canCreateOperation(makeProfile({ role: "employee" }))).toBe(false);
+  });
+
+  it("canLinkEntityToOperation matches canCreateOperation's role check", () => {
+    expect(canLinkEntityToOperation(makeProfile({ role: "operations_manager" }))).toBe(true);
+    expect(canLinkEntityToOperation(makeProfile({ role: "admin" }))).toBe(true);
+    expect(canLinkEntityToOperation(makeProfile({ role: "employee" }))).toBe(false);
+  });
+
+  it("canManageOperation checks company scope before role", () => {
+    const operation = { companyId: "company-1" };
+    expect(canManageOperation(makeProfile({ role: "admin" }), operation)).toBe(true);
+    expect(
+      canManageOperation(makeProfile({ role: "admin", companyId: "other-company" }), operation)
+    ).toBe(false);
+    expect(canManageOperation(makeProfile({ role: "employee" }), operation)).toBe(false);
+  });
+
+  it("canViewOperation allows anyone in the same company", () => {
+    const operation = { companyId: "company-1" };
+    expect(canViewOperation(makeProfile({ role: "employee" }), operation)).toBe(true);
+    expect(
+      canViewOperation(makeProfile({ role: "employee", companyId: "other-company" }), operation)
     ).toBe(false);
   });
 });

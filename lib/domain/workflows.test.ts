@@ -540,14 +540,60 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("findWorkflowStepByTaskI
   });
 
   afterAll(async () => {
-    await supabase.from("workflow_instances").delete().eq("company_id", companyId);
-    await supabase.from("workflow_template_steps").delete().eq("template_id", templateId);
-    await supabase.from("workflow_templates").delete().eq("id", templateId);
-    await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
-    for (const id of createdAuthUserIds) {
-      await supabase.auth.admin.deleteUser(id);
+    // Same defect as completeAssetAssignmentTask's fixture in assets.test.ts: this block's
+    // startWorkflow calls generate tasks and workflow_instance_steps, and those two plus
+    // workflow_instances->workflow_templates have no ON DELETE CASCADE, so they must be torn
+    // down explicitly and in this order. Everything else (profiles, departments) cascades from
+    // the company delete.
+    const { data: instances, error: instancesFetchError } = await supabase
+      .from("workflow_instances")
+      .select("id")
+      .eq("company_id", companyId);
+    if (instancesFetchError) throw instancesFetchError;
+
+    const instanceIds = (instances ?? []).map((instance) => instance.id);
+    if (instanceIds.length > 0) {
+      const { error: stepsDeleteError } = await supabase
+        .from("workflow_instance_steps")
+        .delete()
+        .in("instance_id", instanceIds);
+      if (stepsDeleteError) throw stepsDeleteError;
     }
-    await supabase.from("companies").delete().eq("slug", "test-co-find-step");
+
+    const { error: tasksDeleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("company_id", companyId);
+    if (tasksDeleteError) throw tasksDeleteError;
+
+    const { error: instancesDeleteError } = await supabase
+      .from("workflow_instances")
+      .delete()
+      .eq("company_id", companyId);
+    if (instancesDeleteError) throw instancesDeleteError;
+
+    const { error: templateStepsDeleteError } = await supabase
+      .from("workflow_template_steps")
+      .delete()
+      .eq("template_id", templateId);
+    if (templateStepsDeleteError) throw templateStepsDeleteError;
+
+    const { error: templateDeleteError } = await supabase
+      .from("workflow_templates")
+      .delete()
+      .eq("id", templateId);
+    if (templateDeleteError) throw templateDeleteError;
+
+    const { error: companyDeleteError } = await supabase
+      .from("companies")
+      .delete()
+      .eq("slug", "test-co-find-step");
+    if (companyDeleteError) throw companyDeleteError;
+
+    for (const id of createdAuthUserIds) {
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(id);
+      if (authDeleteError) throw authDeleteError;
+    }
   });
 
   it("returns null when the task has no workflow step", async () => {

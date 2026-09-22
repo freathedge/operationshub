@@ -15,6 +15,7 @@ export interface Profile {
   positionTitle: string | null;
   employeeNumber: string | null;
   locationId: string | null;
+  relatedOperationId: string | null;
   status: ProfileStatus;
 }
 
@@ -29,10 +30,11 @@ interface ProfileRow {
   position_title: string | null;
   employee_number: string | null;
   location_id: string | null;
+  related_operation_id: string | null;
   status: ProfileStatus;
 }
 
-function toProfile(row: ProfileRow): Profile {
+export function toProfile(row: ProfileRow): Profile {
   return {
     id: row.id,
     authUserId: row.auth_user_id,
@@ -44,12 +46,13 @@ function toProfile(row: ProfileRow): Profile {
     positionTitle: row.position_title,
     employeeNumber: row.employee_number,
     locationId: row.location_id,
+    relatedOperationId: row.related_operation_id,
     status: row.status,
   };
 }
 
-const PROFILE_COLUMNS =
-  "id, auth_user_id, company_id, full_name, role, department_id, manager_id, position_title, employee_number, location_id, status";
+export const PROFILE_COLUMNS =
+  "id, auth_user_id, company_id, full_name, role, department_id, manager_id, position_title, employee_number, location_id, related_operation_id, status";
 
 export async function getProfileByAuthUserId(
   authUserId: string
@@ -154,6 +157,7 @@ export async function updateProfile(
     departmentId?: string | null;
     managerId?: string | null;
     locationId?: string | null;
+    relatedOperationId?: string | null;
     status?: ProfileStatus;
   }
 ): Promise<Profile> {
@@ -166,6 +170,9 @@ export async function updateProfile(
       ...(updates.departmentId !== undefined && { department_id: updates.departmentId }),
       ...(updates.managerId !== undefined && { manager_id: updates.managerId }),
       ...(updates.locationId !== undefined && { location_id: updates.locationId }),
+      ...(updates.relatedOperationId !== undefined && {
+        related_operation_id: updates.relatedOperationId,
+      }),
       ...(updates.status !== undefined && { status: updates.status }),
     })
     .eq("id", id)
