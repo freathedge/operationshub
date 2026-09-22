@@ -73,7 +73,9 @@ describe("DashboardView", () => {
           overview: {
             totals: { employees: 0, assets: 0, openRequests: 0, activeTasks: 0 },
             attention: { criticalTasks: 0, pendingApprovals: 0, overdueRequests: 0 },
-            activeOperations: [],
+            activeOperations: [
+              { id: "op-1", title: "Vienna Office Relocation", completedTasks: 3, totalTasks: 4 },
+            ],
             departmentActivity: [],
           },
         }),
@@ -87,5 +89,7 @@ describe("DashboardView", () => {
 
     await screen.findAllByText("My Tasks");
     expect(fetchMock).toHaveBeenCalledWith("/api/dashboard/company");
+    expect(await screen.findByText("Vienna Office Relocation")).toBeInTheDocument();
+    expect(screen.getByText("75%")).toBeInTheDocument();
   });
 });

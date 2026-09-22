@@ -6,6 +6,7 @@ import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { MyTasksCard } from "@/components/dashboard/my-tasks-card";
 import { RecentActivityCard } from "@/components/dashboard/recent-activity-card";
 import { UpcomingCard } from "@/components/dashboard/upcoming-card";
+import { CompanySection } from "@/components/dashboard/company-section";
 import type { CompanyOverview, PersonalOverview } from "@/lib/domain/dashboard";
 
 async function fetchOverview<T>(url: string): Promise<T> {
@@ -67,9 +68,7 @@ export function DashboardView({
         </>
       )}
 
-      {canViewCompany && companyQuery.data && (
-        <div>{/* Task 10 replaces this with <CompanySection overview={companyQuery.data} /> */}</div>
-      )}
+      {canViewCompany && companyQuery.data && <CompanySection overview={companyQuery.data} />}
     </div>
   );
 }
