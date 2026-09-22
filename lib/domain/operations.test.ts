@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createProfile, type Profile } from "@/lib/domain/profiles";
 import { createTask } from "@/lib/domain/tasks";
-import { createOperation, getOperation } from "@/lib/domain/operations";
+import { createOperation, getOperation, updateOperation, listOperations } from "@/lib/domain/operations";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("createOperation / getOperation", () => {
@@ -163,5 +163,118 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("createOperation / getOp
     expect(detail.requests).toEqual([]);
     expect(detail.assets).toEqual([]);
     expect(detail.employees).toEqual([]);
+  });
+});
+
+describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("updateOperation / listOperations", () => {
+  const supabase = createSupabaseAdminClient();
+  let companyId: string;
+  let departmentId: string;
+  const createdAuthUserIds: string[] = [];
+  let opsManagerProfile: Profile;
+  let employeeProfile: Profile;
+
+  beforeAll(async () => {
+    const { data: company, error: companyError } = await supabase
+      .from("companies")
+      .upsert(
+        { name: "Test Co (operations-update)", slug: "test-co-operations-update" },
+        { onConflict: "slug" }
+      )
+      .select("id")
+      .single();
+    if (companyError) throw companyError;
+    companyId = company.id;
+
+    const { data: department, error: departmentError } = await supabase
+      .from("departments")
+      .upsert(
+        { company_id: companyId, name: "Ops (operations-update)" },
+        { onConflict: "company_id,name" }
+      )
+      .select("id")
+      .single();
+    if (departmentError) throw departmentError;
+    departmentId = department.id;
+
+    const { data: opsManagerAuthUser, error: opsManagerAuthError } =
+      await supabase.auth.admin.createUser({
+        email: `operations-update-manager-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+    if (opsManagerAuthError || !opsManagerAuthUser.user) throw opsManagerAuthError;
+    createdAuthUserIds.push(opsManagerAuthUser.user.id);
+    opsManagerProfile = await createProfile({
+      authUserId: opsManagerAuthUser.user.id,
+      companyId,
+      fullName: "Ops Manager",
+      role: "operations_manager",
+    });
+
+    const { data: employeeAuthUser, error: employeeAuthError } =
+      await supabase.auth.admin.createUser({
+        email: `operations-update-employee-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+    if (employeeAuthError || !employeeAuthUser.user) throw employeeAuthError;
+    createdAuthUserIds.push(employeeAuthUser.user.id);
+    employeeProfile = await createProfile({
+      authUserId: employeeAuthUser.user.id,
+      companyId,
+      fullName: "Regular Employee",
+      role: "employee",
+    });
+  });
+
+  afterAll(async () => {
+    await supabase.from("operations").delete().eq("company_id", companyId);
+    await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
+    for (const id of createdAuthUserIds) {
+      await supabase.auth.admin.deleteUser(id);
+    }
+    await supabase.from("companies").delete().eq("slug", "test-co-operations-update");
+  });
+
+  it("rejects an update from a non-elevated role", async () => {
+    const operation = await createOperation(opsManagerProfile, { title: "Reject Update Test" });
+    await expect(
+      updateOperation(employeeProfile, operation.id, { status: "in_progress" })
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("updates status, priority, and department", async () => {
+    const operation = await createOperation(opsManagerProfile, { title: "Update Test" });
+    const updated = await updateOperation(opsManagerProfile, operation.id, {
+      status: "in_progress",
+      priority: "critical",
+      departmentId,
+    });
+    expect(updated.status).toBe("in_progress");
+    expect(updated.priority).toBe("critical");
+    expect(updated.departmentId).toBe(departmentId);
+  });
+
+  it("clears a nullable field when explicitly set to null", async () => {
+    const operation = await createOperation(opsManagerProfile, {
+      title: "Nullable Test",
+      departmentId,
+    });
+    const updated = await updateOperation(opsManagerProfile, operation.id, { departmentId: null });
+    expect(updated.departmentId).toBeNull();
+  });
+
+  it("lists operations filtered by status and department", async () => {
+    await createOperation(opsManagerProfile, { title: "Planning Op" });
+    const inProgressOp = await createOperation(opsManagerProfile, { title: "In Progress Op", departmentId });
+    await updateOperation(opsManagerProfile, inProgressOp.id, { status: "in_progress" });
+
+    const inProgress = await listOperations(opsManagerProfile, { status: "in_progress" });
+    expect(inProgress.every((o) => o.status === "in_progress")).toBe(true);
+    expect(inProgress.some((o) => o.id === inProgressOp.id)).toBe(true);
+
+    const byDepartment = await listOperations(opsManagerProfile, { departmentId });
+    expect(byDepartment.every((o) => o.departmentId === departmentId)).toBe(true);
   });
 });

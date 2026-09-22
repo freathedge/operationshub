@@ -2,9 +2,13 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getProfileById, PROFILE_COLUMNS, toProfile, type Profile } from "@/lib/domain/profiles";
 import { logActivity } from "@/lib/domain/activity";
 import { broadcastChange } from "@/lib/realtime/broadcast";
-import { canCreateOperation, canViewOperation } from "@/lib/domain/permissions";
+import { canCreateOperation, canManageOperation, canViewOperation } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
-import type { CreateOperationInput } from "@/lib/validation/operations";
+import type {
+  CreateOperationInput,
+  OperationFilters,
+  UpdateOperationInput,
+} from "@/lib/validation/operations";
 import type { OperationPriority, OperationStatus } from "@/lib/domain/operation-status";
 import { TASK_COLUMNS, toTask, type Task } from "@/lib/domain/tasks";
 import { REQUEST_COLUMNS, toRequest, type Request } from "@/lib/domain/requests";
@@ -181,4 +185,73 @@ export async function getOperation(profile: Profile, operationId: string): Promi
     assets,
     employees,
   };
+}
+
+export async function updateOperation(
+  profile: Profile,
+  operationId: string,
+  input: UpdateOperationInput
+): Promise<Operation> {
+  const operation = await loadOperationOrThrow(operationId);
+  if (!canManageOperation(profile, operation)) {
+    throw new ForbiddenError("You cannot update this operation");
+  }
+
+  let ownerId = operation.ownerId;
+  if (input.ownerId) {
+    const owner = await getProfileById(input.ownerId);
+    if (!owner || owner.companyId !== profile.companyId) {
+      throw new NotFoundError("Owner not found");
+    }
+    ownerId = owner.id;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("operations")
+    .update({
+      ...(input.title !== undefined && { title: input.title }),
+      ...(input.description !== undefined && { description: input.description }),
+      owner_id: ownerId,
+      ...(input.departmentId !== undefined && { department_id: input.departmentId }),
+      ...(input.status !== undefined && { status: input.status }),
+      ...(input.priority !== undefined && { priority: input.priority }),
+      ...(input.startDate !== undefined && { start_date: input.startDate }),
+      ...(input.targetDate !== undefined && { target_date: input.targetDate }),
+    })
+    .eq("id", operationId)
+    .select(OPERATION_COLUMNS)
+    .single();
+  if (error) throw error;
+
+  const updated = toOperation(data);
+  await logActivity(
+    "operation",
+    updated.id,
+    profile.id,
+    `${profile.fullName} updated this operation`
+  );
+  try {
+    await broadcastChange(profile.companyId, "operations", { type: "operation_updated" });
+  } catch (broadcastError) {
+    console.error("broadcastChange failed:", broadcastError);
+  }
+  return updated;
+}
+
+export async function listOperations(
+  profile: Profile,
+  filters: OperationFilters
+): Promise<Operation[]> {
+  const supabase = createSupabaseAdminClient();
+  let query = supabase
+    .from("operations")
+    .select(OPERATION_COLUMNS)
+    .eq("company_id", profile.companyId);
+  if (filters.status) query = query.eq("status", filters.status);
+  if (filters.departmentId) query = query.eq("department_id", filters.departmentId);
+  if (filters.ownerId) query = query.eq("owner_id", filters.ownerId);
+  const { data, error } = await query.order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(toOperation);
 }
