@@ -2,6 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createProfile, type Profile } from "@/lib/domain/profiles";
 import { createTask } from "@/lib/domain/tasks";
+import { createRequest } from "@/lib/domain/requests";
+import { createAsset } from "@/lib/domain/assets";
 import { createOperation, getOperation, linkEntity, unlinkEntity, updateOperation, listOperations, type Operation } from "@/lib/domain/operations";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 
@@ -394,6 +396,8 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("linkEntity / unlinkEnti
 
   afterAll(async () => {
     await supabase.from("tasks").delete().eq("company_id", companyId);
+    await supabase.from("requests").delete().eq("company_id", companyId);
+    await supabase.from("assets").delete().eq("company_id", companyId);
     await supabase.from("operations").delete().eq("company_id", companyId);
     await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
     for (const id of createdAuthUserIds) {
@@ -415,16 +419,36 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("linkEntity / unlinkEnti
     const afterLinkTask = await getOperation(opsManagerProfile, operationA.id);
     expect(afterLinkTask.tasks.map((t) => t.id)).toContain(task.id);
 
+    const request = await createRequest(opsManagerProfile, {
+      title: "Linkable Request",
+      category: "general",
+    });
+    await linkEntity(opsManagerProfile, operationA.id, "request", request.id);
+    const afterLinkRequest = await getOperation(opsManagerProfile, operationA.id);
+    expect(afterLinkRequest.requests.map((r) => r.id)).toContain(request.id);
+
+    const asset = await createAsset(opsManagerProfile, {
+      name: "Linkable Laptop",
+      category: "laptop",
+    });
+    await linkEntity(opsManagerProfile, operationA.id, "asset", asset.id);
+    const afterLinkAsset = await getOperation(opsManagerProfile, operationA.id);
+    expect(afterLinkAsset.assets.map((a) => a.id)).toContain(asset.id);
+
     await linkEntity(opsManagerProfile, operationA.id, "employee", employeeProfile.id);
     const afterLinkEmployee = await getOperation(opsManagerProfile, operationA.id);
     expect(afterLinkEmployee.employees.map((e) => e.id)).toContain(employeeProfile.id);
 
     await unlinkEntity(opsManagerProfile, operationA.id, "task", task.id);
+    await unlinkEntity(opsManagerProfile, operationA.id, "request", request.id);
+    await unlinkEntity(opsManagerProfile, operationA.id, "asset", asset.id);
     await unlinkEntity(opsManagerProfile, operationA.id, "employee", employeeProfile.id);
     const afterUnlink = await getOperation(opsManagerProfile, operationA.id);
     expect(afterUnlink.tasks).toHaveLength(0);
+    expect(afterUnlink.requests).toHaveLength(0);
+    expect(afterUnlink.assets).toHaveLength(0);
     expect(afterUnlink.employees).toHaveLength(0);
-  });
+  }, 15000);
 
   it("rejects unlinking an entity that belongs to a different operation", async () => {
     const task = await createTask(opsManagerProfile, { title: "Cross-Operation Task" });
