@@ -489,8 +489,6 @@ import type { Profile } from "@/lib/domain/profiles";
 import type { ActivityEntry } from "@/lib/domain/activity";
 import { TASK_COLUMNS, toTask, type Task } from "@/lib/domain/tasks";
 import type { TaskPriority, TaskStatus } from "@/lib/domain/task-status";
-import { canViewCompanyOverview } from "@/lib/domain/permissions";
-import { ForbiddenError } from "@/lib/domain/errors";
 
 const OPEN_TASK_STATUSES: TaskStatus[] = ["todo", "in_progress", "blocked"];
 const OPEN_REQUEST_STATUSES = ["draft", "submitted", "under_review", "approved", "in_progress"];
@@ -913,7 +911,14 @@ Expected: FAIL — `getCompanyOverview` is not exported.
 
 - [ ] **Step 3: Implement `getCompanyOverview`**
 
-Append to `lib/domain/dashboard.ts` (add these imports to the top of the file alongside the existing ones: `import { ForbiddenError } from "@/lib/domain/errors";` was already imported in Task 3's version of the file):
+Append to `lib/domain/dashboard.ts`. First add two imports to the top of the file, alongside the existing ones from Task 3 — neither is there yet, Task 3's `getPersonalOverview` doesn't need them:
+
+```ts
+import { canViewCompanyOverview } from "@/lib/domain/permissions";
+import { ForbiddenError } from "@/lib/domain/errors";
+```
+
+Then append the rest of this task's code to the bottom of the file:
 
 ```ts
 const ACTIVE_TASK_STATUSES: TaskStatus[] = ["todo", "in_progress", "blocked"];
