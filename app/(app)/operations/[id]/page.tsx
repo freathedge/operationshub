@@ -11,6 +11,7 @@ import {
   OperationLinkPicker,
   OperationUnlinkButton,
 } from "@/components/operations/operation-link-picker";
+import { OperationEditControl } from "@/components/operations/operation-edit-control";
 import { OperationComments } from "@/components/operations/operation-comments";
 
 export default async function OperationDetailPage({
@@ -61,6 +62,15 @@ export default async function OperationDetailPage({
           <p className="mt-2 text-muted-foreground">{operation.description}</p>
         )}
       </div>
+
+      {canManage && (
+        <OperationEditControl
+          operationId={operation.id}
+          title={operation.title}
+          status={operation.status}
+          priority={operation.priority}
+        />
+      )}
 
       <div className="rounded-md border p-4">
         <p className="text-sm text-muted-foreground">Progress</p>
