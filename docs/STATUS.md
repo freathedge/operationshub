@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-22
+Last updated: 2026-09-22 (Phase 7 moved to Review)
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -20,11 +20,13 @@ Standalone follow-up work (not a numbered phase):
 
 ## In Progress
 
-- **Phase 7 — Dashboard/Overview**: replaces the Foundation placeholder dashboard with the real one — personal section for everyone, company section for `operations_manager`/`admin` only — built from a shadcn/ui dashboard block. Pure aggregation, no new tables.
+_(nothing right now)_
 
 ## Review
 
-_(nothing right now)_
+- **Phase 7 — Dashboard/Overview**: replaces the Foundation placeholder dashboard with the real one — personal section for everyone (My Tasks, Pending Approvals, Open Requests, Active Workflows, Recent Activity, Upcoming), company section for `operations_manager`/`admin` only (totals, attention required, active operations with progress, department activity) — built from the shadcn/ui `dashboard-01` block. Pure aggregation, no new tables/columns/migrations. Spec: `docs/superpowers/specs/2026-09-22-phase7-dashboard-design.md`. Plan: `docs/superpowers/plans/2026-09-22-phase7-dashboard.md`.
+  - Per-task review found and fixed one real issue (commit attribution on Task 1) and surfaced deferred Minors (recentActivity's top-30-then-filter design, a duplicated task-status constant, an uncapped per-department query loop, a couple of unused-var lint warnings) — none blocking, listed in the plan's SDD ledger for the whole-branch reviewer to triage.
+  - Awaiting whole-branch review before merge.
 
 ## Finished
 
