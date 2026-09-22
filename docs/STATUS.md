@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-12
+Last updated: 2026-09-22
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -16,13 +16,20 @@ Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline
 
 ## In Progress
 
-- **Phase 6 — Operations**: higher-level grouping object linking tasks/requests/assets/employees to a larger initiative, with a company-wide-visible operation detail page showing linked-item lists and task-completion progress. Spec: `docs/superpowers/specs/2026-09-13-phase6-operations-design.md`. Plan: `docs/superpowers/plans/2026-09-13-phase6-operations.md`.
+_(nothing right now)_
 
 ## Review
 
 _(nothing right now)_
 
 ## Finished
+
+- **Phase 6 — Operations**: higher-level grouping object linking tasks/requests/assets/employees to a larger initiative, with a company-wide-visible operation detail page showing linked-item lists and task-completion progress. Spec: `docs/superpowers/specs/2026-09-13-phase6-operations-design.md`. Plan: `docs/superpowers/plans/2026-09-13-phase6-operations.md`.
+  - Full-branch review caught three places where the plan had quietly diverged from the spec, none of which a per-task review could see: the detail page had no edit control, so operations were write-once and `completed`/`cancelled` were unreachable while `PATCH /api/operations/[id]` sat unused; the entity-side operation display was gated behind an elevated-role check, hiding it from regular employees and contradicting the spec's company-wide-visibility pillar; and link/unlink logged activity only on the operation, never on the entity. All three fixed before merge.
+  - Also fixed before merge: `createOperation`/`updateOperation` accepted a `departmentId` from any company. The plan validated `ownerId` but not `departmentId`, and with RLS disabled the domain layer is the only boundary.
+  - Includes one commit outside the plan's scope (`9343d70`, test-only): the `completeAssetAssignmentTask` and `findWorkflowStepByTaskId` teardowns from Phase 5 never deleted `tasks`/`workflow_instance_steps`/`workflow_templates` and checked no `error` field. Since supabase-js returns `{ error }` rather than throwing, those deletes failed silently and left orphans that broke every integration run after the first.
+  - Deferred (not blockers): the same missing cross-company `department_id` validation still exists in `lib/domain/profiles.ts` (:139, :170), `requests.ts:84`, `tasks.ts:95` and `assets.ts:106` — Phase 2/3/5 code, **security-relevant and worth its own ticket**; API field-level validation detail is discarded in ~15 form components across five phases (`typeof body.error === "string"` against an object payload — one codebase-wide fix, not 15 patches); `activity_log` rows accumulate unbounded across integration test runs; the detail page renders progress as a text percentage rather than the progress bar the spec asks for (no `Progress` primitive installed yet); `lib/domain/operations.ts` is the largest domain file at ~400 lines and link/unlink would extract cleanly into `operations-links.ts`.
+  - Merged to `main` via PR #8 (`149968a`).
 
 - **Phase 5 — Employees & Assets**: operational employee profiles, asset registry; completing the Equipment workflow's final task now creates and assigns a real asset; HR/admin can invite a new employee, which starts the Employee Onboarding workflow. Spec: `docs/superpowers/specs/2026-09-03-phase5-employees-assets-design.md`. Plan: `docs/superpowers/plans/2026-09-03-phase5-employees-assets.md`.
   - Full-branch code review found one Important gap (`canAssignAsset`/`canChangeAssetStatus` missing company-scoping) and one Minor gap (task-detail asset form reachable before `in_progress`) — both fixed before merge.
