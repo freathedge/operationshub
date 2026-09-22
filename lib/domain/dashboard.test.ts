@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createProfile, type Profile } from "@/lib/domain/profiles";
-import { getPersonalOverview } from "@/lib/domain/dashboard";
+import { getCompanyOverview, getPersonalOverview } from "@/lib/domain/dashboard";
+import { ForbiddenError } from "@/lib/domain/errors";
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getPersonalOverview", () => {
   const supabase = createSupabaseAdminClient();
@@ -220,5 +221,120 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getPersonalOverview", (
     const messages = overview.recentActivity.map((entry) => entry.message);
     expect(messages).toContain("Activity from my company");
     expect(messages).not.toContain("Activity from a different company");
+  });
+});
+
+describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getCompanyOverview", () => {
+  const supabase = createSupabaseAdminClient();
+  let companyId: string;
+  const createdAuthUserIds: string[] = [];
+  let opsManager: Profile;
+  let employee: Profile;
+
+  beforeAll(async () => {
+    const { data: company, error: companyError } = await supabase
+      .from("companies")
+      .upsert(
+        { name: "Test Co (company overview)", slug: "test-co-company-overview" },
+        { onConflict: "slug" }
+      )
+      .select("id")
+      .single();
+    if (companyError) throw companyError;
+    companyId = company.id;
+
+    const { data: opsManagerAuthUser, error: opsManagerAuthError } =
+      await supabase.auth.admin.createUser({
+        email: `dashboard-test-ops-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+    if (opsManagerAuthError || !opsManagerAuthUser.user) throw opsManagerAuthError;
+    createdAuthUserIds.push(opsManagerAuthUser.user.id);
+    opsManager = await createProfile({
+      authUserId: opsManagerAuthUser.user.id,
+      companyId,
+      fullName: "Ops Manager",
+      role: "operations_manager",
+    });
+
+    const { data: employeeAuthUser, error: employeeAuthError } =
+      await supabase.auth.admin.createUser({
+        email: `dashboard-test-employee-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+    if (employeeAuthError || !employeeAuthUser.user) throw employeeAuthError;
+    createdAuthUserIds.push(employeeAuthUser.user.id);
+    employee = await createProfile({
+      authUserId: employeeAuthUser.user.id,
+      companyId,
+      fullName: "Regular Employee",
+      role: "employee",
+    });
+  });
+
+  afterAll(async () => {
+    const { error: tasksDeleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("company_id", companyId);
+    if (tasksDeleteError) throw tasksDeleteError;
+
+    const { error: operationsDeleteError } = await supabase
+      .from("operations")
+      .delete()
+      .eq("company_id", companyId);
+    if (operationsDeleteError) throw operationsDeleteError;
+
+    const { error: profilesDeleteError } = await supabase
+      .from("profiles")
+      .delete()
+      .eq("company_id", companyId);
+    if (profilesDeleteError) throw profilesDeleteError;
+
+    for (const authUserId of createdAuthUserIds) {
+      await supabase.auth.admin.deleteUser(authUserId);
+    }
+  });
+
+  it("throws ForbiddenError for every non-elevated role", async () => {
+    await expect(getCompanyOverview(employee)).rejects.toThrow(ForbiddenError);
+  });
+
+  it("returns totals for an elevated role", async () => {
+    const overview = await getCompanyOverview(opsManager);
+    expect(overview.totals.employees).toBeGreaterThanOrEqual(2); // opsManager + employee
+  });
+
+  it("getPersonalOverview also works for an elevated role (no role check gates it)", async () => {
+    const overview = await getPersonalOverview(opsManager);
+    expect(overview.counts).toEqual({
+      myOpenTasks: 0,
+      pendingApprovals: 0,
+      myOpenRequests: 0,
+      activeWorkflows: 0,
+    });
+  });
+
+  it("lists an operation with zero linked tasks as totalTasks: 0, not an error", async () => {
+    const { data: operation, error: operationError } = await supabase
+      .from("operations")
+      .insert({
+        company_id: companyId,
+        title: "Empty operation",
+        owner_id: opsManager.id,
+        status: "in_progress",
+        priority: "medium",
+      })
+      .select("id")
+      .single();
+    if (operationError) throw operationError;
+
+    const overview = await getCompanyOverview(opsManager);
+    const found = overview.activeOperations.find((op) => op.id === operation.id);
+    expect(found).toBeDefined();
+    expect(found?.totalTasks).toBe(0);
+    expect(found?.completedTasks).toBe(0);
   });
 });

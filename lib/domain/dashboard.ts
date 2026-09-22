@@ -4,6 +4,8 @@ import type { ActivityEntry } from "@/lib/domain/activity";
 import { TASK_COLUMNS, toTask, type Task } from "@/lib/domain/tasks";
 import type { TaskPriority, TaskStatus } from "@/lib/domain/task-status";
 import type { RequestStatus } from "@/lib/domain/request-status";
+import { canViewCompanyOverview } from "@/lib/domain/permissions";
+import { ForbiddenError } from "@/lib/domain/errors";
 
 const OPEN_TASK_STATUSES: TaskStatus[] = ["todo", "in_progress", "blocked"];
 const OPEN_REQUEST_STATUSES: RequestStatus[] = [
@@ -218,5 +220,174 @@ export async function getPersonalOverview(profile: Profile): Promise<PersonalOve
     recentActivity: companyActivity.slice(0, RECENT_ACTIVITY_DISPLAY_LIMIT),
     upcoming: bucketByDueDate(myTasks),
     unreadNotifications: notificationsResult.count ?? 0,
+  };
+}
+
+const ACTIVE_TASK_STATUSES: TaskStatus[] = ["todo", "in_progress", "blocked"];
+const ACTIVE_OPERATIONS_LIMIT = 5;
+
+export interface OperationProgress {
+  id: string;
+  title: string;
+  completedTasks: number;
+  totalTasks: number;
+}
+
+export interface DepartmentActivity {
+  departmentId: string;
+  name: string;
+  openTasks: number;
+  openRequests: number;
+}
+
+export interface CompanyOverview {
+  totals: {
+    employees: number;
+    assets: number;
+    openRequests: number;
+    activeTasks: number;
+  };
+  attention: {
+    criticalTasks: number;
+    pendingApprovals: number;
+    overdueRequests: number;
+  };
+  activeOperations: OperationProgress[];
+  departmentActivity: DepartmentActivity[];
+}
+
+export async function getCompanyOverview(profile: Profile): Promise<CompanyOverview> {
+  if (!canViewCompanyOverview(profile)) {
+    throw new ForbiddenError("You cannot view the company overview");
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const overdueRequestCutoff = new Date(
+    Date.now() - REQUEST_OVERDUE_DAYS * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  const [
+    employeesResult,
+    assetsResult,
+    openRequestsResult,
+    activeTasksResult,
+    criticalTasksResult,
+    pendingApprovalsResult,
+    overdueRequestsResult,
+    activeOperationsResult,
+    departmentsResult,
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", profile.companyId)
+      .eq("status", "active"),
+    supabase
+      .from("assets")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", profile.companyId)
+      .neq("status", "retired"),
+    supabase
+      .from("requests")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", profile.companyId)
+      .in("status", OPEN_REQUEST_STATUSES),
+    supabase
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", profile.companyId)
+      .in("status", ACTIVE_TASK_STATUSES),
+    supabase
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", profile.companyId)
+      .in("status", ACTIVE_TASK_STATUSES)
+      .eq("priority", "critical"),
+    supabase
+      .from("approvals")
+      .select("id, requests!inner(company_id)", { count: "exact", head: true })
+      .eq("status", "pending")
+      .eq("requests.company_id", profile.companyId),
+    supabase
+      .from("requests")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", profile.companyId)
+      .in("status", OPEN_REQUEST_STATUSES)
+      .lt("created_at", overdueRequestCutoff),
+    supabase
+      .from("operations")
+      .select("id, title, department_id")
+      .eq("company_id", profile.companyId)
+      .in("status", ["planning", "in_progress"])
+      .order("created_at", { ascending: false })
+      .limit(ACTIVE_OPERATIONS_LIMIT),
+    supabase.from("departments").select("id, name").eq("company_id", profile.companyId),
+  ]);
+
+  if (employeesResult.error) throw employeesResult.error;
+  if (assetsResult.error) throw assetsResult.error;
+  if (openRequestsResult.error) throw openRequestsResult.error;
+  if (activeTasksResult.error) throw activeTasksResult.error;
+  if (criticalTasksResult.error) throw criticalTasksResult.error;
+  if (pendingApprovalsResult.error) throw pendingApprovalsResult.error;
+  if (overdueRequestsResult.error) throw overdueRequestsResult.error;
+  if (activeOperationsResult.error) throw activeOperationsResult.error;
+  if (departmentsResult.error) throw departmentsResult.error;
+
+  const activeOperations: OperationProgress[] = await Promise.all(
+    (activeOperationsResult.data ?? []).map(async (operation) => {
+      const { data: tasksForOperation, error: tasksForOperationError } = await supabase
+        .from("tasks")
+        .select("status")
+        .eq("related_operation_id", operation.id);
+      if (tasksForOperationError) throw tasksForOperationError;
+      const totalTasks = tasksForOperation?.length ?? 0;
+      const completedTasks =
+        tasksForOperation?.filter((task) => task.status === "completed").length ?? 0;
+      return { id: operation.id, title: operation.title, completedTasks, totalTasks };
+    })
+  );
+
+  const departmentActivity: DepartmentActivity[] = await Promise.all(
+    (departmentsResult.data ?? []).map(async (department) => {
+      const [openTasksResult, openRequestsForDeptResult] = await Promise.all([
+        supabase
+          .from("tasks")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", profile.companyId)
+          .eq("department_id", department.id)
+          .in("status", ACTIVE_TASK_STATUSES),
+        supabase
+          .from("requests")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", profile.companyId)
+          .eq("department_id", department.id)
+          .in("status", OPEN_REQUEST_STATUSES),
+      ]);
+      if (openTasksResult.error) throw openTasksResult.error;
+      if (openRequestsForDeptResult.error) throw openRequestsForDeptResult.error;
+      return {
+        departmentId: department.id,
+        name: department.name,
+        openTasks: openTasksResult.count ?? 0,
+        openRequests: openRequestsForDeptResult.count ?? 0,
+      };
+    })
+  );
+
+  return {
+    totals: {
+      employees: employeesResult.count ?? 0,
+      assets: assetsResult.count ?? 0,
+      openRequests: openRequestsResult.count ?? 0,
+      activeTasks: activeTasksResult.count ?? 0,
+    },
+    attention: {
+      criticalTasks: criticalTasksResult.count ?? 0,
+      pendingApprovals: pendingApprovalsResult.count ?? 0,
+      overdueRequests: overdueRequestsResult.count ?? 0,
+    },
+    activeOperations,
+    departmentActivity,
   };
 }
