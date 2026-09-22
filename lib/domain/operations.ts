@@ -1,5 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getProfileById, PROFILE_COLUMNS, toProfile, type Profile } from "@/lib/domain/profiles";
+import { getProfileById, PROFILE_COLUMNS, toProfile, updateProfile, type Profile } from "@/lib/domain/profiles";
 import { getDepartmentById } from "@/lib/domain/departments";
 import { logActivity } from "@/lib/domain/activity";
 import { broadcastChange } from "@/lib/realtime/broadcast";
@@ -11,9 +11,9 @@ import type {
   UpdateOperationInput,
 } from "@/lib/validation/operations";
 import type { OperationPriority, OperationStatus } from "@/lib/domain/operation-status";
-import { TASK_COLUMNS, toTask, type Task } from "@/lib/domain/tasks";
-import { REQUEST_COLUMNS, toRequest, type Request } from "@/lib/domain/requests";
-import { ASSET_COLUMNS, toAsset, type Asset } from "@/lib/domain/assets";
+import { loadTaskOrThrow, setTaskOperation, TASK_COLUMNS, toTask, type Task } from "@/lib/domain/tasks";
+import { loadRequestOrThrow, setRequestOperation, REQUEST_COLUMNS, toRequest, type Request } from "@/lib/domain/requests";
+import { loadAssetOrThrow, setAssetOperation, ASSET_COLUMNS, toAsset, type Asset } from "@/lib/domain/assets";
 
 export interface Operation {
   id: string;
@@ -269,4 +269,134 @@ export async function listOperations(
   const { data, error } = await query.order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []).map(toOperation);
+}
+
+export type LinkableEntityType = "task" | "request" | "asset" | "employee";
+
+async function assertEntityInCompany(
+  entityType: LinkableEntityType,
+  entityId: string,
+  companyId: string
+): Promise<void> {
+  switch (entityType) {
+    case "task": {
+      const task = await loadTaskOrThrow(entityId);
+      if (task.companyId !== companyId) throw new NotFoundError("Task not found");
+      return;
+    }
+    case "request": {
+      const request = await loadRequestOrThrow(entityId);
+      if (request.companyId !== companyId) throw new NotFoundError("Request not found");
+      return;
+    }
+    case "asset": {
+      const asset = await loadAssetOrThrow(entityId);
+      if (asset.companyId !== companyId) throw new NotFoundError("Asset not found");
+      return;
+    }
+    case "employee": {
+      const employee = await getProfileById(entityId);
+      if (!employee || employee.companyId !== companyId) {
+        throw new NotFoundError("Employee not found");
+      }
+      return;
+    }
+  }
+}
+
+async function writeEntityOperation(
+  entityType: LinkableEntityType,
+  entityId: string,
+  operationId: string | null
+): Promise<void> {
+  switch (entityType) {
+    case "task":
+      await setTaskOperation(entityId, operationId);
+      return;
+    case "request":
+      await setRequestOperation(entityId, operationId);
+      return;
+    case "asset":
+      await setAssetOperation(entityId, operationId);
+      return;
+    case "employee":
+      await updateProfile(entityId, { relatedOperationId: operationId });
+      return;
+  }
+}
+
+async function loadEntityOperationId(
+  entityType: LinkableEntityType,
+  entityId: string
+): Promise<string | null> {
+  switch (entityType) {
+    case "task":
+      return (await loadTaskOrThrow(entityId)).relatedOperationId;
+    case "request":
+      return (await loadRequestOrThrow(entityId)).relatedOperationId;
+    case "asset":
+      return (await loadAssetOrThrow(entityId)).relatedOperationId;
+    case "employee": {
+      const employee = await getProfileById(entityId);
+      if (!employee) throw new NotFoundError("Employee not found");
+      return employee.relatedOperationId;
+    }
+  }
+}
+
+export async function linkEntity(
+  profile: Profile,
+  operationId: string,
+  entityType: LinkableEntityType,
+  entityId: string
+): Promise<void> {
+  const operation = await loadOperationOrThrow(operationId);
+  if (!canManageOperation(profile, operation)) {
+    throw new ForbiddenError("You cannot link entities to this operation");
+  }
+
+  await assertEntityInCompany(entityType, entityId, operation.companyId);
+  await writeEntityOperation(entityType, entityId, operationId);
+
+  await logActivity(
+    "operation",
+    operation.id,
+    profile.id,
+    `${profile.fullName} linked a ${entityType} to this operation`
+  );
+  try {
+    await broadcastChange(profile.companyId, "operations", { type: "operation_updated" });
+  } catch (broadcastError) {
+    console.error("broadcastChange failed:", broadcastError);
+  }
+}
+
+export async function unlinkEntity(
+  profile: Profile,
+  operationId: string,
+  entityType: LinkableEntityType,
+  entityId: string
+): Promise<void> {
+  const operation = await loadOperationOrThrow(operationId);
+  if (!canManageOperation(profile, operation)) {
+    throw new ForbiddenError("You cannot unlink entities from this operation");
+  }
+
+  const currentOperationId = await loadEntityOperationId(entityType, entityId);
+  if (currentOperationId !== operationId) {
+    throw new NotFoundError(`This ${entityType} is not linked to this operation`);
+  }
+  await writeEntityOperation(entityType, entityId, null);
+
+  await logActivity(
+    "operation",
+    operation.id,
+    profile.id,
+    `${profile.fullName} unlinked a ${entityType} from this operation`
+  );
+  try {
+    await broadcastChange(profile.companyId, "operations", { type: "operation_updated" });
+  } catch (broadcastError) {
+    console.error("broadcastChange failed:", broadcastError);
+  }
 }

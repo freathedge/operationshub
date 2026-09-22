@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createProfile, type Profile } from "@/lib/domain/profiles";
 import { createTask } from "@/lib/domain/tasks";
-import { createOperation, getOperation, updateOperation, listOperations } from "@/lib/domain/operations";
+import { createOperation, getOperation, linkEntity, unlinkEntity, updateOperation, listOperations, type Operation } from "@/lib/domain/operations";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("createOperation / getOperation", () => {
@@ -337,5 +337,126 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("updateOperation / listO
 
     const byDepartment = await listOperations(opsManagerProfile, { departmentId });
     expect(byDepartment.every((o) => o.departmentId === departmentId)).toBe(true);
+  });
+});
+
+describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("linkEntity / unlinkEntity", () => {
+  const supabase = createSupabaseAdminClient();
+  let companyId: string;
+  const createdAuthUserIds: string[] = [];
+  let opsManagerProfile: Profile;
+  let employeeProfile: Profile;
+  let operationA: Operation;
+  let operationB: Operation;
+
+  beforeAll(async () => {
+    const { data: company, error: companyError } = await supabase
+      .from("companies")
+      .upsert({ name: "Test Co (operations-link)", slug: "test-co-operations-link" }, { onConflict: "slug" })
+      .select("id")
+      .single();
+    if (companyError) throw companyError;
+    companyId = company.id;
+
+    const { data: opsManagerAuthUser, error: opsManagerAuthError } =
+      await supabase.auth.admin.createUser({
+        email: `operations-link-manager-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+    if (opsManagerAuthError || !opsManagerAuthUser.user) throw opsManagerAuthError;
+    createdAuthUserIds.push(opsManagerAuthUser.user.id);
+    opsManagerProfile = await createProfile({
+      authUserId: opsManagerAuthUser.user.id,
+      companyId,
+      fullName: "Ops Manager",
+      role: "operations_manager",
+    });
+
+    const { data: employeeAuthUser, error: employeeAuthError } =
+      await supabase.auth.admin.createUser({
+        email: `operations-link-employee-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+    if (employeeAuthError || !employeeAuthUser.user) throw employeeAuthError;
+    createdAuthUserIds.push(employeeAuthUser.user.id);
+    employeeProfile = await createProfile({
+      authUserId: employeeAuthUser.user.id,
+      companyId,
+      fullName: "Regular Employee",
+      role: "employee",
+    });
+
+    operationA = await createOperation(opsManagerProfile, { title: "Operation A" });
+    operationB = await createOperation(opsManagerProfile, { title: "Operation B" });
+  });
+
+  afterAll(async () => {
+    await supabase.from("tasks").delete().eq("company_id", companyId);
+    await supabase.from("operations").delete().eq("company_id", companyId);
+    await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
+    for (const id of createdAuthUserIds) {
+      await supabase.auth.admin.deleteUser(id);
+    }
+    await supabase.from("companies").delete().eq("slug", "test-co-operations-link");
+  });
+
+  it("rejects linking from a non-elevated role", async () => {
+    const task = await createTask(opsManagerProfile, { title: "Reject Link Test" });
+    await expect(
+      linkEntity(employeeProfile, operationA.id, "task", task.id)
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("links a task, request, asset, and employee, then unlinks each", async () => {
+    const task = await createTask(opsManagerProfile, { title: "Linkable Task" });
+    await linkEntity(opsManagerProfile, operationA.id, "task", task.id);
+    const afterLinkTask = await getOperation(opsManagerProfile, operationA.id);
+    expect(afterLinkTask.tasks.map((t) => t.id)).toContain(task.id);
+
+    await linkEntity(opsManagerProfile, operationA.id, "employee", employeeProfile.id);
+    const afterLinkEmployee = await getOperation(opsManagerProfile, operationA.id);
+    expect(afterLinkEmployee.employees.map((e) => e.id)).toContain(employeeProfile.id);
+
+    await unlinkEntity(opsManagerProfile, operationA.id, "task", task.id);
+    await unlinkEntity(opsManagerProfile, operationA.id, "employee", employeeProfile.id);
+    const afterUnlink = await getOperation(opsManagerProfile, operationA.id);
+    expect(afterUnlink.tasks).toHaveLength(0);
+    expect(afterUnlink.employees).toHaveLength(0);
+  });
+
+  it("rejects unlinking an entity that belongs to a different operation", async () => {
+    const task = await createTask(opsManagerProfile, { title: "Cross-Operation Task" });
+    await linkEntity(opsManagerProfile, operationA.id, "task", task.id);
+
+    await expect(
+      unlinkEntity(opsManagerProfile, operationB.id, "task", task.id)
+    ).rejects.toBeInstanceOf(NotFoundError);
+
+    const stillLinked = await getOperation(opsManagerProfile, operationA.id);
+    expect(stillLinked.tasks.map((t) => t.id)).toContain(task.id);
+  });
+
+  it("rejects linking a task from a different company", async () => {
+    const { data: otherCompany, error: otherCompanyError } = await supabase
+      .from("companies")
+      .upsert({ name: "Other Co 3", slug: "test-co-operations-link-other" }, { onConflict: "slug" })
+      .select("id")
+      .single();
+    if (otherCompanyError) throw otherCompanyError;
+    const { data: otherTask, error: otherTaskError } = await supabase
+      .from("tasks")
+      .insert({ company_id: otherCompany.id, title: "Other company task", status: "todo" })
+      .select("id")
+      .single();
+    if (otherTaskError) throw otherTaskError;
+
+    await expect(
+      linkEntity(opsManagerProfile, operationA.id, "task", otherTask.id)
+    ).rejects.toBeInstanceOf(NotFoundError);
+
+    await supabase.from("tasks").delete().eq("id", otherTask.id);
+    await supabase.from("companies").delete().eq("id", otherCompany.id);
   });
 });
