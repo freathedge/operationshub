@@ -11,6 +11,11 @@ vi.mock("@/lib/supabase/browser", () => ({
   }),
 }));
 
+let mockSearchParams = new URLSearchParams();
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => mockSearchParams,
+}));
+
 import { TaskListView } from "@/components/tasks/task-list-view";
 
 function renderWithClient(ui: ReactElement) {
@@ -19,6 +24,7 @@ function renderWithClient(ui: ReactElement) {
 }
 
 beforeEach(() => {
+  mockSearchParams = new URLSearchParams();
   vi.stubGlobal(
     "fetch",
     vi.fn().mockResolvedValue({
@@ -56,5 +62,36 @@ describe("TaskListView", () => {
     renderWithClient(<TaskListView companyId="company-1" />);
 
     expect(await screen.findByText("No tasks found.")).toBeInTheDocument();
+  });
+
+  it("reads assigneeId from the URL and includes it in the fetch", async () => {
+    mockSearchParams = new URLSearchParams("assigneeId=profile-1");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ tasks: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithClient(<TaskListView companyId="company-1" />);
+
+    await screen.findByText("No tasks found.");
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toContain("assigneeId=profile-1");
+  });
+
+  it("shows a clear-filter link when a link-driven filter (assigneeId or departmentId) is active", async () => {
+    mockSearchParams = new URLSearchParams("assigneeId=profile-1");
+    renderWithClient(<TaskListView companyId="company-1" />);
+
+    expect(await screen.findByText("Prepare laptop")).toBeInTheDocument();
+    const clearLink = screen.getByRole("link", { name: /clear filter/i });
+    expect(clearLink).toHaveAttribute("href", "/tasks");
+  });
+
+  it("does not show a clear-filter link when no link-driven filter is active", async () => {
+    renderWithClient(<TaskListView companyId="company-1" />);
+
+    await screen.findByText("Prepare laptop");
+    expect(screen.queryByRole("link", { name: /clear filter/i })).not.toBeInTheDocument();
   });
 });

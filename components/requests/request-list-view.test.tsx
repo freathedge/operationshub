@@ -11,6 +11,11 @@ vi.mock("@/lib/supabase/browser", () => ({
   }),
 }));
 
+let mockSearchParams = new URLSearchParams();
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => mockSearchParams,
+}));
+
 import { RequestListView } from "@/components/requests/request-list-view";
 
 function renderWithClient(ui: ReactElement) {
@@ -19,6 +24,7 @@ function renderWithClient(ui: ReactElement) {
 }
 
 beforeEach(() => {
+  mockSearchParams = new URLSearchParams();
   vi.stubGlobal(
     "fetch",
     vi.fn().mockResolvedValue({
@@ -55,5 +61,20 @@ describe("RequestListView", () => {
     renderWithClient(<RequestListView companyId="company-1" />);
 
     expect(await screen.findByText("No requests found.")).toBeInTheDocument();
+  });
+
+  it("reads scope=all from the URL and requests all-scope, not the mine default", async () => {
+    mockSearchParams = new URLSearchParams("scope=all");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ requests: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithClient(<RequestListView companyId="company-1" />);
+
+    await screen.findByText("No requests found.");
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toContain("scope=all");
   });
 });

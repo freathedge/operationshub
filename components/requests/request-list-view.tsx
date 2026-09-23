@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBroadcastListener } from "@/lib/realtime/use-broadcast-listener";
 import { Badge } from "@/components/ui/badge";
@@ -52,9 +53,12 @@ function formatOptionLabel(value: string): string {
 }
 
 export function RequestListView({ companyId }: { companyId: string }) {
-  const [status, setStatus] = useState("");
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState(searchParams.get("status") ?? "");
   const [category, setCategory] = useState("");
-  const [scope, setScope] = useState<"mine" | "all">("mine");
+  const [scope, setScope] = useState<"mine" | "all">(
+    searchParams.get("scope") === "all" ? "all" : "mine"
+  );
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery({

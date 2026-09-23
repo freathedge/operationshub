@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBroadcastListener } from "@/lib/realtime/use-broadcast-listener";
 import { Badge } from "@/components/ui/badge";
@@ -36,16 +37,24 @@ function formatOptionLabel(value: string): string {
 }
 
 export function TaskListView({ companyId }: { companyId: string }) {
-  const [status, setStatus] = useState("");
-  const [priority, setPriority] = useState("");
+  const searchParams = useSearchParams();
+  // assigneeId/departmentId have no dropdown control — they only ever come from a
+  // link (e.g. a dashboard card), so they're read once and shown via the
+  // clear-filter link below rather than exposed as an editable dropdown.
+  const assigneeId = searchParams.get("assigneeId");
+  const departmentId = searchParams.get("departmentId");
+  const [status, setStatus] = useState(searchParams.get("status") ?? "");
+  const [priority, setPriority] = useState(searchParams.get("priority") ?? "");
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["tasks", { status, priority }],
+    queryKey: ["tasks", { status, priority, assigneeId, departmentId }],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (status) params.set("status", status);
       if (priority) params.set("priority", priority);
+      if (assigneeId) params.set("assigneeId", assigneeId);
+      if (departmentId) params.set("departmentId", departmentId);
       const response = await fetch(`/api/tasks?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to load tasks");
       const body = await response.json();
@@ -90,6 +99,15 @@ export function TaskListView({ companyId }: { companyId: string }) {
           New task
         </Button>
       </div>
+
+      {(assigneeId || departmentId) && (
+        <p className="text-sm text-muted-foreground">
+          Showing a filtered view.{" "}
+          <Link href="/tasks" className="underline">
+            Clear filter
+          </Link>
+        </p>
+      )}
 
       {isLoading && <p className="text-muted-foreground">Loading tasks...</p>}
       {error && <p className="text-red-600">Failed to load tasks.</p>}
