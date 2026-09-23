@@ -48,7 +48,7 @@ export function DashboardView({
   useBroadcastListener(`company:${companyId}:workflows`, invalidateDashboard);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="@container/main flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold">Good morning, {profileFullName}.</h1>
         <p className="text-muted-foreground">Here&apos;s what needs your attention.</p>
@@ -68,6 +68,12 @@ export function DashboardView({
         </>
       )}
 
+      {canViewCompany && companyQuery.isLoading && (
+        <p className="text-muted-foreground">Loading company overview...</p>
+      )}
+      {canViewCompany && companyQuery.error && (
+        <p className="text-red-600">Failed to load the company overview.</p>
+      )}
       {canViewCompany && companyQuery.data && <CompanySection overview={companyQuery.data} />}
     </div>
   );
