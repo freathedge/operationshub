@@ -19,12 +19,19 @@ vi.mock("@/lib/domain/profiles", () => ({
   getProfileByAuthUserId: (id: string) => getProfileByAuthUserIdMock(id),
 }));
 
+const cookiesMock = vi.fn();
+vi.mock("next/headers", () => ({
+  cookies: async () => cookiesMock(),
+}));
+
 import AppLayout from "@/app/(app)/layout";
 
 beforeEach(() => {
   redirectMock.mockClear();
   getUserMock.mockReset();
   getProfileByAuthUserIdMock.mockReset();
+  cookiesMock.mockReset();
+  cookiesMock.mockReturnValue({ get: () => undefined });
 });
 
 describe("AppLayout", () => {
@@ -55,6 +62,6 @@ describe("AppLayout", () => {
 
     const element = await AppLayout({ children: "hello" });
     expect(JSON.stringify(element)).toContain("Max Mustermann");
-    expect(JSON.stringify(element)).toContain('"it"');
+    expect(JSON.stringify(element)).toContain('"role":"it"');
   });
 });

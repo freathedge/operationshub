@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getProfileByAuthUserId } from "@/lib/domain/profiles";
@@ -25,8 +26,12 @@ export default async function AppLayout({
     redirect("/signup");
   }
 
+  const cookieStore = await cookies();
+  const sidebarDefaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
+
   return (
     <SidebarProvider
+      defaultOpen={sidebarDefaultOpen}
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",
