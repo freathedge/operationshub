@@ -11,7 +11,7 @@ import RootLayout from "@/app/layout";
 
 describe("RootLayout", () => {
   it("wraps children in ThemeProvider then TooltipProvider", () => {
-    const element = RootLayout({ children: "hello-world-marker" });
+    const element = RootLayout({ children: "hello-world-marker", params: Promise.resolve({}) });
     const bodyElement = element.props.children;
     const themeProviderElement = bodyElement.props.children;
     expect(themeProviderElement.type).toBe(ThemeProvider);
