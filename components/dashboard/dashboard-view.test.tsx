@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -14,7 +14,9 @@ vi.mock("@/lib/supabase/browser", () => ({
 import { DashboardView } from "@/components/dashboard/dashboard-view";
 
 function renderWithClient(ui: ReactElement) {
-  const queryClient = new QueryClient();
+  // retry: false avoids react-query's default exponential-backoff retries pushing an error
+  // state past findByText's default wait-for timeout in the error-path test below.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
@@ -91,5 +93,24 @@ describe("DashboardView", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/dashboard/company");
     expect(await screen.findByText("Vienna Office Relocation")).toBeInTheDocument();
     expect(screen.getByText("75%")).toBeInTheDocument();
+  });
+
+  it("shows an error message when the company overview fails to load", async () => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url === "/api/dashboard/personal") {
+        return Promise.resolve({ ok: true, json: async () => ({ overview: emptyPersonalOverview }) });
+      }
+      return Promise.resolve({ ok: false, json: async () => ({ error: "forbidden" }) });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithClient(
+      <DashboardView companyId="company-1" profileFullName="Adrian" canViewCompany={true} />
+    );
+
+    await screen.findAllByText("My Tasks");
+    expect(
+      await screen.findByText("Failed to load the company overview.")
+    ).toBeInTheDocument();
   });
 });
