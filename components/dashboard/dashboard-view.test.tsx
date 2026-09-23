@@ -39,7 +39,7 @@ describe("DashboardView", () => {
     );
 
     renderWithClient(
-      <DashboardView companyId="company-1" profileFullName="Adrian" canViewCompany={false} />
+      <DashboardView companyId="company-1" profileId="profile-1" profileFullName="Adrian" canViewCompany={false} />
     );
 
     // "My Tasks" appears twice once loaded: once as the SummaryCards label, once as
@@ -56,7 +56,7 @@ describe("DashboardView", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     renderWithClient(
-      <DashboardView companyId="company-1" profileFullName="Adrian" canViewCompany={false} />
+      <DashboardView companyId="company-1" profileId="profile-1" profileFullName="Adrian" canViewCompany={false} />
     );
 
     await screen.findAllByText("My Tasks");
@@ -86,7 +86,7 @@ describe("DashboardView", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     renderWithClient(
-      <DashboardView companyId="company-1" profileFullName="Adrian" canViewCompany={true} />
+      <DashboardView companyId="company-1" profileId="profile-1" profileFullName="Adrian" canViewCompany={true} />
     );
 
     await screen.findAllByText("My Tasks");
@@ -105,12 +105,162 @@ describe("DashboardView", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     renderWithClient(
-      <DashboardView companyId="company-1" profileFullName="Adrian" canViewCompany={true} />
+      <DashboardView
+        companyId="company-1"
+        profileId="profile-1"
+        profileFullName="Adrian"
+        canViewCompany={true}
+      />
     );
 
     await screen.findAllByText("My Tasks");
     expect(
       await screen.findByText("Failed to load the company overview.")
     ).toBeInTheDocument();
+  });
+
+  it("shows skeleton placeholders while the personal overview is loading, then removes them", async () => {
+    let resolveFetch: (value: { ok: boolean; json: () => Promise<unknown> }) => void;
+    const pending = new Promise<{ ok: boolean; json: () => Promise<unknown> }>((resolve) => {
+      resolveFetch = resolve;
+    });
+    vi.stubGlobal("fetch", vi.fn().mockReturnValue(pending));
+
+    renderWithClient(
+      <DashboardView
+        companyId="company-1"
+        profileId="profile-1"
+        profileFullName="Adrian"
+        canViewCompany={false}
+      />
+    );
+
+    expect(document.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
+
+    resolveFetch!({ ok: true, json: async () => ({ overview: emptyPersonalOverview }) });
+    await screen.findAllByText("My Tasks");
+    expect(document.querySelectorAll('[data-slot="skeleton"]').length).toBe(0);
+  });
+
+  it("links the My Tasks summary card and the Upcoming card to /tasks filtered to the caller", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ overview: emptyPersonalOverview }) })
+    );
+
+    renderWithClient(
+      <DashboardView
+        companyId="company-1"
+        profileId="profile-1"
+        profileFullName="Adrian"
+        canViewCompany={false}
+      />
+    );
+
+    await screen.findAllByText("My Tasks");
+    const myTasksLinks = screen
+      .getAllByRole("link")
+      .filter((link) => link.getAttribute("href") === "/tasks?assigneeId=profile-1");
+    // One from the SummaryCards "My Tasks" card, one wrapping the UpcomingCard.
+    expect(myTasksLinks.length).toBe(2);
+  });
+
+  it("links the Open Requests summary card to /requests", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ overview: emptyPersonalOverview }) })
+    );
+
+    renderWithClient(
+      <DashboardView
+        companyId="company-1"
+        profileId="profile-1"
+        profileFullName="Adrian"
+        canViewCompany={false}
+      />
+    );
+
+    await screen.findAllByText("My Tasks");
+    expect(screen.getByText("Open Requests").closest("a")).toHaveAttribute("href", "/requests");
+  });
+
+  it("links recent activity entries to the entity they're about", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          overview: {
+            ...emptyPersonalOverview,
+            recentActivity: [
+              {
+                id: "activity-1",
+                entityType: "request",
+                entityId: "request-1",
+                actorId: null,
+                message: "Sarah requested a new laptop.",
+                createdAt: "2026-09-22T00:00:00.000Z",
+              },
+            ],
+          },
+        }),
+      })
+    );
+
+    renderWithClient(
+      <DashboardView
+        companyId="company-1"
+        profileId="profile-1"
+        profileFullName="Adrian"
+        canViewCompany={false}
+      />
+    );
+
+    const activityLink = await screen.findByText("Sarah requested a new laptop.");
+    expect(activityLink.closest("a")).toHaveAttribute("href", "/requests/request-1");
+  });
+
+  it("links company totals and department rows to their filtered list views", async () => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url === "/api/dashboard/personal") {
+        return Promise.resolve({ ok: true, json: async () => ({ overview: emptyPersonalOverview }) });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          overview: {
+            totals: { employees: 3, assets: 5, openRequests: 2, activeTasks: 7 },
+            attention: { criticalTasks: 1, pendingApprovals: 0, overdueRequests: 0 },
+            activeOperations: [],
+            departmentActivity: [
+              { departmentId: "dept-1", name: "IT", openTasks: 4, openRequests: 1 },
+            ],
+          },
+        }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithClient(
+      <DashboardView
+        companyId="company-1"
+        profileId="profile-1"
+        profileFullName="Adrian"
+        canViewCompany={true}
+      />
+    );
+
+    await screen.findByText("IT");
+    expect(screen.getByText("Employees").closest("a")).toHaveAttribute("href", "/employees");
+    expect(screen.getByText("Assets").closest("a")).toHaveAttribute("href", "/assets");
+    expect(screen.getByText("Active Tasks").closest("a")).toHaveAttribute("href", "/tasks");
+    expect(screen.getByText("1 critical tasks").closest("a")).toHaveAttribute(
+      "href",
+      "/tasks?priority=critical"
+    );
+    expect(screen.getByText("IT").closest("a")).toHaveAttribute(
+      "href",
+      "/tasks?departmentId=dept-1"
+    );
   });
 });

@@ -12,6 +12,7 @@ export default async function DashboardPage() {
   return (
     <DashboardView
       companyId={profile.companyId}
+      profileId={profile.id}
       profileFullName={profile.fullName}
       canViewCompany={canViewCompanyOverview(profile)}
     />
