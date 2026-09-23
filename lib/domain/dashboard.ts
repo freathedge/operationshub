@@ -2,7 +2,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Profile } from "@/lib/domain/profiles";
 import type { ActivityEntry } from "@/lib/domain/activity";
 import { TASK_COLUMNS, toTask, type Task } from "@/lib/domain/tasks";
-import type { TaskPriority, TaskStatus } from "@/lib/domain/task-status";
+import { TASK_PRIORITIES, type TaskPriority, type TaskStatus } from "@/lib/domain/task-status";
 import type { RequestStatus } from "@/lib/domain/request-status";
 import { canViewCompanyOverview } from "@/lib/domain/permissions";
 import { ForbiddenError } from "@/lib/domain/errors";
@@ -61,7 +61,9 @@ function startOfDay(date: Date): Date {
   return copy;
 }
 
-function bucketByDueDate(tasks: Task[]): PersonalOverview["upcoming"] {
+function bucketByDueDate(
+  tasks: { dueDate: string | null }[]
+): PersonalOverview["upcoming"] {
   const today = startOfDay(new Date());
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -136,6 +138,7 @@ export async function getPersonalOverview(profile: Profile): Promise<PersonalOve
     myOpenRequestsResult,
     activeWorkflowStepsResult,
     myTasksResult,
+    dueDateTasksResult,
     recentActivityResult,
     notificationsResult,
   ] = await Promise.all([
@@ -159,7 +162,9 @@ export async function getPersonalOverview(profile: Profile): Promise<PersonalOve
       .in("status", OPEN_REQUEST_STATUSES),
     supabase
       .from("workflow_instance_steps")
-      .select("id, tasks!inner(assignee_id, company_id), workflow_instances!inner(status)")
+      .select(
+        "id, instance_id, tasks!inner(assignee_id, company_id), workflow_instances!inner(status)"
+      )
       .eq("tasks.assignee_id", profile.id)
       .eq("tasks.company_id", profile.companyId)
       .eq("workflow_instances.status", "in_progress")
@@ -172,6 +177,15 @@ export async function getPersonalOverview(profile: Profile): Promise<PersonalOve
       .in("status", OPEN_TASK_STATUSES)
       .order("due_date", { ascending: true, nullsFirst: false })
       .limit(5),
+    // Unlimited (unlike myTasksResult above, which is capped at 5 for the display list):
+    // "upcoming" must count every open task with a due date, not just the 5 shown.
+    supabase
+      .from("tasks")
+      .select("due_date")
+      .eq("company_id", profile.companyId)
+      .eq("assignee_id", profile.id)
+      .in("status", OPEN_TASK_STATUSES)
+      .not("due_date", "is", null),
     supabase
       .from("activity_log")
       .select("id, entity_type, entity_id, actor_id, message, created_at")
@@ -189,14 +203,20 @@ export async function getPersonalOverview(profile: Profile): Promise<PersonalOve
   if (myOpenRequestsResult.error) throw myOpenRequestsResult.error;
   if (activeWorkflowStepsResult.error) throw activeWorkflowStepsResult.error;
   if (myTasksResult.error) throw myTasksResult.error;
+  if (dueDateTasksResult.error) throw dueDateTasksResult.error;
   if (recentActivityResult.error) throw recentActivityResult.error;
   if (notificationsResult.error) throw notificationsResult.error;
 
-  const myTasks = myTasksResult.data.map(toTask);
+  // Secondary sort: due_date asc (already applied by the query, nulls last) then priority
+  // desc, so same-day tasks don't appear in arbitrary order in the 5-item display list.
+  const myTasks = myTasksResult.data.map(toTask).sort((a, b) => {
+    const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+    const bTime = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+    if (aTime !== bTime) return aTime - bTime;
+    return TASK_PRIORITIES.indexOf(b.priority) - TASK_PRIORITIES.indexOf(a.priority);
+  });
   const activeInstanceIds = new Set(
-    (activeWorkflowStepsResult.data ?? []).map(
-      (row) => (row as unknown as { instance_id?: string }).instance_id
-    )
+    (activeWorkflowStepsResult.data ?? []).map((row) => row.instance_id)
   );
 
   const rawActivity: ActivityEntry[] = (recentActivityResult.data ?? []).map((row) => ({
@@ -218,12 +238,17 @@ export async function getPersonalOverview(profile: Profile): Promise<PersonalOve
     },
     myTasks: myTasks.map(toDashboardTask),
     recentActivity: companyActivity.slice(0, RECENT_ACTIVITY_DISPLAY_LIMIT),
-    upcoming: bucketByDueDate(myTasks),
+    upcoming: bucketByDueDate(
+      (dueDateTasksResult.data ?? []).map((row) => ({ dueDate: row.due_date }))
+    ),
     unreadNotifications: notificationsResult.count ?? 0,
   };
 }
 
-const ACTIVE_TASK_STATUSES: TaskStatus[] = ["todo", "in_progress", "blocked"];
+// Same literal set as OPEN_TASK_STATUSES today, kept as a separate name because the two
+// express different semantics (company-wide "active" here vs. a single user's "open" above)
+// that happen to coincide currently but aren't guaranteed to stay in lockstep.
+const ACTIVE_TASK_STATUSES: TaskStatus[] = OPEN_TASK_STATUSES;
 const ACTIVE_OPERATIONS_LIMIT = 5;
 
 export interface OperationProgress {

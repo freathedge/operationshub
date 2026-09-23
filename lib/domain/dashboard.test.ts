@@ -11,6 +11,13 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getPersonalOverview", (
   const createdAuthUserIds: string[] = [];
   let me: Profile;
   let coworker: Profile;
+  // Populated by the "counts each distinct active workflow" test; torn down in afterAll
+  // since workflow_instance_steps.generated_task_id has no ON DELETE cascade from tasks.
+  const workflowInstanceIdsToCleanUp: string[] = [];
+  const workflowTemplateIdsToCleanUp: string[] = [];
+  // Populated by the "recentActivity never includes another company's activity" test: its
+  // actor_id: null row isn't covered by the actor_id-based activity_log cleanup below.
+  let orphanedActivityEntityId: string | null = null;
 
   beforeAll(async () => {
     const { data: company, error: companyError } = await supabase
@@ -63,6 +70,35 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getPersonalOverview", (
   });
 
   afterAll(async () => {
+    // workflow_instance_steps.generated_task_id/instance_id have no ON DELETE cascade, so
+    // these must go before the tasks delete below or they'd leave orphaned rows.
+    if (workflowInstanceIdsToCleanUp.length > 0) {
+      const { error: stepsDeleteError } = await supabase
+        .from("workflow_instance_steps")
+        .delete()
+        .in("instance_id", workflowInstanceIdsToCleanUp);
+      if (stepsDeleteError) throw stepsDeleteError;
+
+      const { error: instancesDeleteError } = await supabase
+        .from("workflow_instances")
+        .delete()
+        .in("id", workflowInstanceIdsToCleanUp);
+      if (instancesDeleteError) throw instancesDeleteError;
+    }
+    if (workflowTemplateIdsToCleanUp.length > 0) {
+      const { error: templateStepsDeleteError } = await supabase
+        .from("workflow_template_steps")
+        .delete()
+        .in("template_id", workflowTemplateIdsToCleanUp);
+      if (templateStepsDeleteError) throw templateStepsDeleteError;
+
+      const { error: templatesDeleteError } = await supabase
+        .from("workflow_templates")
+        .delete()
+        .in("id", workflowTemplateIdsToCleanUp);
+      if (templatesDeleteError) throw templatesDeleteError;
+    }
+
     const { error: tasksDeleteError } = await supabase
       .from("tasks")
       .delete()
@@ -80,6 +116,14 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getPersonalOverview", (
       .delete()
       .in("actor_id", [me.id, coworker.id]);
     if (activityDeleteError) throw activityDeleteError;
+
+    if (orphanedActivityEntityId) {
+      const { error: orphanedActivityDeleteError } = await supabase
+        .from("activity_log")
+        .delete()
+        .eq("entity_id", orphanedActivityEntityId);
+      if (orphanedActivityDeleteError) throw orphanedActivityDeleteError;
+    }
 
     const { error: profilesDeleteError } = await supabase
       .from("profiles")
@@ -186,6 +230,7 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getPersonalOverview", (
       .select("id")
       .single();
     if (otherTaskError) throw otherTaskError;
+    orphanedActivityEntityId = otherCompanyTask.id;
 
     const { error: otherActivityError } = await supabase.from("activity_log").insert({
       entity_type: "task",
@@ -247,6 +292,113 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getPersonalOverview", (
     const overview = await getPersonalOverview(me);
     expect(overview.counts.pendingApprovals).toBe(1);
   });
+
+  it("counts distinct active workflow instances, not the row count (a user can have >1 open step)", async () => {
+    const { data: template, error: templateError } = await supabase
+      .from("workflow_templates")
+      .insert({
+        company_id: companyId,
+        slug: "dashboard-test-active-workflows",
+        name: "Dashboard Active Workflows Test",
+      })
+      .select("id")
+      .single();
+    if (templateError) throw templateError;
+    workflowTemplateIdsToCleanUp.push(template.id);
+
+    const { data: templateStep, error: templateStepError } = await supabase
+      .from("workflow_template_steps")
+      .insert({
+        template_id: template.id,
+        step_order: 1,
+        step_type: "task",
+        title: "Step 1",
+      })
+      .select("id")
+      .single();
+    if (templateStepError) throw templateStepError;
+
+    for (let i = 0; i < 2; i++) {
+      const { data: task, error: taskError } = await supabase
+        .from("tasks")
+        .insert({
+          company_id: companyId,
+          title: `Workflow-generated task ${i}`,
+          status: "todo",
+          priority: "medium",
+          assignee_id: me.id,
+          creator_id: me.id,
+        })
+        .select("id")
+        .single();
+      if (taskError) throw taskError;
+
+      const { data: instance, error: instanceError } = await supabase
+        .from("workflow_instances")
+        .insert({ company_id: companyId, template_id: template.id, status: "in_progress" })
+        .select("id")
+        .single();
+      if (instanceError) throw instanceError;
+      workflowInstanceIdsToCleanUp.push(instance.id);
+
+      const { error: stepError } = await supabase.from("workflow_instance_steps").insert({
+        instance_id: instance.id,
+        template_step_id: templateStep.id,
+        step_order: 1,
+        status: "in_progress",
+        generated_task_id: task.id,
+      });
+      if (stepError) throw stepError;
+    }
+
+    const overview = await getPersonalOverview(me);
+    expect(overview.counts.activeWorkflows).toBe(2);
+  });
+
+  it("upcoming counts reflect every open task with a due date, not just the 5-item display list", async () => {
+    const { data: manyTasksAuthUser, error: manyTasksAuthError } =
+      await supabase.auth.admin.createUser({
+        email: `dashboard-test-many-tasks-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+    if (manyTasksAuthError || !manyTasksAuthUser.user) throw manyTasksAuthError;
+    createdAuthUserIds.push(manyTasksAuthUser.user.id);
+    const manyTasksUser = await createProfile({
+      authUserId: manyTasksAuthUser.user.id,
+      companyId,
+      fullName: "Many Tasks User",
+      role: "employee",
+    });
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    const overdue = (daysAgo: number) => new Date(Date.now() - daysAgo * dayMs).toISOString();
+    const inDays = (days: number) => new Date(Date.now() + days * dayMs).toISOString();
+
+    const { error } = await supabase.from("tasks").insert([
+      { title: "Overdue 1", due_date: overdue(5) },
+      { title: "Overdue 2", due_date: overdue(4) },
+      { title: "Overdue 3", due_date: overdue(3) },
+      { title: "Due today 1", due_date: new Date().toISOString() },
+      { title: "Due today 2", due_date: new Date().toISOString() },
+      { title: "Due this week 1", due_date: inDays(2) },
+      { title: "Due this week 2", due_date: inDays(4) },
+    ].map((task) => ({
+      ...task,
+      company_id: companyId,
+      status: "todo",
+      priority: "medium",
+      assignee_id: manyTasksUser.id,
+      creator_id: manyTasksUser.id,
+    })));
+    if (error) throw error;
+
+    const overview = await getPersonalOverview(manyTasksUser);
+    expect(overview.upcoming.overdue).toBe(3);
+    expect(overview.upcoming.dueToday).toBe(2);
+    expect(overview.upcoming.dueThisWeek).toBe(2);
+    expect(overview.myTasks).toHaveLength(5); // display list stays capped
+  });
 });
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getCompanyOverview", () => {
@@ -305,6 +457,12 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getCompanyOverview", ()
       .delete()
       .eq("company_id", companyId);
     if (tasksDeleteError) throw tasksDeleteError;
+
+    const { error: requestsDeleteError } = await supabase
+      .from("requests")
+      .delete()
+      .eq("company_id", companyId);
+    if (requestsDeleteError) throw requestsDeleteError;
 
     const { error: operationsDeleteError } = await supabase
       .from("operations")
