@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-22 (Phase 7 moved to Review)
+Last updated: 2026-09-23 (Phase 7 finished; dashboard interactivity/skeleton work in progress)
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -15,20 +15,24 @@ Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline
 
 Standalone follow-up work (not a numbered phase):
 
-- **UI sweep — all screens on shadcn/ui**: the existing screens from Phases 2–6 still use raw `<select>` elements and hand-rolled layouts, and only six shadcn primitives are installed (badge, button, card, input, label, table). Pull in the missing primitives and rebuild those screens from shadcn blocks/primitives, per `CLAUDE.md` §UI. Gets its own spec, plan and branch after Phase 7.
+- **UI sweep — all screens on shadcn/ui**: the existing screens from Phases 2–6 still use raw `<select>` elements and hand-rolled layouts, and only six shadcn primitives are installed (badge, button, card, input, label, table). Pull in the missing primitives and rebuild those screens from shadcn blocks/primitives, per `CLAUDE.md` §UI. Gets its own spec, plan and branch.
+- **Sidebar shell — full shadcn dashboard example**: replace `app/(app)/layout.tsx`'s simple header with the full shadcn sidebar-navigation shell from [ui.shadcn.com/examples/dashboard](https://ui.shadcn.com/examples/dashboard) (sidebar on the left, site header), applied app-wide so every page shares it — not just `/dashboard`. Subsumes / overlaps with the UI sweep item above; scope them together when picked up. Needs its own brainstorm → spec → plan, since it restructures the shared app shell every page depends on.
 - **Auth via Clerk (idea only, not decided)**: replace Supabase Auth with Clerk as the identity provider, keeping Supabase Postgres. Rationale, affected files and open questions: `docs/architecture.md` §5.
+- **`/approvals` and `/workflows` list pages**: neither exists today (only `/workflows/[id]` detail). The dashboard's "Pending Approvals" and "Active Workflows" cards can't link anywhere until these are built — `getPersonalOverview`'s `pendingApprovals`/`activeWorkflows` counts already have the underlying queries (`lib/domain/dashboard.ts`), a list page just needs to surface the rows. Same gap means "pending approvals"/"overdue requests" in the company section's Attention Required list aren't linked either.
 
 ## In Progress
 
-_(nothing right now)_
+- **Dashboard interactivity + skeleton loading**: dashboard cards now link to their underlying filtered list view (My Tasks/Upcoming → `/tasks?assigneeId=`, company totals → their list pages, department rows → `/tasks?departmentId=`, recent activity → the entity it's about), `task-list-view`/`request-list-view` read initial filters from the URL to support this, and skeleton placeholders (shadcn's `Skeleton` primitive, unused since Phase 7) replace the old plain-text loading states. Bounded change, no spec/plan doc.
 
 ## Review
 
-- **Phase 7 — Dashboard/Overview**: replaces the Foundation placeholder dashboard with the real one — personal section for everyone (My Tasks, Pending Approvals, Open Requests, Active Workflows, Recent Activity, Upcoming), company section for `operations_manager`/`admin` only (totals, attention required, active operations with progress, department activity) — built from the shadcn/ui `dashboard-01` block. Pure aggregation, no new tables/columns/migrations. Spec: `docs/superpowers/specs/2026-09-22-phase7-dashboard-design.md`. Plan: `docs/superpowers/plans/2026-09-22-phase7-dashboard.md`.
-  - Per-task review found and fixed one real issue (commit attribution on Task 1) and surfaced deferred Minors (recentActivity's top-30-then-filter design, a duplicated task-status constant, an uncapped per-department query loop, a couple of unused-var lint warnings) — none blocking, listed in the plan's SDD ledger for the whole-branch reviewer to triage.
-  - Awaiting whole-branch review before merge.
+_(nothing right now)_
 
 ## Finished
+
+- **Phase 7 — Dashboard/Overview**: replaces the Foundation placeholder dashboard with the real one — personal section for everyone (My Tasks, Pending Approvals, Open Requests, Active Workflows, Recent Activity, Upcoming), company section for `operations_manager`/`admin` only (totals, attention required, active operations with progress, department activity) — built from the shadcn/ui `dashboard-01` block. Pure aggregation, no new tables/columns/migrations. Spec: `docs/superpowers/specs/2026-09-22-phase7-dashboard-design.md`. Plan: `docs/superpowers/plans/2026-09-22-phase7-dashboard.md`.
+  - Per-task review found and fixed one real issue (commit attribution on Task 1). Whole-branch review found and fixed 4 real cross-task issues: `activeWorkflows` undercounted (missing `instance_id` in a Supabase select), `upcoming` counts capped at the 5-item display list instead of all open tasks, every dashboard grid was inert (single-column at all widths — the shadcn block's `@container/main` wrapper was dropped when its sidebar was pruned), and the company section had no loading/error UI. Deferred (not blockers): `recentActivity`'s top-30-then-filter design, a duplicated task-status constant, an uncapped per-department query loop.
+  - Merged to `main` via PR #9 (`8e100e2`).
 
 - **Phase 6 — Operations**: higher-level grouping object linking tasks/requests/assets/employees to a larger initiative, with a company-wide-visible operation detail page showing linked-item lists and task-completion progress. Spec: `docs/superpowers/specs/2026-09-13-phase6-operations-design.md`. Plan: `docs/superpowers/plans/2026-09-13-phase6-operations.md`.
   - Full-branch review findings closed before merge: an entity's linked operation is now always shown (only attach/detach is gated), link/unlink writes activity on both sides, and the link picker, teardown, auth tests and `owner_id` handling were fixed.
