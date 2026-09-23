@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-12
+Last updated: 2026-09-22 (Phase 7 moved to Review)
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -10,19 +10,29 @@ Last updated: 2026-09-12
 
 Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline.md` for the full breakdown of each.
 
-- **Phase 7 — Dashboard/Overview**: replaces the Foundation placeholder dashboard with the real one, built from a shadcn/ui dashboard block (see `docs/architecture.md` §3).
 - **Phase 8 — Reports & Search**: operational metrics, global search.
 - **Phase 9 — Realtime & Notifications Polish**: notification bell UI, audit pass on Realtime/activity-log/notification coverage.
 
+Standalone follow-up work (not a numbered phase):
+
+- **UI sweep — all screens on shadcn/ui**: the existing screens from Phases 2–6 still use raw `<select>` elements and hand-rolled layouts, and only six shadcn primitives are installed (badge, button, card, input, label, table). Pull in the missing primitives and rebuild those screens from shadcn blocks/primitives, per `CLAUDE.md` §UI. Gets its own spec, plan and branch after Phase 7.
+- **Auth via Clerk (idea only, not decided)**: replace Supabase Auth with Clerk as the identity provider, keeping Supabase Postgres. Rationale, affected files and open questions: `docs/architecture.md` §5.
+
 ## In Progress
-
-- **Phase 6 — Operations**: higher-level grouping object linking tasks/requests/assets/employees to a larger initiative, with a company-wide-visible operation detail page showing linked-item lists and task-completion progress. Spec: `docs/superpowers/specs/2026-09-13-phase6-operations-design.md`. Plan: `docs/superpowers/plans/2026-09-13-phase6-operations.md`.
-
-## Review
 
 _(nothing right now)_
 
+## Review
+
+- **Phase 7 — Dashboard/Overview**: replaces the Foundation placeholder dashboard with the real one — personal section for everyone (My Tasks, Pending Approvals, Open Requests, Active Workflows, Recent Activity, Upcoming), company section for `operations_manager`/`admin` only (totals, attention required, active operations with progress, department activity) — built from the shadcn/ui `dashboard-01` block. Pure aggregation, no new tables/columns/migrations. Spec: `docs/superpowers/specs/2026-09-22-phase7-dashboard-design.md`. Plan: `docs/superpowers/plans/2026-09-22-phase7-dashboard.md`.
+  - Per-task review found and fixed one real issue (commit attribution on Task 1) and surfaced deferred Minors (recentActivity's top-30-then-filter design, a duplicated task-status constant, an uncapped per-department query loop, a couple of unused-var lint warnings) — none blocking, listed in the plan's SDD ledger for the whole-branch reviewer to triage.
+  - Awaiting whole-branch review before merge.
+
 ## Finished
+
+- **Phase 6 — Operations**: higher-level grouping object linking tasks/requests/assets/employees to a larger initiative, with a company-wide-visible operation detail page showing linked-item lists and task-completion progress. Spec: `docs/superpowers/specs/2026-09-13-phase6-operations-design.md`. Plan: `docs/superpowers/plans/2026-09-13-phase6-operations.md`.
+  - Full-branch review findings closed before merge: an entity's linked operation is now always shown (only attach/detach is gated), link/unlink writes activity on both sides, and the link picker, teardown, auth tests and `owner_id` handling were fixed.
+  - Merged to `main` via PR #8 (`149968a`).
 
 - **Phase 5 — Employees & Assets**: operational employee profiles, asset registry; completing the Equipment workflow's final task now creates and assigns a real asset; HR/admin can invite a new employee, which starts the Employee Onboarding workflow. Spec: `docs/superpowers/specs/2026-09-03-phase5-employees-assets-design.md`. Plan: `docs/superpowers/plans/2026-09-03-phase5-employees-assets.md`.
   - Full-branch code review found one Important gap (`canAssignAsset`/`canChangeAssetStatus` missing company-scoping) and one Minor gap (task-detail asset form reachable before `in_progress`) — both fixed before merge.

@@ -213,3 +213,7 @@ export function canViewOperation(profile: Profile, operation: OperationLike): bo
 }
 
 export const canCommentOnOperation = canViewOperation;
+
+export function canViewCompanyOverview(profile: Profile): boolean {
+  return ELEVATED_ROLES.has(profile.role);
+}

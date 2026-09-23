@@ -121,6 +121,23 @@ attachments                  → polymorphic: entity_type + entity_id, storage_p
 - Role capabilities are centralized as plain functions in `lib/domain/permissions.ts` (e.g. `hasCapability(profile, "approve:request")`) rather than scattered across individual routes. This maps to the roles and rights described in idea.md §21 (Employee < Manager < Operations Manager/IT/HR < Admin, with some overlapping and some exclusive rights).
 - Every route handler resolves the current Supabase session server-side, loads the corresponding `profiles` row, and passes it into the domain layer. A missing/invalid session is rejected before any domain function runs.
 
+### Idea (not decided): move authentication to Clerk
+
+Supabase Auth is the current and shipped choice; nothing below is committed work.
+
+The idea is to replace Supabase Auth with [Clerk](https://clerk.com) as the identity provider while keeping Supabase Postgres as the database. Motivation: a ready-made, well-designed sign-in/sign-up UI and account management (organizations, MFA, social login, user management dashboard) without building or styling those screens ourselves, plus a first-class Next.js App Router integration.
+
+What such a migration would touch:
+
+- `middleware.ts` and `lib/auth/session.ts` — session resolution moves from `@supabase/ssr` cookies to Clerk's middleware and server helpers.
+- `profiles.auth_user_id` — currently a Supabase `auth.users` id; would become the Clerk user id. Needs a migration plus a decision on how existing rows map over.
+- `/api/auth/complete-signup` and the role picker — would hook into Clerk's post-signup flow (e.g. a webhook or a first-login callback) instead of running right after a Supabase signup call.
+- `app/(marketing)/login` / `signup` and `app/auth/confirmed` — replaced by Clerk's hosted or embedded components.
+- Server-side Supabase access stays as-is: the domain layer already uses the service-role admin client and does its own authorization, so it is unaffected by who issues the session.
+- Supabase Storage signed URLs are issued server-side by the admin client and so do not depend on Supabase Auth either.
+
+Open questions before this could be planned: whether Clerk's free tier covers the demo's needs, how the seed script would create users, and whether the custom Resend SMTP setup done for Supabase Auth invites (see Phase 5 in `docs/STATUS.md`) has an equivalent in Clerk's invitation flow.
+
 ---
 
 ## 6. Realtime Updates

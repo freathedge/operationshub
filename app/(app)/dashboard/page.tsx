@@ -1,11 +1,19 @@
-export default function DashboardPage() {
+import { redirect } from "next/navigation";
+import { getCurrentProfile } from "@/lib/auth/session";
+import { canViewCompanyOverview } from "@/lib/domain/permissions";
+import { DashboardView } from "@/components/dashboard/dashboard-view";
+
+export default async function DashboardPage() {
+  const profile = await getCurrentProfile();
+  if (!profile) {
+    redirect("/login");
+  }
+
   return (
-    <div>
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <p className="mt-2 text-muted-foreground">
-        Foundation phase complete. The real dashboard widgets are built in a
-        later phase.
-      </p>
-    </div>
+    <DashboardView
+      companyId={profile.companyId}
+      profileFullName={profile.fullName}
+      canViewCompany={canViewCompanyOverview(profile)}
+    />
   );
 }
