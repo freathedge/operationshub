@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { LayoutDashboardIcon } from "lucide-react";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -10,25 +10,8 @@ vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
 }));
 
-// jsdom doesn't implement window.matchMedia. SidebarProvider renders
-// SidebarMenuButton, which calls useSidebar() -> useIsMobile() (hooks/use-mobile.ts),
-// and that calls window.matchMedia directly, so it must be stubbed for any test
-// that renders inside a SidebarProvider.
-beforeAll(() => {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
-});
+// window.matchMedia is stubbed centrally in vitest.setup.ts (SidebarProvider's
+// SidebarMenuButton calls useSidebar() -> useIsMobile(), which needs it).
 
 const groups: NavGroup[] = [
   {
