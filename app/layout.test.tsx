@@ -5,23 +5,20 @@ vi.mock("next/font/google", () => ({
   Geist_Mono: () => ({ variable: "--font-geist-mono" }),
 }));
 
+import { ThemeProvider } from "next-themes";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import RootLayout from "@/app/layout";
 
 describe("RootLayout", () => {
-  it("wraps children in ThemeProvider and TooltipProvider", () => {
+  it("wraps children in ThemeProvider then TooltipProvider", () => {
     const element = RootLayout({ children: "hello-world-marker" });
-    const serialized = JSON.stringify(element);
-    expect(serialized).toContain("hello-world-marker");
-    // next-themes' ThemeProvider and the shadcn TooltipProvider are both
-    // rendered as component references in the element tree, not by a
-    // string name JSON.stringify would show directly — so this test proves
-    // structural nesting depth instead: children must be nested at least
-    // two levels below <body>, which is only true once both providers wrap
-    // it. A single flat <body>{children}</body> has children one level deep.
-    const bodyChildren = element.props.children.props.children;
-    // bodyChildren is whatever ThemeProvider wraps; if the providers were
-    // never added, bodyChildren would literally equal "hello-world-marker"
-    // instead of a nested element structure containing it.
-    expect(bodyChildren).not.toBe("hello-world-marker");
+    const bodyElement = element.props.children;
+    const themeProviderElement = bodyElement.props.children;
+    expect(themeProviderElement.type).toBe(ThemeProvider);
+
+    const tooltipProviderElement = themeProviderElement.props.children;
+    expect(tooltipProviderElement.type).toBe(TooltipProvider);
+
+    expect(tooltipProviderElement.props.children).toBe("hello-world-marker");
   });
 });
