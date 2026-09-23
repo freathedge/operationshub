@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getProfileByAuthUserId } from "@/lib/domain/profiles";
-import { LogoutButton } from "@/components/auth/logout-button";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 export default async function AppLayout({
   children,
@@ -24,19 +26,24 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="flex items-center justify-between border-b px-6 py-3">
-        <span className="font-semibold">Operations Hub</span>
-        <div className="flex items-center gap-4 text-sm">
-          <span>
-            {profile.fullName} · {profile.role}
-          </span>
-          <LogoutButton />
-        </div>
-      </header>
-      <main className="flex-1 p-6">
-        <QueryProvider>{children}</QueryProvider>
-      </main>
-    </div>
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties
+      }
+    >
+      <AppSidebar
+        variant="inset"
+        user={{ name: profile.fullName, email: user.email ?? "", role: profile.role }}
+      />
+      <SidebarInset>
+        <SiteHeader />
+        <main className="flex-1 p-6">
+          <QueryProvider>{children}</QueryProvider>
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
