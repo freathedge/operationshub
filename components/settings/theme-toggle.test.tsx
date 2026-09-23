@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import userEvent from "@testing-library/user-event";
 import { ThemeToggle } from "@/components/settings/theme-toggle";
 
@@ -30,5 +31,10 @@ describe("ThemeToggle", () => {
     const button = await screen.findByRole("button");
     await userEvent.click(button);
     expect(setThemeMock).toHaveBeenCalledWith("light");
+  });
+
+  it("renders a disabled button before mounting (SSR-safe)", () => {
+    const html = renderToString(<ThemeToggle />);
+    expect(html).toContain("disabled");
   });
 });

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 
 import { NavMain, type NavGroup } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
@@ -63,7 +64,7 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton
               className="data-[slot=sidebar-menu-button]:p-1.5!"
-              render={<a href="/dashboard" />}
+              render={<Link href="/dashboard" />}
             >
               <LayoutGridIcon className="size-5!" />
               <span className="text-base font-semibold">Operations Hub</span>

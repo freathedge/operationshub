@@ -34,7 +34,7 @@ export default async function SettingsPage() {
         </div>
         <div>
           <p className="text-sm text-muted-foreground">Email</p>
-          <p>{user.email}</p>
+          <p>{user.email ?? ""}</p>
         </div>
         <div className="flex items-center justify-between border-t pt-4">
           <p className="text-sm font-medium">Theme</p>
