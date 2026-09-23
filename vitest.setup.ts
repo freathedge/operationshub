@@ -28,3 +28,20 @@ if (typeof window !== "undefined") {
     })),
   });
 }
+
+// jsdom doesn't implement ResizeObserver. cmdk's CommandList (components/ui/command.tsx,
+// used by CommandSearch) observes its own height with one on mount, so it must be stubbed
+// for any test that renders a Command/CommandDialog.
+if (typeof window !== "undefined" && typeof window.ResizeObserver === "undefined") {
+  window.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
+// jsdom also doesn't implement Element.scrollIntoView, which cmdk's CommandList calls when
+// the selected item changes (same CommandSearch usage as above).
+if (typeof window !== "undefined" && typeof window.Element.prototype.scrollIntoView === "undefined") {
+  window.Element.prototype.scrollIntoView = function scrollIntoView() {};
+}

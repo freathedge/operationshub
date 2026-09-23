@@ -107,6 +107,7 @@ export type Database = {
           name: string
           purchase_info: Json | null
           related_operation_id: string | null
+          search_vector: unknown
           status: Database["public"]["Enums"]["asset_status"]
           warranty_info: Json | null
         }
@@ -122,6 +123,7 @@ export type Database = {
           name: string
           purchase_info?: Json | null
           related_operation_id?: string | null
+          search_vector?: unknown
           status?: Database["public"]["Enums"]["asset_status"]
           warranty_info?: Json | null
         }
@@ -137,6 +139,7 @@ export type Database = {
           name?: string
           purchase_info?: Json | null
           related_operation_id?: string | null
+          search_vector?: unknown
           status?: Database["public"]["Enums"]["asset_status"]
           warranty_info?: Json | null
         }
@@ -377,6 +380,7 @@ export type Database = {
           id: string
           owner_id: string
           priority: Database["public"]["Enums"]["operation_priority"]
+          search_vector: unknown
           start_date: string | null
           status: Database["public"]["Enums"]["operation_status"]
           target_date: string | null
@@ -390,6 +394,7 @@ export type Database = {
           id?: string
           owner_id: string
           priority?: Database["public"]["Enums"]["operation_priority"]
+          search_vector?: unknown
           start_date?: string | null
           status?: Database["public"]["Enums"]["operation_status"]
           target_date?: string | null
@@ -403,6 +408,7 @@ export type Database = {
           id?: string
           owner_id?: string
           priority?: Database["public"]["Enums"]["operation_priority"]
+          search_vector?: unknown
           start_date?: string | null
           status?: Database["public"]["Enums"]["operation_status"]
           target_date?: string | null
@@ -446,6 +452,7 @@ export type Database = {
           position_title: string | null
           related_operation_id: string | null
           role: Database["public"]["Enums"]["user_role"]
+          search_vector: unknown
           status: Database["public"]["Enums"]["profile_status"]
         }
         Insert: {
@@ -461,6 +468,7 @@ export type Database = {
           position_title?: string | null
           related_operation_id?: string | null
           role: Database["public"]["Enums"]["user_role"]
+          search_vector?: unknown
           status?: Database["public"]["Enums"]["profile_status"]
         }
         Update: {
@@ -476,6 +484,7 @@ export type Database = {
           position_title?: string | null
           related_operation_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          search_vector?: unknown
           status?: Database["public"]["Enums"]["profile_status"]
         }
         Relationships: [
@@ -526,6 +535,7 @@ export type Database = {
           description: string | null
           id: string
           related_operation_id: string | null
+          search_vector: unknown
           status: Database["public"]["Enums"]["request_status"]
           title: string
         }
@@ -538,6 +548,7 @@ export type Database = {
           description?: string | null
           id?: string
           related_operation_id?: string | null
+          search_vector?: unknown
           status?: Database["public"]["Enums"]["request_status"]
           title: string
         }
@@ -550,6 +561,7 @@ export type Database = {
           description?: string | null
           id?: string
           related_operation_id?: string | null
+          search_vector?: unknown
           status?: Database["public"]["Enums"]["request_status"]
           title?: string
         }
@@ -601,6 +613,7 @@ export type Database = {
           related_operation_id: string | null
           related_request_id: string | null
           related_workflow_instance_id: string | null
+          search_vector: unknown
           status: Database["public"]["Enums"]["task_status"]
           title: string
         }
@@ -620,6 +633,7 @@ export type Database = {
           related_operation_id?: string | null
           related_request_id?: string | null
           related_workflow_instance_id?: string | null
+          search_vector?: unknown
           status?: Database["public"]["Enums"]["task_status"]
           title: string
         }
@@ -639,6 +653,7 @@ export type Database = {
           related_operation_id?: string | null
           related_request_id?: string | null
           related_workflow_instance_id?: string | null
+          search_vector?: unknown
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
         }
@@ -882,6 +897,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          search_vector: unknown
           slug: string
           trigger_category:
             | Database["public"]["Enums"]["request_category"]
@@ -892,6 +908,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          search_vector?: unknown
           slug: string
           trigger_category?:
             | Database["public"]["Enums"]["request_category"]
@@ -902,6 +919,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          search_vector?: unknown
           slug?: string
           trigger_category?:
             | Database["public"]["Enums"]["request_category"]

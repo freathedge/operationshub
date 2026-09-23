@@ -1,8 +1,10 @@
 "use client"
 
 import * as React from "react"
+import { useState } from "react"
 import Link from "next/link"
 
+import { CommandSearch } from "@/components/command-search"
 import { NavMain, type NavGroup } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser, type CurrentUserSummary } from "@/components/nav-user"
@@ -23,30 +25,35 @@ import {
   WorkflowIcon,
   UsersIcon,
   PackageIcon,
+  ChartBarIcon,
   CircleHelpIcon,
   SearchIcon,
   LayoutGridIcon,
 } from "lucide-react"
 
-const navGroups: NavGroup[] = [
-  {
-    label: "Home",
-    items: [
-      { title: "Dashboard", url: "/dashboard", icon: <LayoutDashboardIcon /> },
-      { title: "Tasks", url: "/tasks", icon: <ListTodoIcon /> },
-      { title: "Requests", url: "/requests", icon: <InboxIcon /> },
-      { title: "Operations", url: "/operations", icon: <FolderKanbanIcon /> },
-      { title: "Workflows", url: "/workflows", icon: <WorkflowIcon /> },
-    ],
-  },
-  {
-    label: "Resources",
-    items: [
-      { title: "Employees", url: "/employees", icon: <UsersIcon /> },
-      { title: "Assets", url: "/assets", icon: <PackageIcon /> },
-    ],
-  },
-]
+function buildNavGroups(canViewReports: boolean): NavGroup[] {
+  const homeItems: NavGroup["items"] = [
+    { title: "Dashboard", url: "/dashboard", icon: <LayoutDashboardIcon /> },
+    { title: "Tasks", url: "/tasks", icon: <ListTodoIcon /> },
+    { title: "Requests", url: "/requests", icon: <InboxIcon /> },
+    { title: "Operations", url: "/operations", icon: <FolderKanbanIcon /> },
+    { title: "Workflows", url: "/workflows", icon: <WorkflowIcon /> },
+  ]
+  if (canViewReports) {
+    homeItems.push({ title: "Reports", url: "/reports", icon: <ChartBarIcon /> })
+  }
+
+  return [
+    { label: "Home", items: homeItems },
+    {
+      label: "Resources",
+      items: [
+        { title: "Employees", url: "/employees", icon: <UsersIcon /> },
+        { title: "Assets", url: "/assets", icon: <PackageIcon /> },
+      ],
+    },
+  ]
+}
 
 const navSecondary = [
   { title: "Search", url: "#", icon: <SearchIcon /> },
@@ -55,30 +62,42 @@ const navSecondary = [
 
 export function AppSidebar({
   user,
+  canViewReports,
   ...props
-}: { user: CurrentUserSummary } & React.ComponentProps<typeof Sidebar>) {
+}: { user: CurrentUserSummary; canViewReports: boolean } & React.ComponentProps<
+  typeof Sidebar
+>) {
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  const navSecondaryItems = navSecondary.map((item) =>
+    item.title === "Search" ? { ...item, onClick: () => setSearchOpen(true) } : item
+  )
+
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              className="data-[slot=sidebar-menu-button]:p-1.5!"
-              render={<Link href="/dashboard" />}
-            >
-              <LayoutGridIcon className="size-5!" />
-              <span className="text-base font-semibold">Operations Hub</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
-      <SidebarContent>
-        <NavMain groups={navGroups} />
-        <NavSecondary items={navSecondary} className="mt-auto" />
-      </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={user} />
-      </SidebarFooter>
-    </Sidebar>
+    <>
+      <Sidebar collapsible="offcanvas" {...props}>
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                className="data-[slot=sidebar-menu-button]:p-1.5!"
+                render={<Link href="/dashboard" />}
+              >
+                <LayoutGridIcon className="size-5!" />
+                <span className="text-base font-semibold">Operations Hub</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarContent>
+          <NavMain groups={buildNavGroups(canViewReports)} />
+          <NavSecondary items={navSecondaryItems} className="mt-auto" />
+        </SidebarContent>
+        <SidebarFooter>
+          <NavUser user={user} />
+        </SidebarFooter>
+      </Sidebar>
+      <CommandSearch open={searchOpen} onOpenChange={setSearchOpen} />
+    </>
   )
 }
