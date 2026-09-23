@@ -17,7 +17,7 @@ export function CompanySection({ overview }: { overview: CompanyOverview }) {
       <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
         {totalCards.map((card) => (
           <Link key={card.label} href={card.href}>
-            <Card className="@container/card">
+            <Card className="@container/card transition-shadow hover:shadow-md">
               <CardHeader>
                 <CardDescription>{card.label}</CardDescription>
                 <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
@@ -63,7 +63,7 @@ export function CompanySection({ overview }: { overview: CompanyOverview }) {
             {overview.departmentActivity.map((department) => (
               <li key={department.departmentId} className="flex items-center justify-between">
                 <Link
-                  href={`/tasks?departmentId=${department.departmentId}`}
+                  href={`/tasks?departmentId=${encodeURIComponent(department.departmentId)}`}
                   className="hover:underline"
                 >
                   {department.name}

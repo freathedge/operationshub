@@ -10,8 +10,8 @@ export function UpcomingCard({
   profileId: string;
 }) {
   return (
-    <Link href={`/tasks?assigneeId=${profileId}`}>
-      <Card>
+    <Link href={`/tasks?assigneeId=${encodeURIComponent(profileId)}`}>
+      <Card className="transition-shadow hover:shadow-md">
         <CardHeader>
           <CardTitle>Upcoming</CardTitle>
         </CardHeader>

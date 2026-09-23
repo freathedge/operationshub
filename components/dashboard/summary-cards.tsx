@@ -10,7 +10,11 @@ export function SummaryCards({
   profileId: string;
 }) {
   const cards = [
-    { label: "My Tasks", value: counts.myOpenTasks, href: `/tasks?assigneeId=${profileId}` },
+    {
+      label: "My Tasks",
+      value: counts.myOpenTasks,
+      href: `/tasks?assigneeId=${encodeURIComponent(profileId)}`,
+    },
     { label: "Pending Approvals", value: counts.pendingApprovals, href: null },
     { label: "Open Requests", value: counts.myOpenRequests, href: "/requests" },
     { label: "Active Workflows", value: counts.activeWorkflows, href: null },
@@ -20,7 +24,13 @@ export function SummaryCards({
     <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
       {cards.map((card) => {
         const content = (
-          <Card className="@container/card">
+          <Card
+            className={
+              card.href
+                ? "@container/card transition-shadow hover:shadow-md"
+                : "@container/card"
+            }
+          >
             <CardHeader>
               <CardDescription>{card.label}</CardDescription>
               <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
