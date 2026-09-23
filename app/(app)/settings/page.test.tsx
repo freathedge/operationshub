@@ -19,37 +19,32 @@ vi.mock("@/lib/domain/profiles", () => ({
   getProfileByAuthUserId: (id: string) => getProfileByAuthUserIdMock(id),
 }));
 
-const cookiesMock = vi.fn();
-vi.mock("next/headers", () => ({
-  cookies: async () => cookiesMock(),
-}));
-
-import AppLayout from "@/app/(app)/layout";
+import SettingsPage from "@/app/(app)/settings/page";
 
 beforeEach(() => {
   redirectMock.mockClear();
   getUserMock.mockReset();
   getProfileByAuthUserIdMock.mockReset();
-  cookiesMock.mockReset();
-  cookiesMock.mockReturnValue({ get: () => undefined });
 });
 
-describe("AppLayout", () => {
+describe("SettingsPage", () => {
   it("redirects to /login when there is no authenticated user", async () => {
     getUserMock.mockResolvedValue({ data: { user: null } });
 
-    await expect(AppLayout({ children: null })).rejects.toThrow("REDIRECT:/login");
+    await expect(SettingsPage()).rejects.toThrow("REDIRECT:/login");
   });
 
   it("redirects to /signup when the user has no profile yet", async () => {
     getUserMock.mockResolvedValue({ data: { user: { id: "auth-1" } } });
     getProfileByAuthUserIdMock.mockResolvedValue(null);
 
-    await expect(AppLayout({ children: null })).rejects.toThrow("REDIRECT:/signup");
+    await expect(SettingsPage()).rejects.toThrow("REDIRECT:/signup");
   });
 
-  it("renders the shell with the profile's name and role", async () => {
-    getUserMock.mockResolvedValue({ data: { user: { id: "auth-1" } } });
+  it("renders the profile's name, role, and email", async () => {
+    getUserMock.mockResolvedValue({
+      data: { user: { id: "auth-1", email: "max@alpentech.example" } },
+    });
     getProfileByAuthUserIdMock.mockResolvedValue({
       id: "profile-1",
       authUserId: "auth-1",
@@ -58,10 +53,17 @@ describe("AppLayout", () => {
       role: "it",
       departmentId: null,
       managerId: null,
+      positionTitle: null,
+      employeeNumber: null,
+      locationId: null,
+      relatedOperationId: null,
+      status: "active",
     });
 
-    const element = await AppLayout({ children: "hello" });
-    expect(JSON.stringify(element)).toContain("Max Mustermann");
-    expect(JSON.stringify(element)).toContain('"role":"it"');
+    const element = await SettingsPage();
+    const serialized = JSON.stringify(element);
+    expect(serialized).toContain("Max Mustermann");
+    expect(serialized).toContain('"it"');
+    expect(serialized).toContain("max@alpentech.example");
   });
 });
