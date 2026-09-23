@@ -1,10 +1,4 @@
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PersonalOverview } from "@/lib/domain/dashboard";
 
 export function SummaryCards({ counts }: { counts: PersonalOverview["counts"] }) {
@@ -24,7 +18,6 @@ export function SummaryCards({ counts }: { counts: PersonalOverview["counts"] })
             <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
               {card.value}
             </CardTitle>
-            <CardAction />
           </CardHeader>
         </Card>
       ))}

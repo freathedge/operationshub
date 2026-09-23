@@ -1,10 +1,4 @@
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActiveOperationsCard } from "@/components/dashboard/active-operations-card";
 import type { CompanyOverview } from "@/lib/domain/dashboard";
 
@@ -27,7 +21,6 @@ export function CompanySection({ overview }: { overview: CompanyOverview }) {
               <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
                 {card.value}
               </CardTitle>
-              <CardAction />
             </CardHeader>
           </Card>
         ))}
