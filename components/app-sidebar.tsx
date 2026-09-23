@@ -23,30 +23,35 @@ import {
   WorkflowIcon,
   UsersIcon,
   PackageIcon,
+  ChartBarIcon,
   CircleHelpIcon,
   SearchIcon,
   LayoutGridIcon,
 } from "lucide-react"
 
-const navGroups: NavGroup[] = [
-  {
-    label: "Home",
-    items: [
-      { title: "Dashboard", url: "/dashboard", icon: <LayoutDashboardIcon /> },
-      { title: "Tasks", url: "/tasks", icon: <ListTodoIcon /> },
-      { title: "Requests", url: "/requests", icon: <InboxIcon /> },
-      { title: "Operations", url: "/operations", icon: <FolderKanbanIcon /> },
-      { title: "Workflows", url: "/workflows", icon: <WorkflowIcon /> },
-    ],
-  },
-  {
-    label: "Resources",
-    items: [
-      { title: "Employees", url: "/employees", icon: <UsersIcon /> },
-      { title: "Assets", url: "/assets", icon: <PackageIcon /> },
-    ],
-  },
-]
+function buildNavGroups(canViewReports: boolean): NavGroup[] {
+  const homeItems: NavGroup["items"] = [
+    { title: "Dashboard", url: "/dashboard", icon: <LayoutDashboardIcon /> },
+    { title: "Tasks", url: "/tasks", icon: <ListTodoIcon /> },
+    { title: "Requests", url: "/requests", icon: <InboxIcon /> },
+    { title: "Operations", url: "/operations", icon: <FolderKanbanIcon /> },
+    { title: "Workflows", url: "/workflows", icon: <WorkflowIcon /> },
+  ]
+  if (canViewReports) {
+    homeItems.push({ title: "Reports", url: "/reports", icon: <ChartBarIcon /> })
+  }
+
+  return [
+    { label: "Home", items: homeItems },
+    {
+      label: "Resources",
+      items: [
+        { title: "Employees", url: "/employees", icon: <UsersIcon /> },
+        { title: "Assets", url: "/assets", icon: <PackageIcon /> },
+      ],
+    },
+  ]
+}
 
 const navSecondary = [
   { title: "Search", url: "#", icon: <SearchIcon /> },
@@ -55,8 +60,11 @@ const navSecondary = [
 
 export function AppSidebar({
   user,
+  canViewReports,
   ...props
-}: { user: CurrentUserSummary } & React.ComponentProps<typeof Sidebar>) {
+}: { user: CurrentUserSummary; canViewReports: boolean } & React.ComponentProps<
+  typeof Sidebar
+>) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -73,7 +81,7 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain groups={navGroups} />
+        <NavMain groups={buildNavGroups(canViewReports)} />
         <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

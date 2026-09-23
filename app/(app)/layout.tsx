@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getProfileByAuthUserId } from "@/lib/domain/profiles";
+import { canViewCompanyOverview } from "@/lib/domain/permissions";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
@@ -42,6 +43,7 @@ export default async function AppLayout({
       <AppSidebar
         variant="inset"
         user={{ name: profile.fullName, email: user.email ?? "", role: profile.role }}
+        canViewReports={canViewCompanyOverview(profile)}
       />
       <SidebarInset>
         <SiteHeader />
