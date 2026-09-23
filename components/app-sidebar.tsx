@@ -1,8 +1,10 @@
 "use client"
 
 import * as React from "react"
+import { useState } from "react"
 import Link from "next/link"
 
+import { CommandSearch } from "@/components/command-search"
 import { NavMain, type NavGroup } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser, type CurrentUserSummary } from "@/components/nav-user"
@@ -65,28 +67,37 @@ export function AppSidebar({
 }: { user: CurrentUserSummary; canViewReports: boolean } & React.ComponentProps<
   typeof Sidebar
 >) {
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  const navSecondaryItems = navSecondary.map((item) =>
+    item.title === "Search" ? { ...item, onClick: () => setSearchOpen(true) } : item
+  )
+
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              className="data-[slot=sidebar-menu-button]:p-1.5!"
-              render={<Link href="/dashboard" />}
-            >
-              <LayoutGridIcon className="size-5!" />
-              <span className="text-base font-semibold">Operations Hub</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
-      <SidebarContent>
-        <NavMain groups={buildNavGroups(canViewReports)} />
-        <NavSecondary items={navSecondary} className="mt-auto" />
-      </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={user} />
-      </SidebarFooter>
-    </Sidebar>
+    <>
+      <Sidebar collapsible="offcanvas" {...props}>
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                className="data-[slot=sidebar-menu-button]:p-1.5!"
+                render={<Link href="/dashboard" />}
+              >
+                <LayoutGridIcon className="size-5!" />
+                <span className="text-base font-semibold">Operations Hub</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarContent>
+          <NavMain groups={buildNavGroups(canViewReports)} />
+          <NavSecondary items={navSecondaryItems} className="mt-auto" />
+        </SidebarContent>
+        <SidebarFooter>
+          <NavUser user={user} />
+        </SidebarFooter>
+      </Sidebar>
+      <CommandSearch open={searchOpen} onOpenChange={setSearchOpen} />
+    </>
   )
 }

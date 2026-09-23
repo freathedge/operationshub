@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 const mockPathname = "/dashboard";
@@ -67,5 +68,21 @@ describe("AppSidebar", () => {
       </SidebarProvider>
     );
     expect(screen.getByText("Max Mustermann")).toBeInTheDocument();
+  });
+
+  it("opens the command search dialog when the Search nav item is clicked", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ results: [] }) })
+    );
+
+    render(
+      <SidebarProvider>
+        <AppSidebar user={user} canViewReports={true} />
+      </SidebarProvider>
+    );
+
+    await userEvent.click(screen.getByText("Search"));
+    expect(await screen.findByPlaceholderText(/search/i)).toBeInTheDocument();
   });
 });
