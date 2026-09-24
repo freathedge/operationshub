@@ -3,6 +3,7 @@ import { getCurrentProfile } from "@/lib/auth/session";
 import { getRequest } from "@/lib/domain/requests";
 import { addComment } from "@/lib/domain/comments";
 import { logActivity } from "@/lib/domain/activity";
+import { createNotification } from "@/lib/domain/notifications";
 import { broadcastChange } from "@/lib/realtime/broadcast";
 import { addCommentSchema } from "@/lib/validation/tasks";
 import { toErrorResponse } from "@/lib/api/error-response";
@@ -37,6 +38,15 @@ export async function POST(
       profile.id,
       `${profile.fullName} commented on this request`
     );
+    if (targetRequest.createdBy && targetRequest.createdBy !== profile.id) {
+      await createNotification(
+        targetRequest.createdBy,
+        "request",
+        targetRequest.id,
+        "comment_added",
+        `${profile.fullName} commented on "${targetRequest.title}"`
+      );
+    }
     try {
       await broadcastChange(profile.companyId, "requests", { type: "request_updated" });
     } catch (broadcastError) {

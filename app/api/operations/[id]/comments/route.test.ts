@@ -16,10 +16,12 @@ vi.mock("@/lib/domain/activity", () => ({
 vi.mock("@/lib/realtime/broadcast", () => ({
   broadcastChange: vi.fn(),
 }));
+vi.mock("@/lib/domain/notifications", () => ({ createNotification: vi.fn() }));
 
 import { getCurrentProfile } from "@/lib/auth/session";
 import { loadOperationOrThrow } from "@/lib/domain/operations";
 import { addComment, listComments } from "@/lib/domain/comments";
+import { createNotification } from "@/lib/domain/notifications";
 import { GET, POST } from "@/app/api/operations/[id]/comments/route";
 import { NotFoundError } from "@/lib/domain/errors";
 
@@ -47,6 +49,7 @@ beforeEach(() => {
   vi.mocked(loadOperationOrThrow).mockReset();
   vi.mocked(addComment).mockReset();
   vi.mocked(listComments).mockReset();
+  vi.mocked(createNotification).mockReset();
 });
 
 describe("GET /api/operations/[id]/comments", () => {
@@ -112,5 +115,35 @@ describe("POST /api/operations/[id]/comments", () => {
     const response = await POST(jsonRequest({ body: "New comment" }), params("op-1"));
     expect(response.status).toBe(201);
     expect(addComment).toHaveBeenCalledWith("operation", "op-1", PROFILE.id, "New comment");
+  });
+
+  it("notifies the operation's owner when someone else comments, but not their own comment", async () => {
+    vi.mocked(getCurrentProfile).mockResolvedValue(PROFILE);
+    vi.mocked(loadOperationOrThrow).mockResolvedValue({
+      id: "op-1",
+      companyId: "company-1",
+      title: "Q4 rollout",
+      ownerId: "owner-1",
+    } as never);
+    vi.mocked(addComment).mockResolvedValue({ id: "comment-1" } as never);
+
+    await POST(jsonRequest({ body: "Update" }), params("op-1"));
+    expect(createNotification).toHaveBeenCalledWith(
+      "owner-1",
+      "operation",
+      "op-1",
+      "comment_added",
+      expect.stringContaining("commented")
+    );
+
+    vi.mocked(createNotification).mockClear();
+    vi.mocked(loadOperationOrThrow).mockResolvedValue({
+      id: "op-1",
+      companyId: "company-1",
+      title: "Q4 rollout",
+      ownerId: PROFILE.id,
+    } as never);
+    await POST(jsonRequest({ body: "My own" }), params("op-1"));
+    expect(createNotification).not.toHaveBeenCalled();
   });
 });

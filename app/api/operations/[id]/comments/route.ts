@@ -4,6 +4,7 @@ import { loadOperationOrThrow } from "@/lib/domain/operations";
 import { canCommentOnOperation } from "@/lib/domain/permissions";
 import { addComment, listComments } from "@/lib/domain/comments";
 import { logActivity } from "@/lib/domain/activity";
+import { createNotification } from "@/lib/domain/notifications";
 import { broadcastChange } from "@/lib/realtime/broadcast";
 import { addCommentSchema } from "@/lib/validation/tasks";
 import { toErrorResponse } from "@/lib/api/error-response";
@@ -64,6 +65,15 @@ export async function POST(
       profile.id,
       `${profile.fullName} commented on this operation`
     );
+    if (operation.ownerId !== profile.id) {
+      await createNotification(
+        operation.ownerId,
+        "operation",
+        operation.id,
+        "comment_added",
+        `${profile.fullName} commented on "${operation.title}"`
+      );
+    }
     try {
       await broadcastChange(profile.companyId, "operations", { type: "operation_updated" });
     } catch (error) {
