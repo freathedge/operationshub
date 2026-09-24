@@ -94,4 +94,40 @@ describe("TaskListView", () => {
     await screen.findByText("Prepare laptop");
     expect(screen.queryByRole("link", { name: /clear filter/i })).not.toBeInTheDocument();
   });
+
+  it("shows an Overdue badge for a past-due open task, but not a completed one", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          tasks: [
+            {
+              id: "task-1",
+              title: "Overdue task",
+              status: "todo",
+              priority: "high",
+              assigneeId: null,
+              departmentId: null,
+              dueDate: "2020-01-01T00:00:00.000Z",
+            },
+            {
+              id: "task-2",
+              title: "Done task",
+              status: "completed",
+              priority: "low",
+              assigneeId: null,
+              departmentId: null,
+              dueDate: "2020-01-01T00:00:00.000Z",
+            },
+          ],
+        }),
+      })
+    );
+
+    renderWithClient(<TaskListView companyId="company-1" />);
+
+    await screen.findByText("Overdue task");
+    expect(screen.getAllByText("Overdue")).toHaveLength(1);
+  });
 });

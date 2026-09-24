@@ -7,6 +7,8 @@ import { createSignedDownloadUrl, listAttachments } from "@/lib/domain/attachmen
 import { findWorkflowStepByTaskId } from "@/lib/domain/workflows";
 import { canLinkEntityToOperation } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
+import { isTaskOverdue } from "@/components/tasks/is-task-overdue";
+import { Badge } from "@/components/ui/badge";
 import { BackLink } from "@/components/back-link";
 import { TaskRealtimeRefresh } from "@/components/tasks/task-realtime-refresh";
 import { TaskStatusControl } from "@/components/tasks/task-status-control";
@@ -62,7 +64,10 @@ export default async function TaskDetailPage({
       <BackLink href="/tasks" />
 
       <div>
-        <h1 className="text-2xl font-semibold">{task.title}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold">{task.title}</h1>
+          {isTaskOverdue(task) && <Badge variant="destructive">Overdue</Badge>}
+        </div>
         {task.description && (
           <p className="mt-2 text-muted-foreground">{task.description}</p>
         )}
