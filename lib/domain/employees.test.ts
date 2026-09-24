@@ -1,15 +1,25 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createProfile, getProfileByAuthUserId, type Profile } from "@/lib/domain/profiles";
+import { createProfile, getProfileById, type Profile } from "@/lib/domain/profiles";
 import { createEmployee, getEmployeeProfile, listEmployees, updateEmployee } from "@/lib/domain/employees";
 import { ForbiddenError } from "@/lib/domain/errors";
+
+const createInvitationMock = vi.fn();
+vi.mock("@clerk/nextjs/server", () => ({
+  clerkClient: async () => ({
+    invitations: { createInvitation: createInvitationMock },
+  }),
+}));
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("createEmployee", () => {
   const supabase = createSupabaseAdminClient();
   let companyId: string;
-  const createdAuthUserIds: string[] = [];
   let hrProfile: Profile;
   let employeeProfile: Profile;
+
+  beforeEach(() => {
+    createInvitationMock.mockReset();
+  });
 
   beforeAll(async () => {
     const { data: company, error: companyError } = await supabase
@@ -54,26 +64,22 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("createEmployee", () => 
       { onConflict: "template_id,step_order" }
     );
     if (stepError) throw stepError;
+
+    hrProfile = await createProfile({
+      authUserId: `test-hr-${crypto.randomUUID()}`,
+      companyId,
+      fullName: "HR Person",
+      role: "hr",
+    });
   });
 
   afterAll(async () => {
-    await supabase.from("profiles").delete().in("auth_user_id", createdAuthUserIds);
-    for (const id of createdAuthUserIds) {
-      await supabase.auth.admin.deleteUser(id);
-    }
     await supabase.from("companies").delete().eq("slug", "test-co-create-employee");
   });
 
   it("rejects a caller without hr/admin", async () => {
-    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-      email: `create-employee-test-${crypto.randomUUID()}@example.com`,
-      password: "password123",
-      email_confirm: true,
-    });
-    if (authError || !authUser.user) throw authError;
-    createdAuthUserIds.push(authUser.user.id);
     employeeProfile = await createProfile({
-      authUserId: authUser.user.id,
+      authUserId: `test-not-hr-${crypto.randomUUID()}`,
       companyId,
       fullName: "Not HR",
       role: "employee",
@@ -88,36 +94,28 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("createEmployee", () => 
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
-  it("invites the employee, creates their profile, and starts onboarding by default", async () => {
-    const { data: hrAuthUser, error: hrAuthError } = await supabase.auth.admin.createUser({
-      email: `create-employee-hr-${crypto.randomUUID()}@example.com`,
-      password: "password123",
-      email_confirm: true,
-    });
-    if (hrAuthError || !hrAuthUser.user) throw hrAuthError;
-    createdAuthUserIds.push(hrAuthUser.user.id);
-    hrProfile = await createProfile({
-      authUserId: hrAuthUser.user.id,
-      companyId,
-      fullName: "HR Person",
-      role: "hr",
-    });
+  it("creates a pending profile, sends a Clerk invitation with the profile id, and starts onboarding by default", async () => {
+    createInvitationMock.mockReset();
+    createInvitationMock.mockResolvedValue({ id: "inv_123" });
 
-    // mailinator.com has real MX records, unlike example.com, so the SMTP relay
-    // actually accepts the invite send instead of hard-bouncing at hand-off.
-    const newHireEmail = `new-hire-${crypto.randomUUID()}@mailinator.com`;
+    const newHireEmail = `new-hire-${crypto.randomUUID()}@example.com`;
     const employee = await createEmployee(hrProfile, {
       email: newHireEmail,
       fullName: "New Hire",
       role: "employee",
       positionTitle: "Support Specialist",
     });
-    createdAuthUserIds.push(employee.authUserId);
 
     expect(employee.fullName).toBe("New Hire");
     expect(employee.positionTitle).toBe("Support Specialist");
+    expect(employee.authUserId).toBeNull();
 
-    const fetched = await getProfileByAuthUserId(employee.authUserId);
+    expect(createInvitationMock).toHaveBeenCalledWith({
+      emailAddress: newHireEmail,
+      publicMetadata: { pendingProfileId: employee.id },
+    });
+
+    const fetched = await getProfileById(employee.id);
     expect(fetched?.id).toBe(employee.id);
 
     const { data: instances, error: instancesError } = await supabase
@@ -129,14 +127,16 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("createEmployee", () => 
   });
 
   it("does not start onboarding when startOnboarding is false", async () => {
-    const newHireEmail = `new-hire-no-onboarding-${crypto.randomUUID()}@mailinator.com`;
+    createInvitationMock.mockReset();
+    createInvitationMock.mockResolvedValue({ id: "inv_456" });
+
+    const newHireEmail = `new-hire-no-onboarding-${crypto.randomUUID()}@example.com`;
     const employee = await createEmployee(hrProfile, {
       email: newHireEmail,
       fullName: "No Onboarding Hire",
       role: "employee",
       startOnboarding: false,
     });
-    createdAuthUserIds.push(employee.authUserId);
 
     const { data: instances, error: instancesError } = await supabase
       .from("workflow_instances")

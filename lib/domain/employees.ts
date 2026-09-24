@@ -11,6 +11,7 @@ import { startWorkflow } from "@/lib/domain/workflows";
 import { canCreateEmployee, canUpdateEmployee, canViewEmployeeProfile } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { clerkClient } from "@clerk/nextjs/server";
 import type { CreateEmployeeInput, EmployeeFilters, UpdateEmployeeInput } from "@/lib/validation/employees";
 
 export type Employee = Profile;
@@ -23,16 +24,7 @@ export async function createEmployee(
     throw new ForbiddenError("You cannot create employees");
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data: invited, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
-    input.email
-  );
-  if (inviteError || !invited.user) {
-    throw inviteError ?? new Error("Failed to invite employee");
-  }
-
   const employee = await createProfile({
-    authUserId: invited.user.id,
     companyId: profile.companyId,
     fullName: input.fullName,
     role: input.role,
@@ -41,6 +33,12 @@ export async function createEmployee(
     locationId: input.locationId ?? null,
     positionTitle: input.positionTitle ?? null,
     employeeNumber: input.employeeNumber ?? null,
+  });
+
+  const clerk = await clerkClient();
+  await clerk.invitations.createInvitation({
+    emailAddress: input.email,
+    publicMetadata: { pendingProfileId: employee.id },
   });
 
   await logActivity(
