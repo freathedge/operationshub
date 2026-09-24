@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-24 (`/approvals` and `/workflows` list pages moved to Review)
+Last updated: 2026-09-24 (`/approvals` and `/workflows` list pages finished)
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -21,11 +21,14 @@ _(nothing right now)_
 
 ## Review
 
-- **`/approvals` and `/workflows` list pages**: neither existed before (only `/workflows/[id]` detail). Wires up the dashboard's "Pending Approvals"/"Active Workflows" cards and the sidebar's "Workflows" nav item, which had nowhere to link until now. Both pages mirror the existing `/requests`/`/tasks` list pattern (domain list fn → GET route → client ListView → page), with a Mine/All scope toggle gated by role (`canViewCompanyOverview` for approvals, new `canViewAllWorkflowInstances` for workflow instances) and hidden entirely for roles that can't use it. Bounded change approved via in-chat design, no separate spec/plan doc.
-  - Code review found and fixed: `listApprovals`'s scope=all query scanned the whole `approvals` table across every tenant before filtering to the caller's company (now scoped via a `requests!inner(company_id)` join, matching the pattern `workflows.ts` already used in the same diff); the All toggle was shown to every role even though the domain layer 403s non-elevated roles for it (now hidden via a `canViewAll` prop computed server-side per page); dashboard summary cards linked without the status filter matching their displayed count (now `?status=pending` / `?status=in_progress`); the workflow instance list's "assigned task inside a step" mine-scope signal had no test (added).
-  - `test:unit` (441 tests) and `test:integration` (165 tests) pass; `next build` succeeds cleanly. No manual browser click-through was possible (no browser-automation tool in this environment) — flagged for a human pass before merge, same as every prior phase in this project.
+_(nothing right now)_
 
 ## Finished
+
+- **`/approvals` and `/workflows` list pages**: neither existed before (only `/workflows/[id]` detail). Wires up the dashboard's "Pending Approvals"/"Active Workflows" cards and the sidebar's "Workflows" nav item, which had nowhere to link until now. Both pages mirror the existing `/requests`/`/tasks` list pattern (domain list fn → GET route → client ListView → page), with a Mine/All scope toggle gated by role (`canViewCompanyOverview` for approvals, new `canViewAllWorkflowInstances` for workflow instances) and hidden entirely for roles that can't use it. Bounded change approved via in-chat design, no separate spec/plan doc.
+  - Code review found and fixed: `listApprovals`'s scope=all query scanned the whole `approvals` table across every tenant before filtering to the caller's company (now scoped via a `requests!inner(company_id)` join, matching the pattern `workflows.ts` already used in the same diff); the All toggle was shown to every role even though the domain layer 403s non-elevated roles for it (now hidden via a `canViewAll` prop computed server-side per page); dashboard summary cards linked without the status filter matching their displayed count (now `?status=pending` / `?status=in_progress`); the workflow instance list's "assigned task inside a step" mine-scope signal had no test (added).
+  - `test:unit` (441 tests) and `test:integration` (165 tests) pass; `next build` succeeds cleanly. No manual browser click-through was possible (no browser-automation tool in this environment) — flagged for a human pass, same as every prior phase in this project.
+  - Merged to `main` via PR #16 (`d5eb1ba`).
 
 - **Phase 9 — Realtime & Notifications Polish**: notification bell UI (unread count, mark-as-read, mark-all-as-read), plus an audit pass closing 3 concrete gaps found by reading the code — 7 of idea.md §19's 9 notification events had no `createNotification` call site, Operations/Assets/Employees detail pages had no live-refresh, workflow instances had no activity-log timeline. Spec: `docs/superpowers/specs/2026-09-24-phase9-realtime-notifications-design.md`. Plan: `docs/superpowers/plans/2026-09-24-phase9-realtime-notifications.md`.
   - Per-task review (10 tasks, subagent-driven) found no Critical/Important issues in any single task; several accepted Minors, including one deliberate deviation from the plan's own literal code — Task 10's `notification-bell.tsx` needed `DropdownMenuLabel` wrapped in a `DropdownMenuGroup` to avoid a real Base UI runtime crash, verified against the existing working pattern in `components/nav-user.tsx`.
