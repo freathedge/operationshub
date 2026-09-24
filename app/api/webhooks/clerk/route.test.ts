@@ -59,4 +59,15 @@ describe("POST /api/webhooks/clerk", () => {
     expect(response.status).toBe(200);
     expect(linkProfileToAuthUserMock).not.toHaveBeenCalled();
   });
+
+  it("returns a 500 error response when linkProfileToAuthUser throws", async () => {
+    verifyWebhookMock.mockResolvedValue({
+      type: "user.created",
+      data: { id: "user_clerk123", public_metadata: { pendingProfileId: "profile-1" } },
+    });
+    linkProfileToAuthUserMock.mockRejectedValue(new Error("Profile profile-1 not found"));
+    const response = await POST(req());
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ error: "Internal server error" });
+  });
 });

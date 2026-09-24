@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 import { linkProfileToAuthUser } from "@/lib/domain/profiles";
+import { toErrorResponse } from "@/lib/api/error-response";
 
 export async function POST(request: Request) {
   let event;
@@ -17,7 +18,11 @@ export async function POST(request: Request) {
   if (event.type === "user.created") {
     const pendingProfileId = event.data.public_metadata?.pendingProfileId;
     if (typeof pendingProfileId === "string") {
-      await linkProfileToAuthUser(pendingProfileId, event.data.id);
+      try {
+        await linkProfileToAuthUser(pendingProfileId, event.data.id);
+      } catch (error) {
+        return toErrorResponse(error);
+      }
     }
   }
 
