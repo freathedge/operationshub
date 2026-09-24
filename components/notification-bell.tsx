@@ -75,7 +75,7 @@ export function NotificationBell({ profileId }: { profileId: string }) {
           <Button
             variant="ghost"
             size="icon"
-            className="relative"
+            className="relative cursor-pointer"
             aria-label="Notifications"
           />
         }
