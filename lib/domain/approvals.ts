@@ -3,7 +3,11 @@ import { getProfileById, type Profile } from "@/lib/domain/profiles";
 import { logActivity } from "@/lib/domain/activity";
 import { broadcastChange } from "@/lib/realtime/broadcast";
 import { createNotification } from "@/lib/domain/notifications";
-import { canDecideApproval, canReassignApproval } from "@/lib/domain/permissions";
+import {
+  canDecideApproval,
+  canReassignApproval,
+  canViewCompanyOverview,
+} from "@/lib/domain/permissions";
 import { loadRequestOrThrow } from "@/lib/domain/requests";
 import {
   ForbiddenError,
@@ -64,6 +68,57 @@ export async function getApprovalForRequest(requestId: string): Promise<Approval
   if (error) throw error;
   if (!data) return null;
   return toApproval(data);
+}
+
+export interface ApprovalListItem extends Approval {
+  requestTitle: string;
+}
+
+export interface ApprovalFilters {
+  scope?: "mine" | "all";
+  status?: Approval["status"];
+}
+
+export async function listApprovals(
+  profile: Profile,
+  filters: ApprovalFilters
+): Promise<ApprovalListItem[]> {
+  const scope = filters.scope ?? "mine";
+  if (scope === "all" && !canViewCompanyOverview(profile)) {
+    throw new ForbiddenError("You cannot view all approvals");
+  }
+
+  const supabase = createSupabaseAdminClient();
+  let query = supabase.from("approvals").select(APPROVAL_COLUMNS);
+  if (scope === "mine") query = query.eq("approver_id", profile.id);
+  if (filters.status) query = query.eq("status", filters.status);
+
+  const { data, error } = await query.order("created_at", { ascending: false });
+  if (error) throw error;
+  const approvals = (data ?? []).map(toApproval);
+  if (approvals.length === 0) return [];
+
+  // approvals has no company_id column; scope to profile.companyId by checking which
+  // referenced requests actually belong to it (same pattern as dashboard's
+  // filterActivityByCompany), which also naturally excludes cross-company rows for
+  // "all" scope.
+  const requestIds = Array.from(new Set(approvals.map((approval) => approval.requestId)));
+  const { data: requestRows, error: requestsError } = await supabase
+    .from("requests")
+    .select("id, title")
+    .eq("company_id", profile.companyId)
+    .in("id", requestIds);
+  if (requestsError) throw requestsError;
+  const titleByRequestId = new Map(
+    (requestRows ?? []).map((row) => [row.id, row.title as string])
+  );
+
+  return approvals
+    .filter((approval) => titleByRequestId.has(approval.requestId))
+    .map((approval) => ({
+      ...approval,
+      requestTitle: titleByRequestId.get(approval.requestId)!,
+    }));
 }
 
 export async function decideApproval(

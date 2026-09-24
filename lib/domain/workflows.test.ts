@@ -10,6 +10,7 @@ import {
   findWorkflowTemplateByTriggerCategory,
   getWorkflowInstanceForRequest,
   getWorkflowProgress,
+  listWorkflowInstances,
   listWorkflowTemplates,
   startWorkflow,
 } from "@/lib/domain/workflows";
@@ -304,6 +305,77 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("workflow engine", () =>
       if (error) throw error;
       expect(instanceRow.related_employee_id).toBe(employee.id);
       expect(instanceRow.related_request_id).toBeNull();
+    });
+  });
+
+  describe("listWorkflowInstances", () => {
+    it("defaults to scope=mine, returning only instances tied to the caller as related employee", async () => {
+      const request = await createRequest(employee, { title: "Mine test", category: "general" });
+      const instance = await startWorkflow(employee, "task-only-test", { requestId: request.id });
+
+      const mine = await listWorkflowInstances(employee, {});
+      expect(mine.some((i) => i.id === instance.id && i.templateName === "Task Only Test")).toBe(
+        true
+      );
+
+      const itMine = await listWorkflowInstances(itProfile, {});
+      expect(itMine.some((i) => i.id === instance.id)).toBe(false);
+    });
+
+    it("surfaces scope=mine instances linked to a request the caller approves, even when they are not the related employee", async () => {
+      const request = await createRequest(employee, {
+        title: "Approver signal test",
+        category: "general",
+      });
+      const { error: approvalInsertError } = await supabase
+        .from("approvals")
+        .insert({ request_id: request.id, approver_id: itProfile.id });
+      if (approvalInsertError) throw approvalInsertError;
+
+      const instance = await startWorkflow(employee, "task-only-test", {
+        employeeId: employee.id,
+        requestId: request.id,
+      });
+
+      const itMine = await listWorkflowInstances(itProfile, {});
+      expect(itMine.some((i) => i.id === instance.id)).toBe(true);
+    });
+
+    it("denies scope=all for a role outside the company-wide-view set", async () => {
+      await expect(listWorkflowInstances(employee, { scope: "all" })).rejects.toBeInstanceOf(
+        ForbiddenError
+      );
+    });
+
+    it("allows scope=all for a company-wide-view role and supports the status filter", async () => {
+      const instance = await startWorkflow(employee, "task-only-test", {});
+
+      const all = await listWorkflowInstances(itProfile, { scope: "all" });
+      expect(all.some((i) => i.id === instance.id)).toBe(true);
+
+      const inProgress = await listWorkflowInstances(itProfile, {
+        scope: "all",
+        status: "in_progress",
+      });
+      expect(inProgress.some((i) => i.id === instance.id)).toBe(true);
+
+      const { error: completeError } = await supabase
+        .from("workflow_instances")
+        .update({ status: "completed" })
+        .eq("id", instance.id);
+      if (completeError) throw completeError;
+
+      const stillInProgress = await listWorkflowInstances(itProfile, {
+        scope: "all",
+        status: "in_progress",
+      });
+      expect(stillInProgress.some((i) => i.id === instance.id)).toBe(false);
+
+      const completed = await listWorkflowInstances(itProfile, {
+        scope: "all",
+        status: "completed",
+      });
+      expect(completed.some((i) => i.id === instance.id)).toBe(true);
     });
   });
 

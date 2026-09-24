@@ -19,6 +19,7 @@ import {
   canTransitionRequestStatus,
   canUpdateEmployee,
   canUploadRequestAttachment,
+  canViewAllWorkflowInstances,
   canViewAsset,
   canViewCompanyOverview,
   canViewEmployeeProfile,
@@ -385,6 +386,17 @@ describe("canViewWorkflowInstance", () => {
         null
       )
     ).toBe(true);
+  });
+});
+
+describe("canViewAllWorkflowInstances", () => {
+  it("allows the company-wide-view roles, denies everyone else", () => {
+    expect(canViewAllWorkflowInstances(makeProfile({ role: "operations_manager" }))).toBe(true);
+    expect(canViewAllWorkflowInstances(makeProfile({ role: "it" }))).toBe(true);
+    expect(canViewAllWorkflowInstances(makeProfile({ role: "hr" }))).toBe(true);
+    expect(canViewAllWorkflowInstances(makeProfile({ role: "admin" }))).toBe(true);
+    expect(canViewAllWorkflowInstances(makeProfile({ role: "employee" }))).toBe(false);
+    expect(canViewAllWorkflowInstances(makeProfile({ role: "manager" }))).toBe(false);
   });
 });
 

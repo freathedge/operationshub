@@ -3,7 +3,12 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createProfile } from "@/lib/domain/profiles";
 import type { Profile } from "@/lib/domain/profiles";
 import { createRequest, submitRequest } from "@/lib/domain/requests";
-import { decideApproval, getApprovalForRequest, reassignApproval } from "@/lib/domain/approvals";
+import {
+  decideApproval,
+  getApprovalForRequest,
+  listApprovals,
+  reassignApproval,
+} from "@/lib/domain/approvals";
 import { listNotifications } from "@/lib/domain/notifications";
 import {
   ForbiddenError,
@@ -465,6 +470,58 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       await expect(
         reassignApproval(opsManager, approval!.id, opsManager.id)
       ).rejects.toBeInstanceOf(UnprocessableRequestError);
+    });
+
+    describe("listApprovals", () => {
+      it("defaults to scope=mine, returning only approvals assigned to the caller", async () => {
+        const draft = await createRequest(requester, {
+          title: "List me (mine)",
+          category: "general",
+        });
+        const submitted = await submitRequest(requester, draft.id);
+
+        const mine = await listApprovals(opsManager, {});
+        expect(
+          mine.some((a) => a.requestId === submitted.id && a.requestTitle === submitted.title)
+        ).toBe(true);
+        expect(mine.every((a) => a.approverId === opsManager.id)).toBe(true);
+
+        const peerMine = await listApprovals(opsManagerPeer, {});
+        expect(peerMine.some((a) => a.requestId === submitted.id)).toBe(false);
+      });
+
+      it("allows an elevated role to list scope=all across approvers", async () => {
+        const draft = await createRequest(requester, {
+          title: "List me (all)",
+          category: "general",
+        });
+        const submitted = await submitRequest(requester, draft.id);
+
+        const all = await listApprovals(opsManagerPeer, { scope: "all" });
+        expect(all.some((a) => a.requestId === submitted.id)).toBe(true);
+      });
+
+      it("denies scope=all for a non-elevated role", async () => {
+        await expect(listApprovals(manager, { scope: "all" })).rejects.toBeInstanceOf(
+          ForbiddenError
+        );
+      });
+
+      it("filters by status", async () => {
+        const draft = await createRequest(requester, {
+          title: "List me (status filter)",
+          category: "general",
+        });
+        const submitted = await submitRequest(requester, draft.id);
+        const approval = await getApprovalForRequest(submitted.id);
+        await decideApproval(opsManager, approval!.id, "approved");
+
+        const pending = await listApprovals(opsManager, { scope: "all", status: "pending" });
+        expect(pending.some((a) => a.requestId === submitted.id)).toBe(false);
+
+        const approved = await listApprovals(opsManager, { scope: "all", status: "approved" });
+        expect(approved.some((a) => a.requestId === submitted.id)).toBe(true);
+      });
     });
   }
 );

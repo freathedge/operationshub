@@ -43,3 +43,9 @@ export const reassignApprovalSchema = z.object({
   comment: z.string().max(5000).optional(),
 });
 export type ReassignApprovalInput = z.infer<typeof reassignApprovalSchema>;
+
+export const approvalFiltersSchema = z.object({
+  status: z.enum(["pending", "approved", "rejected"]).optional(),
+  scope: z.enum(["mine", "all"]).optional(),
+});
+export type ApprovalFiltersInput = z.infer<typeof approvalFiltersSchema>;

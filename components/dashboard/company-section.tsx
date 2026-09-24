@@ -40,10 +40,13 @@ export function CompanySection({ overview }: { overview: CompanyOverview }) {
                 {overview.attention.criticalTasks} critical tasks
               </Link>
             </li>
-            {/* Pending approvals and overdue requests have no matching list view yet
-                (no /approvals page, and requests have no "overdue" filter) — see
-                docs/STATUS.md backlog. Left as plain text until those exist. */}
-            <li>{overview.attention.pendingApprovals} pending approvals</li>
+            <li>
+              <Link href="/approvals?scope=all&status=pending" className="hover:underline">
+                {overview.attention.pendingApprovals} pending approvals
+              </Link>
+            </li>
+            {/* Overdue requests has no matching list view yet (requests have no "overdue"
+                filter) — see docs/STATUS.md backlog. Left as plain text until it exists. */}
             <li>{overview.attention.overdueRequests} overdue requests</li>
           </ul>
         </div>
