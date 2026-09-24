@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-24 (`/approvals` and `/workflows` list pages moved to Review)
+Last updated: 2026-09-24 (Clerk auth migration spec + plan written, moved to In Progress)
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -13,11 +13,10 @@ Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline
 Standalone follow-up work (not a numbered phase):
 
 - **UI sweep — all screens on shadcn/ui**: the existing screens from Phases 2–6 still use raw `<select>` elements and hand-rolled layouts, and only six shadcn primitives are installed (badge, button, card, input, label, table). Pull in the missing primitives and rebuild those screens from shadcn blocks/primitives, per `CLAUDE.md` §UI. Gets its own spec, plan and branch. Now partially overlapping with the sidebar shell below (Review) — check what that branch already brought in before starting this.
-- **Auth via Clerk (idea only, not decided)**: replace Supabase Auth with Clerk as the identity provider, keeping Supabase Postgres. Rationale, affected files and open questions: `docs/architecture.md` §5.
 
 ## In Progress
 
-_(nothing right now)_
+- **Auth via Clerk**: replace Supabase Auth with Clerk as the identity provider (minimal identity swap — companies/departments/`profiles`/roles/`permissions.ts` stay on Supabase; pre-production clean cutover, no user migration; Clerk's built-in invitations for employee invites). Spec: `docs/superpowers/specs/2026-09-24-clerk-auth-migration-design.md`. Plan: `docs/superpowers/plans/2026-09-24-clerk-auth-migration.md`. Not yet on its own branch/worktree — execution method still being chosen.
 
 ## Review
 
