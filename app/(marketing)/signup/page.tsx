@@ -1,5 +1,5 @@
+import { SignUp } from "@clerk/nextjs";
 import { BackLink } from "@/components/back-link";
-import { SignupForm } from "@/components/auth/signup-form";
 
 export default function SignupPage() {
   return (
@@ -8,7 +8,7 @@ export default function SignupPage() {
         <BackLink href="/" />
       </div>
       <h1 className="text-2xl font-semibold">Create your account</h1>
-      <SignupForm />
+      <SignUp fallbackRedirectUrl="/signup/complete" />
     </main>
   );
 }
