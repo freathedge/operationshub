@@ -5,6 +5,7 @@ import { canLinkEntityToOperation } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
 import { EmployeeOperationControl } from "@/components/employees/employee-operation-control";
+import { EmployeeRealtimeRefresh } from "@/components/employees/employee-realtime-refresh";
 
 export default async function EmployeeDetailPage({
   params,
@@ -32,6 +33,7 @@ export default async function EmployeeDetailPage({
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
+      <EmployeeRealtimeRefresh companyId={profile.companyId} />
       <BackLink href="/employees" />
 
       <div>
