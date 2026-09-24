@@ -341,6 +341,31 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("workflow engine", () =>
       expect(itMine.some((i) => i.id === instance.id)).toBe(true);
     });
 
+    it("surfaces scope=mine instances via a task assigned to the caller inside a workflow step", async () => {
+      // No request/employee context: relatedEmployeeId stays null, so the only way this
+      // instance can appear in anyone's "mine" list is the task-assignee signal.
+      const instance = await startWorkflow(employee, "task-only-test", {});
+      const { data: stepRow, error: stepError } = await supabase
+        .from("workflow_instance_steps")
+        .select("generated_task_id")
+        .eq("instance_id", instance.id)
+        .eq("step_order", 1)
+        .single();
+      if (stepError) throw stepError;
+
+      const { error: assignError } = await supabase
+        .from("tasks")
+        .update({ assignee_id: itProfile.id })
+        .eq("id", stepRow.generated_task_id!);
+      if (assignError) throw assignError;
+
+      const itMine = await listWorkflowInstances(itProfile, {});
+      expect(itMine.some((i) => i.id === instance.id)).toBe(true);
+
+      const employeeMine = await listWorkflowInstances(employee, {});
+      expect(employeeMine.some((i) => i.id === instance.id)).toBe(false);
+    });
+
     it("denies scope=all for a role outside the company-wide-view set", async () => {
       await expect(listWorkflowInstances(employee, { scope: "all" })).rejects.toBeInstanceOf(
         ForbiddenError

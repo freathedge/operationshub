@@ -89,7 +89,13 @@ export async function listApprovals(
   }
 
   const supabase = createSupabaseAdminClient();
-  let query = supabase.from("approvals").select(APPROVAL_COLUMNS);
+  // approvals has no company_id column, so the join below is required (not just the
+  // post-filter further down) to scope scope="all" to the caller's company instead of
+  // scanning every tenant's approvals.
+  let query = supabase
+    .from("approvals")
+    .select(`${APPROVAL_COLUMNS}, requests!inner(company_id)`)
+    .eq("requests.company_id", profile.companyId);
   if (scope === "mine") query = query.eq("approver_id", profile.id);
   if (filters.status) query = query.eq("status", filters.status);
 

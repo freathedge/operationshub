@@ -32,11 +32,17 @@ function formatOptionLabel(value: string): string {
     .join(" ");
 }
 
-export function WorkflowInstanceListView({ companyId }: { companyId: string }) {
+export function WorkflowInstanceListView({
+  companyId,
+  canViewAll,
+}: {
+  companyId: string;
+  canViewAll: boolean;
+}) {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState(searchParams.get("status") ?? "");
   const [scope, setScope] = useState<"mine" | "all">(
-    searchParams.get("scope") === "all" ? "all" : "mine"
+    canViewAll && searchParams.get("scope") === "all" ? "all" : "mine"
   );
   const queryClient = useQueryClient();
 
@@ -67,12 +73,14 @@ export function WorkflowInstanceListView({ companyId }: { companyId: string }) {
           >
             Mine
           </Button>
-          <Button
-            variant={scope === "all" ? "default" : "outline"}
-            onClick={() => setScope("all")}
-          >
-            All
-          </Button>
+          {canViewAll && (
+            <Button
+              variant={scope === "all" ? "default" : "outline"}
+              onClick={() => setScope("all")}
+            >
+              All
+            </Button>
+          )}
         </div>
         <select
           value={status}

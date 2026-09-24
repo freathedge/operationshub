@@ -27,11 +27,17 @@ interface ApprovalListItem {
 
 const STATUS_OPTIONS = ["pending", "approved", "rejected"];
 
-export function ApprovalListView({ companyId }: { companyId: string }) {
+export function ApprovalListView({
+  companyId,
+  canViewAll,
+}: {
+  companyId: string;
+  canViewAll: boolean;
+}) {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState(searchParams.get("status") ?? "");
   const [scope, setScope] = useState<"mine" | "all">(
-    searchParams.get("scope") === "all" ? "all" : "mine"
+    canViewAll && searchParams.get("scope") === "all" ? "all" : "mine"
   );
   const queryClient = useQueryClient();
 
@@ -48,9 +54,14 @@ export function ApprovalListView({ companyId }: { companyId: string }) {
     },
   });
 
-  // Approvals piggyback on the request broadcast channel: decideApproval/reassignApproval
-  // both call broadcastChange(companyId, "requests", ...), there is no separate approvals channel.
+  // Approvals piggyback on the request and workflow broadcast channels: decideApproval/
+  // reassignApproval call broadcastChange(companyId, "requests", ...), and a workflow step
+  // advancing to its next approval calls broadcastChange(companyId, "workflows", ...) —
+  // there is no separate approvals channel.
   useBroadcastListener(`company:${companyId}:requests`, () => {
+    queryClient.invalidateQueries({ queryKey: ["approvals"] });
+  });
+  useBroadcastListener(`company:${companyId}:workflows`, () => {
     queryClient.invalidateQueries({ queryKey: ["approvals"] });
   });
 
@@ -64,12 +75,14 @@ export function ApprovalListView({ companyId }: { companyId: string }) {
           >
             Mine
           </Button>
-          <Button
-            variant={scope === "all" ? "default" : "outline"}
-            onClick={() => setScope("all")}
-          >
-            All
-          </Button>
+          {canViewAll && (
+            <Button
+              variant={scope === "all" ? "default" : "outline"}
+              onClick={() => setScope("all")}
+            >
+              All
+            </Button>
+          )}
         </div>
         <select
           value={status}

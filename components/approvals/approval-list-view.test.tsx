@@ -47,7 +47,7 @@ beforeEach(() => {
 
 describe("ApprovalListView", () => {
   it("renders approvals returned from the API", async () => {
-    renderWithClient(<ApprovalListView companyId="company-1" />);
+    renderWithClient(<ApprovalListView companyId="company-1" canViewAll={true} />);
 
     expect(await screen.findByText("New laptop")).toBeInTheDocument();
     expect(screen.getByText("pending")).toBeInTheDocument();
@@ -58,7 +58,7 @@ describe("ApprovalListView", () => {
       "fetch",
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ approvals: [] }) })
     );
-    renderWithClient(<ApprovalListView companyId="company-1" />);
+    renderWithClient(<ApprovalListView companyId="company-1" canViewAll={true} />);
 
     expect(await screen.findByText("No approvals found.")).toBeInTheDocument();
   });
@@ -71,10 +71,26 @@ describe("ApprovalListView", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    renderWithClient(<ApprovalListView companyId="company-1" />);
+    renderWithClient(<ApprovalListView companyId="company-1" canViewAll={true} />);
 
     await screen.findByText("No approvals found.");
     const calledUrl = fetchMock.mock.calls[0][0] as string;
     expect(calledUrl).toContain("scope=all");
+  });
+
+  it("hides the All toggle and ignores scope=all in the URL when the caller cannot view all approvals", async () => {
+    mockSearchParams = new URLSearchParams("scope=all");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ approvals: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithClient(<ApprovalListView companyId="company-1" canViewAll={false} />);
+
+    await screen.findByText("No approvals found.");
+    expect(screen.queryByRole("button", { name: "All" })).not.toBeInTheDocument();
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toContain("scope=mine");
   });
 });

@@ -45,7 +45,7 @@ beforeEach(() => {
 
 describe("WorkflowInstanceListView", () => {
   it("renders instances returned from the API", async () => {
-    renderWithClient(<WorkflowInstanceListView companyId="company-1" />);
+    renderWithClient(<WorkflowInstanceListView companyId="company-1" canViewAll={true} />);
 
     expect(await screen.findByText("Employee Onboarding")).toBeInTheDocument();
     expect(screen.getByText("in_progress")).toBeInTheDocument();
@@ -56,7 +56,7 @@ describe("WorkflowInstanceListView", () => {
       "fetch",
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ instances: [] }) })
     );
-    renderWithClient(<WorkflowInstanceListView companyId="company-1" />);
+    renderWithClient(<WorkflowInstanceListView companyId="company-1" canViewAll={true} />);
 
     expect(await screen.findByText("No workflows found.")).toBeInTheDocument();
   });
@@ -69,10 +69,26 @@ describe("WorkflowInstanceListView", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    renderWithClient(<WorkflowInstanceListView companyId="company-1" />);
+    renderWithClient(<WorkflowInstanceListView companyId="company-1" canViewAll={true} />);
 
     await screen.findByText("No workflows found.");
     const calledUrl = fetchMock.mock.calls[0][0] as string;
     expect(calledUrl).toContain("scope=all");
+  });
+
+  it("hides the All toggle and ignores scope=all in the URL when the caller cannot view all workflows", async () => {
+    mockSearchParams = new URLSearchParams("scope=all");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ instances: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithClient(<WorkflowInstanceListView companyId="company-1" canViewAll={false} />);
+
+    await screen.findByText("No workflows found.");
+    expect(screen.queryByRole("button", { name: "All" })).not.toBeInTheDocument();
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toContain("scope=mine");
   });
 });
