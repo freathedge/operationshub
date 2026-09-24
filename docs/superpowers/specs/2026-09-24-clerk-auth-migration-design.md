@@ -39,7 +39,7 @@ Supabase Auth is the current, shipped identity provider (Foundation phase): emai
 ### 3. Employee invites (Phase 5 flow)
 
 - `lib/domain/employees.ts`'s call to `supabase.auth.admin.inviteUserByEmail(...)` is replaced with Clerk's `clerkClient.invitations.createInvitation({ emailAddress, ... })`, using Clerk's own invitation email (not Resend — confirmed explicitly during design).
-- **Open item for the implementation plan**: today's Supabase flow gets the new `auth_user_id` back *synchronously* in the `inviteUserByEmail` response, so `createEmployee` can immediately write a `profiles` row pointing at the right Supabase auth user. Clerk's invitation flow is asynchronous — the invited person clicks the email later, at which point Clerk creates their user. The plan needs to work out how the pre-created employee record gets linked to the Clerk user id once that signup actually completes (e.g. matching by email at profile-creation time, or a Clerk webhook on `user.created`/invitation acceptance). This needs investigation against current Clerk docs before the plan locks in an approach.
+- **Resolved during planning**: today's Supabase flow gets the new `auth_user_id` back *synchronously* in the `inviteUserByEmail` response; Clerk's invitation flow is asynchronous (the invited person clicks the email later). Resolution: `createEmployee` still creates the `profiles` row immediately (role/department/manager are already known from the admin's input), with `auth_user_id = null`. `createInvitation` is called with `publicMetadata: { pendingProfileId: <that profile's id> }` — Clerk copies `publicMetadata` onto the invited user once they sign up (confirmed in Clerk's docs). A new webhook route (`app/api/webhooks/clerk/route.ts`, verified via `verifyWebhook()` from `@clerk/nextjs/webhooks`) listens for `user.created`, reads `public_metadata.pendingProfileId`, and links the two records. Self-signup is unaffected — its profile is created synchronously, after the Clerk user already exists, so no linkage step is needed there.
 
 ### 4. UI components & theming
 
@@ -48,7 +48,7 @@ Supabase Auth is the current, shipped identity provider (Foundation phase): emai
 
 ### 5. Data model
 
-- `profiles.auth_user_id` (currently a Supabase `auth.users` id) becomes a Clerk user id. No schema migration: same column, same type (both are opaque string ids).
+- `profiles.auth_user_id` (currently a Supabase `auth.users` id) becomes a Clerk user id. **Correction from the initial design**: the column is actually `uuid not null unique references auth.users(id) on delete cascade` (`supabase/migrations/20260826221742_create_profiles.sql`), not a generic string column — a schema migration is required after all. It becomes `text`, drops the `auth.users` foreign key (Clerk ids aren't Supabase UUIDs), and drops `not null` (needed for §3's invite flow below — a pre-created employee profile has no Clerk user yet until their invite is accepted). The `unique` constraint stays (Postgres allows multiple `NULL`s under a unique constraint, which is exactly what multiple pending invites need).
 
 ### 6. Environment & config
 
