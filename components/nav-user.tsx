@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
+import { useClerk } from "@clerk/nextjs"
 import {
   Avatar,
   AvatarFallback,
@@ -40,10 +40,10 @@ function initials(name: string): string {
 export function NavUser({ user }: { user: CurrentUserSummary }) {
   const { isMobile } = useSidebar()
   const router = useRouter()
+  const { signOut } = useClerk()
 
   async function handleLogout() {
-    const supabase = createSupabaseBrowserClient()
-    await supabase.auth.signOut()
+    await signOut()
     router.push("/login")
     router.refresh()
   }

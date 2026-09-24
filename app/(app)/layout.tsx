@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { getProfileByAuthUserId } from "@/lib/domain/profiles";
 import { canViewCompanyOverview } from "@/lib/domain/permissions";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -13,20 +13,18 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { userId } = await auth();
 
-  if (!user) {
+  if (!userId) {
     redirect("/login");
   }
 
-  const profile = await getProfileByAuthUserId(user.id);
+  const profile = await getProfileByAuthUserId(userId);
   if (!profile) {
     redirect("/signup");
   }
 
+  const user = await currentUser();
   const cookieStore = await cookies();
   const sidebarDefaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
@@ -42,7 +40,11 @@ export default async function AppLayout({
     >
       <AppSidebar
         variant="inset"
-        user={{ name: profile.fullName, email: user.email ?? "", role: profile.role }}
+        user={{
+          name: profile.fullName,
+          email: user?.primaryEmailAddress?.emailAddress ?? "",
+          role: profile.role,
+        }}
         canViewReports={canViewCompanyOverview(profile)}
       />
       <SidebarInset>

@@ -12,10 +12,8 @@ vi.mock("next/navigation", () => ({
 }));
 
 const signOutMock = vi.fn().mockResolvedValue(undefined);
-vi.mock("@/lib/supabase/browser", () => ({
-  createSupabaseBrowserClient: () => ({
-    auth: { signOut: signOutMock },
-  }),
+vi.mock("@clerk/nextjs", () => ({
+  useClerk: () => ({ signOut: signOutMock }),
 }));
 
 const user = { name: "Max Mustermann", email: "max@alpentech.example", role: "it" };

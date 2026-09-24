@@ -7,11 +7,11 @@ vi.mock("next/navigation", () => ({
   redirect: (path: string) => redirectMock(path),
 }));
 
-const getUserMock = vi.fn();
-vi.mock("@/lib/supabase/server", () => ({
-  createSupabaseServerClient: async () => ({
-    auth: { getUser: getUserMock },
-  }),
+const authMock = vi.fn();
+const currentUserMock = vi.fn();
+vi.mock("@clerk/nextjs/server", () => ({
+  auth: () => authMock(),
+  currentUser: () => currentUserMock(),
 }));
 
 const getProfileByAuthUserIdMock = vi.fn();
@@ -23,27 +23,29 @@ import SettingsPage from "@/app/(app)/settings/page";
 
 beforeEach(() => {
   redirectMock.mockClear();
-  getUserMock.mockReset();
+  authMock.mockReset();
+  currentUserMock.mockReset();
   getProfileByAuthUserIdMock.mockReset();
 });
 
 describe("SettingsPage", () => {
   it("redirects to /login when there is no authenticated user", async () => {
-    getUserMock.mockResolvedValue({ data: { user: null } });
+    authMock.mockResolvedValue({ userId: null });
 
     await expect(SettingsPage()).rejects.toThrow("REDIRECT:/login");
   });
 
   it("redirects to /signup when the user has no profile yet", async () => {
-    getUserMock.mockResolvedValue({ data: { user: { id: "auth-1" } } });
+    authMock.mockResolvedValue({ userId: "auth-1" });
     getProfileByAuthUserIdMock.mockResolvedValue(null);
 
     await expect(SettingsPage()).rejects.toThrow("REDIRECT:/signup");
   });
 
   it("renders the profile's name, role, and email", async () => {
-    getUserMock.mockResolvedValue({
-      data: { user: { id: "auth-1", email: "max@alpentech.example" } },
+    authMock.mockResolvedValue({ userId: "auth-1" });
+    currentUserMock.mockResolvedValue({
+      primaryEmailAddress: { emailAddress: "max@alpentech.example" },
     });
     getProfileByAuthUserIdMock.mockResolvedValue({
       id: "profile-1",
