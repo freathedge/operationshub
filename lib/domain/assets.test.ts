@@ -14,6 +14,7 @@ import {
   setAssetOperation,
 } from "@/lib/domain/assets";
 import { ForbiddenError, NotFoundError, UnprocessableRequestError } from "@/lib/domain/errors";
+import { listNotifications } from "@/lib/domain/notifications";
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("assets", () => {
   const supabase = createSupabaseAdminClient();
@@ -126,6 +127,26 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("assets", () => {
 
     const unlinked = await setAssetOperation(asset.id, null);
     expect(unlinked.relatedOperationId).toBeNull();
+  });
+
+  it("notifies the employee when an asset is assigned to them", async () => {
+    const asset = await createAsset(itProfile, { name: "Notify Laptop", category: "laptop" });
+    await assignAsset(itProfile, asset.id, employeeProfile.id);
+
+    const notifications = await listNotifications(employeeProfile.id);
+    expect(
+      notifications.some((n) => n.entityId === asset.id && n.type === "asset_assigned")
+    ).toBe(true);
+  });
+
+  it("does not notify when an IT staffer assigns an asset to themselves", async () => {
+    const asset = await createAsset(itProfile, { name: "Self-claim Laptop", category: "laptop" });
+    await assignAsset(itProfile, asset.id, itProfile.id);
+
+    const notifications = await listNotifications(itProfile.id);
+    expect(
+      notifications.filter((n) => n.entityId === asset.id && n.type === "asset_assigned")
+    ).toHaveLength(0);
   });
 });
 
