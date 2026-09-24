@@ -65,7 +65,7 @@ export async function POST(
       profile.id,
       `${profile.fullName} commented on this operation`
     );
-    if (operation.ownerId !== profile.id) {
+    if (operation.ownerId && operation.ownerId !== profile.id) {
       await createNotification(
         operation.ownerId,
         "operation",

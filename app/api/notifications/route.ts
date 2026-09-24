@@ -12,7 +12,7 @@ export async function GET() {
   try {
     const notifications = await listNotifications(profile.id);
     const unreadCount = notifications.filter((n) => n.readAt === null).length;
-    return NextResponse.json({ notifications, unreadCount });
+    return NextResponse.json({ notifications: notifications.slice(0, 20), unreadCount });
   } catch (error) {
     return toErrorResponse(error);
   }

@@ -510,6 +510,9 @@ export async function advanceWorkflow(profile: Profile, instanceId: string): Pro
     `Step "${completedStepTitle}" completed`
   );
 
+  // No self-notification skip here (unlike the other createNotification sites in this
+  // codebase): step completion is a system event, not an actor-attributed action, so the
+  // instance's own related employee advancing their own step still gets notified.
   if (instance.relatedEmployeeId) {
     await createNotification(
       instance.relatedEmployeeId,

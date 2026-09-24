@@ -52,4 +52,24 @@ describe("GET /api/notifications", () => {
     expect(body.unreadCount).toBe(1);
     expect(listNotifications).toHaveBeenCalledWith("profile-1");
   });
+
+  it("caps the returned notifications at 20 but counts unread across the full list", async () => {
+    vi.mocked(getCurrentProfile).mockResolvedValue(PROFILE);
+    const manyNotifications = Array.from({ length: 25 }, (_, i) => ({
+      id: `n${i}`,
+      profileId: "profile-1",
+      entityType: "task",
+      entityId: `t${i}`,
+      type: "task_assigned",
+      message: `msg ${i}`,
+      readAt: i < 22 ? "2026-09-24T00:00:00.000Z" : null,
+      createdAt: "2026-09-24T00:00:00.000Z",
+    }));
+    vi.mocked(listNotifications).mockResolvedValue(manyNotifications as never);
+
+    const response = await GET();
+    const body = await response.json();
+    expect(body.notifications).toHaveLength(20);
+    expect(body.unreadCount).toBe(3);
+  });
 });

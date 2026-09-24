@@ -510,6 +510,14 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("workflow engine", () =>
         )
       ).toHaveLength(0);
     });
+
+    it("lets the instance's related employee view progress even without a company-wide role, when there is no linked request", async () => {
+      const instance = await startWorkflow(employee, "task-only-test", {
+        employeeId: employee.id,
+      });
+      const progress = await getWorkflowProgress(employee, instance.id);
+      expect(progress.instance.id).toBe(instance.id);
+    });
   });
 });
 

@@ -374,6 +374,18 @@ describe("canViewWorkflowInstance", () => {
       false
     );
   });
+
+  it("admits the instance's related employee even without a company-wide view role", () => {
+    const relatedEmployee = makeProfile({ id: "related-employee" });
+    expect(
+      canViewWorkflowInstance(
+        relatedEmployee,
+        { companyId: "company-1", relatedEmployeeId: "related-employee" },
+        null,
+        null
+      )
+    ).toBe(true);
+  });
 });
 
 describe("canCreateEmployee / canUpdateEmployee", () => {

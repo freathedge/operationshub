@@ -87,7 +87,7 @@ export function NotificationBell({ profileId }: { profileId: string }) {
           </Badge>
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="min-w-80" align="end" sideOffset={4}>
+      <DropdownMenuContent className="min-w-80 max-h-96 overflow-y-auto" align="end" sideOffset={4}>
         <DropdownMenuGroup>
           <DropdownMenuLabel className="flex items-center justify-between">
             Notifications
