@@ -6,7 +6,7 @@ export { PROFILE_STATUSES, type ProfileStatus };
 
 export interface Profile {
   id: string;
-  authUserId: string;
+  authUserId: string | null;
   companyId: string;
   fullName: string;
   role: Role;
@@ -21,7 +21,7 @@ export interface Profile {
 
 interface ProfileRow {
   id: string;
-  auth_user_id: string;
+  auth_user_id: string | null;
   company_id: string;
   full_name: string;
   role: Role;
@@ -118,7 +118,7 @@ export async function findEarliestProfileByRole(
 }
 
 export async function createProfile(input: {
-  authUserId: string;
+  authUserId?: string | null;
   companyId: string;
   fullName: string;
   role: Role;
@@ -132,7 +132,7 @@ export async function createProfile(input: {
   const { data, error } = await supabase
     .from("profiles")
     .insert({
-      auth_user_id: input.authUserId,
+      auth_user_id: input.authUserId ?? null,
       company_id: input.companyId,
       full_name: input.fullName,
       role: input.role,
@@ -146,6 +146,28 @@ export async function createProfile(input: {
     .single();
 
   if (error) throw error;
+  return toProfile(data);
+}
+
+export async function linkProfileToAuthUser(
+  profileId: string,
+  authUserId: string
+): Promise<Profile> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ auth_user_id: authUserId })
+    .eq("id", profileId)
+    .is("auth_user_id", null)
+    .select(PROFILE_COLUMNS)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) {
+    const existing = await getProfileById(profileId);
+    if (!existing) throw new Error(`Profile ${profileId} not found`);
+    return existing;
+  }
   return toProfile(data);
 }
 

@@ -5,6 +5,7 @@ import {
   findEarliestProfileByRole,
   getProfileByAuthUserId,
   getProfileById,
+  linkProfileToAuthUser,
   listProfilesByCompany,
   listProfilesByRole,
   updateProfile,
@@ -224,6 +225,26 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
 
       const none = await findEarliestProfileByRole(companyId, "hr");
       expect(none).toBeNull();
+    });
+
+    it("links a pending profile to a Clerk user id, and is a no-op if already linked", async () => {
+      const pending = await createProfile({
+        companyId,
+        fullName: "Pending Hire",
+        role: "employee",
+      });
+      expect(pending.authUserId).toBeNull();
+
+      try {
+        const linked = await linkProfileToAuthUser(pending.id, "user_clerk123");
+        expect(linked.authUserId).toBe("user_clerk123");
+
+        // Re-linking with a different id must not overwrite the first link.
+        const relinkAttempt = await linkProfileToAuthUser(pending.id, "user_clerk456");
+        expect(relinkAttempt.authUserId).toBe("user_clerk123");
+      } finally {
+        await supabase.from("profiles").delete().eq("id", pending.id);
+      }
     });
   }
 );
