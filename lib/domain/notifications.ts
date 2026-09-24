@@ -1,5 +1,7 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { broadcastToProfile } from "@/lib/realtime/broadcast";
+import type { Profile } from "@/lib/domain/profiles";
+import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 
 export interface Notification {
   id: string;
@@ -78,4 +80,42 @@ export async function listNotifications(profileId: string): Promise<Notification
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []).map(toNotification);
+}
+
+export async function markNotificationRead(
+  profile: Profile,
+  notificationId: string
+): Promise<Notification> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("notifications")
+    .select(NOTIFICATION_COLUMNS)
+    .eq("id", notificationId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new NotFoundError("Notification not found");
+
+  const notification = toNotification(data);
+  if (notification.profileId !== profile.id) {
+    throw new ForbiddenError("You cannot mark this notification as read");
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("id", notificationId)
+    .select(NOTIFICATION_COLUMNS)
+    .single();
+  if (updateError) throw updateError;
+  return toNotification(updated);
+}
+
+export async function markAllNotificationsRead(profile: Profile): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("profile_id", profile.id)
+    .is("read_at", null);
+  if (error) throw error;
 }
