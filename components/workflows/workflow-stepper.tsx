@@ -15,6 +15,14 @@ function stepBadgeVariant(status: "pending" | "in_progress" | "completed") {
   return "outline" as const;
 }
 
+const WORKFLOW_STEP_STALE_DAYS = 3;
+
+function isStepBlocked(step: { status: "pending" | "in_progress" | "completed"; createdAt: string }): boolean {
+  if (step.status !== "in_progress") return false;
+  const ageMs = Date.now() - new Date(step.createdAt).getTime();
+  return ageMs > WORKFLOW_STEP_STALE_DAYS * 24 * 60 * 60 * 1000;
+}
+
 export function WorkflowStepper({ progress }: { progress: WorkflowProgress }) {
   return (
     <div className="flex flex-col gap-3">
@@ -49,6 +57,7 @@ export function WorkflowStepper({ progress }: { progress: WorkflowProgress }) {
                 </Link>
               )}
               <Badge variant={stepBadgeVariant(step.status)}>{formatLabel(step.status)}</Badge>
+              {isStepBlocked(step) && <Badge variant="destructive">Blocked</Badge>}
             </div>
           </li>
         ))}

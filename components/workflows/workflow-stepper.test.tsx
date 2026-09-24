@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { WorkflowStepper } from "@/components/workflows/workflow-stepper";
 import type { WorkflowProgress } from "@/lib/domain/workflows";
@@ -69,5 +69,25 @@ describe("WorkflowStepper", () => {
     render(<WorkflowStepper progress={PROGRESS} />);
     expect(screen.getByText(/Procurement/)).toBeInTheDocument();
     expect(screen.getByText(/It/)).toBeInTheDocument();
+  });
+});
+
+describe("WorkflowStepper blocked indicator", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows a Blocked badge on an in-progress step older than 3 days", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-01T00:00:00.000Z"));
+    render(<WorkflowStepper progress={PROGRESS} />);
+    expect(screen.getByText("Blocked")).toBeInTheDocument();
+  });
+
+  it("does not show Blocked for a step created less than 3 days ago", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-28T12:00:00.000Z"));
+    render(<WorkflowStepper progress={PROGRESS} />);
+    expect(screen.queryByText("Blocked")).not.toBeInTheDocument();
   });
 });

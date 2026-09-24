@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBroadcastListener } from "@/lib/realtime/use-broadcast-listener";
+import { isTaskOverdue } from "@/components/tasks/is-task-overdue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -136,6 +137,11 @@ export function TaskListView({ companyId }: { companyId: string }) {
                 <TableCell>{task.priority}</TableCell>
                 <TableCell>
                   {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "—"}
+                  {isTaskOverdue(task) && (
+                    <Badge variant="destructive" className="ml-2">
+                      Overdue
+                    </Badge>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

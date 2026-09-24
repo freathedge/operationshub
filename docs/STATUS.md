@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-24 (Phase 8 — Reports & Search finished)
+Last updated: 2026-09-24 (Phase 9 — Realtime & Notifications Polish moved to review)
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -9,8 +9,6 @@ Last updated: 2026-09-24 (Phase 8 — Reports & Search finished)
 ## Backlog
 
 Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline.md` for the full breakdown of each.
-
-- **Phase 9 — Realtime & Notifications Polish**: notification bell UI, audit pass on Realtime/activity-log/notification coverage.
 
 Standalone follow-up work (not a numbered phase):
 
@@ -24,7 +22,10 @@ _(nothing right now)_
 
 ## Review
 
-_(nothing right now)_
+- **Phase 9 — Realtime & Notifications Polish**: notification bell UI (unread count, mark-as-read, mark-all-as-read), plus an audit pass closing 3 concrete gaps found by reading the code — 7 of idea.md §19's 9 notification events had no `createNotification` call site, Operations/Assets/Employees detail pages had no live-refresh, workflow instances had no activity-log timeline. Spec: `docs/superpowers/specs/2026-09-24-phase9-realtime-notifications-design.md`. Plan: `docs/superpowers/plans/2026-09-24-phase9-realtime-notifications.md`.
+  - Per-task review (10 tasks, subagent-driven) found no Critical/Important issues in any single task; several accepted Minors, including one deliberate deviation from the plan's own literal code — Task 10's `notification-bell.tsx` needed `DropdownMenuLabel` wrapped in a `DropdownMenuGroup` to avoid a real Base UI runtime crash, verified against the existing working pattern in `components/nav-user.tsx`.
+  - Whole-branch review found 2 Important cross-task gaps neither per-task review could see: `workflow_step_completed` notifications for onboarding-workflow recipients (no linked request) 404'd on click, because `canViewWorkflowInstance` didn't admit the instance's own related employee outside the company-wide-view roles — fixed by widening that permission check. And the notification list/dropdown were unbounded (no cap, no scroll container), risking a badge that under-reports once capped — fixed with a 20-item slice (unread count computed from the full list first) and a scrollable dropdown.
+  - `test:unit` (424 tests) and `test:integration` (156 tests) pass; `next build` succeeds cleanly. No manual browser click-through was possible (no browser-automation tool in this environment) — flagged for a human pass before merge, same as every prior phase in this project.
 
 ## Finished
 

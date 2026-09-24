@@ -127,11 +127,12 @@ export const canReassignApproval = canDecideApproval;
 
 export function canViewWorkflowInstance(
   profile: Profile,
-  instance: { companyId: string },
+  instance: { companyId: string; relatedEmployeeId?: string | null },
   request: RequestLike | null,
   approverId: string | null
 ): boolean {
   if (profile.companyId !== instance.companyId) return false;
+  if (profile.id === instance.relatedEmployeeId) return true;
   if (request) return canViewRequest(profile, request, approverId);
   return COMPANY_WIDE_VIEW_ROLES.has(profile.role);
 }

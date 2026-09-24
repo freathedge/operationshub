@@ -15,10 +15,12 @@ vi.mock("@/lib/domain/activity", () => ({
 vi.mock("@/lib/realtime/broadcast", () => ({
   broadcastChange: vi.fn(),
 }));
+vi.mock("@/lib/domain/notifications", () => ({ createNotification: vi.fn() }));
 
 import { getCurrentProfile } from "@/lib/auth/session";
 import { getRequest } from "@/lib/domain/requests";
 import { addComment } from "@/lib/domain/comments";
+import { createNotification } from "@/lib/domain/notifications";
 import { POST } from "@/app/api/requests/[id]/comments/route";
 import { ForbiddenError } from "@/lib/domain/errors";
 
@@ -53,6 +55,7 @@ beforeEach(() => {
   vi.mocked(getCurrentProfile).mockReset();
   vi.mocked(getRequest).mockReset();
   vi.mocked(addComment).mockReset();
+  vi.mocked(createNotification).mockReset();
 });
 
 describe("POST /api/requests/[id]/comments", () => {
@@ -78,5 +81,45 @@ describe("POST /api/requests/[id]/comments", () => {
 
     const response = await POST(jsonRequest({ body: "Looks good" }), params("request-1"));
     expect(response.status).toBe(403);
+  });
+
+  it("notifies the request's creator when someone else comments, but not their own comment", async () => {
+    vi.mocked(getCurrentProfile).mockResolvedValue(PROFILE);
+    vi.mocked(getRequest).mockResolvedValue({
+      id: "request-1",
+      companyId: "company-1",
+      title: "Broken monitor",
+      createdBy: "creator-1",
+    } as never);
+    vi.mocked(addComment).mockResolvedValue({ id: "comment-1" } as never);
+
+    await POST(jsonRequest({ body: "Update" }), params("request-1"));
+    expect(createNotification).toHaveBeenCalledWith(
+      "creator-1",
+      "request",
+      "request-1",
+      "comment_added",
+      expect.stringContaining("commented")
+    );
+
+    vi.mocked(createNotification).mockClear();
+    vi.mocked(getRequest).mockResolvedValue({
+      id: "request-1",
+      companyId: "company-1",
+      title: "Broken monitor",
+      createdBy: PROFILE.id,
+    } as never);
+    await POST(jsonRequest({ body: "My own" }), params("request-1"));
+    expect(createNotification).not.toHaveBeenCalled();
+
+    vi.mocked(createNotification).mockClear();
+    vi.mocked(getRequest).mockResolvedValue({
+      id: "request-1",
+      companyId: "company-1",
+      title: "Broken monitor",
+      createdBy: null,
+    } as never);
+    await POST(jsonRequest({ body: "No creator on record" }), params("request-1"));
+    expect(createNotification).not.toHaveBeenCalled();
   });
 });

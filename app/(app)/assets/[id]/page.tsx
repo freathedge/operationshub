@@ -13,6 +13,7 @@ import { AssetAssignControl } from "@/components/assets/asset-assign-control";
 import { AssetStatusControl } from "@/components/assets/asset-status-control";
 import { AssetReportIssueForm } from "@/components/assets/asset-report-issue-form";
 import { AssetOperationControl } from "@/components/assets/asset-operation-control";
+import { AssetRealtimeRefresh } from "@/components/assets/asset-realtime-refresh";
 
 export default async function AssetDetailPage({
   params,
@@ -40,6 +41,7 @@ export default async function AssetDetailPage({
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
+      <AssetRealtimeRefresh companyId={profile.companyId} />
       <BackLink href="/assets" />
 
       <div>

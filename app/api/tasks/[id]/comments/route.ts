@@ -4,6 +4,7 @@ import { getTask } from "@/lib/domain/tasks";
 import { canComment } from "@/lib/domain/permissions";
 import { addComment, listComments } from "@/lib/domain/comments";
 import { logActivity } from "@/lib/domain/activity";
+import { createNotification } from "@/lib/domain/notifications";
 import { broadcastChange } from "@/lib/realtime/broadcast";
 import { addCommentSchema } from "@/lib/validation/tasks";
 import { toErrorResponse } from "@/lib/api/error-response";
@@ -59,6 +60,15 @@ export async function POST(
     }
     const comment = await addComment("task", task.id, profile.id, parsed.data.body);
     await logActivity("task", task.id, profile.id, `${profile.fullName} commented on this task`);
+    if (task.assigneeId && task.assigneeId !== profile.id) {
+      await createNotification(
+        task.assigneeId,
+        "task",
+        task.id,
+        "comment_added",
+        `${profile.fullName} commented on "${task.title}"`
+      );
+    }
     try {
       await broadcastChange(profile.companyId, "tasks", { type: "task_updated" });
     } catch (error) {

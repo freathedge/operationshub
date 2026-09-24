@@ -380,6 +380,8 @@ export async function startWorkflow(
     );
   }
 
+  await logActivity("workflow", instance.id, profile.id, "Workflow started");
+
   try {
     await broadcastChange(profile.companyId, "workflows", { type: "workflow_started" });
   } catch (broadcastError) {
@@ -480,7 +482,7 @@ export async function advanceWorkflow(profile: Profile, instanceId: string): Pro
 
   const { data: currentStepRow, error: currentStepError } = await supabase
     .from("workflow_instance_steps")
-    .select("id, step_order")
+    .select("id, step_order, template_step_id")
     .eq("instance_id", instanceId)
     .eq("status", "in_progress")
     .maybeSingle();
@@ -492,6 +494,34 @@ export async function advanceWorkflow(profile: Profile, instanceId: string): Pro
     .update({ status: "completed", completed_at: new Date().toISOString() })
     .eq("id", currentStepRow.id);
   if (completeCurrentError) throw completeCurrentError;
+
+  const { data: completedTemplateStepRow, error: completedTemplateStepError } = await supabase
+    .from("workflow_template_steps")
+    .select("title")
+    .eq("id", currentStepRow.template_step_id)
+    .maybeSingle();
+  if (completedTemplateStepError) throw completedTemplateStepError;
+  const completedStepTitle = completedTemplateStepRow?.title ?? "Step";
+
+  await logActivity(
+    "workflow",
+    instance.id,
+    profile.id,
+    `Step "${completedStepTitle}" completed`
+  );
+
+  // No self-notification skip here (unlike the other createNotification sites in this
+  // codebase): step completion is a system event, not an actor-attributed action, so the
+  // instance's own related employee advancing their own step still gets notified.
+  if (instance.relatedEmployeeId) {
+    await createNotification(
+      instance.relatedEmployeeId,
+      "workflow",
+      instance.id,
+      "workflow_step_completed",
+      `Step "${completedStepTitle}" completed`
+    );
+  }
 
   const { data: nextTemplateStepRow, error: nextTemplateStepError } = await supabase
     .from("workflow_template_steps")
@@ -514,12 +544,21 @@ export async function advanceWorkflow(profile: Profile, instanceId: string): Pro
       .eq("instance_id", instanceId)
       .eq("step_order", nextStep.stepOrder);
     if (nextStepUpdateError) throw nextStepUpdateError;
+
+    await logActivity(
+      "workflow",
+      instance.id,
+      profile.id,
+      `Step "${nextStep.title}" started`
+    );
   } else {
     const { error: completeInstanceError } = await supabase
       .from("workflow_instances")
       .update({ status: "completed" })
       .eq("id", instanceId);
     if (completeInstanceError) throw completeInstanceError;
+
+    await logActivity("workflow", instance.id, profile.id, "Workflow completed");
 
     if (instance.relatedRequestId) {
       const { error: requestUpdateError } = await supabase

@@ -13,6 +13,7 @@ import {
 } from "@/components/operations/operation-link-picker";
 import { OperationEditControl } from "@/components/operations/operation-edit-control";
 import { OperationComments } from "@/components/operations/operation-comments";
+import { OperationRealtimeRefresh } from "@/components/operations/operation-realtime-refresh";
 
 export default async function OperationDetailPage({
   params,
@@ -51,6 +52,7 @@ export default async function OperationDetailPage({
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
+      <OperationRealtimeRefresh companyId={profile.companyId} />
       <BackLink href="/operations" />
 
       <div>

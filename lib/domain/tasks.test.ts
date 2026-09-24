@@ -18,6 +18,7 @@ import {
   UnprocessableRequestError,
 } from "@/lib/domain/errors";
 import { startWorkflow } from "@/lib/domain/workflows";
+import { listNotifications } from "@/lib/domain/notifications";
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
   "createTask / getTask / listTasks",
@@ -257,6 +258,37 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       const unassigned = await createTask(employee, { title: "Self-claim test" });
       const selfClaimed = await assignTask(managerA, unassigned.id, managerA.id);
       expect(selfClaimed.assigneeId).toBe(managerA.id);
+    });
+
+    it("notifies the assignee when a task is assigned to someone else, but not on self-claim", async () => {
+      const task = await createTask(employee, { title: "Notify on assign" });
+      await assignTask(employee, task.id, managerA.id);
+
+      const managerNotifications = await listNotifications(managerA.id);
+      expect(
+        managerNotifications.some((n) => n.entityId === task.id && n.type === "task_assigned")
+      ).toBe(true);
+
+      const unassigned = await createTask(employee, { title: "Notify self-claim" });
+      await assignTask(managerA, unassigned.id, managerA.id);
+      const notificationsAfterSelfClaim = await listNotifications(managerA.id);
+      expect(
+        notificationsAfterSelfClaim.filter(
+          (n) => n.entityId === unassigned.id && n.type === "task_assigned"
+        )
+      ).toHaveLength(0);
+    });
+
+    it("notifies the assignee when a task is created with an assignee already set", async () => {
+      const task = await createTask(employee, {
+        title: "Assigned at creation",
+        assigneeId: managerA.id,
+      });
+
+      const notifications = await listNotifications(managerA.id);
+      expect(
+        notifications.some((n) => n.entityId === task.id && n.type === "task_assigned")
+      ).toBe(true);
     });
 
     // Note (ruled on during execution, 2026-08-27): the target below is `managerA.id`,

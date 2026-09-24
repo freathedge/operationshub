@@ -16,6 +16,7 @@ import type { Json } from "@/lib/supabase/database.types";
 import { loadTaskOrThrow, updateTaskStatus, type Task } from "@/lib/domain/tasks";
 import { findWorkflowStepByTaskId } from "@/lib/domain/workflows";
 import { loadRequestOrThrow } from "@/lib/domain/requests";
+import { createNotification } from "@/lib/domain/notifications";
 
 export interface Asset {
   id: string;
@@ -191,6 +192,17 @@ export async function assignAsset(
   } catch (broadcastError) {
     console.error("broadcastChange failed:", broadcastError);
   }
+
+  if (targetEmployeeId !== profile.id) {
+    await createNotification(
+      targetEmployeeId,
+      "asset",
+      updated.id,
+      "asset_assigned",
+      `${profile.fullName} assigned you the asset "${updated.name}"`
+    );
+  }
+
   return updated;
 }
 

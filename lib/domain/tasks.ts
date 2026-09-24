@@ -12,6 +12,7 @@ import {
 import type { CreateTaskInput, TaskFilters } from "@/lib/validation/tasks";
 import { TASK_STATUS_TRANSITIONS, type TaskPriority, type TaskStatus } from "@/lib/domain/task-status";
 import { advanceWorkflow } from "@/lib/domain/workflows";
+import { createNotification } from "@/lib/domain/notifications";
 
 export interface Task {
   id: string;
@@ -108,6 +109,17 @@ export async function createTask(profile: Profile, input: CreateTaskInput): Prom
   } catch (error) {
     console.error("broadcastChange failed:", error);
   }
+
+  if (task.assigneeId && task.assigneeId !== profile.id) {
+    await createNotification(
+      task.assigneeId,
+      "task",
+      task.id,
+      "task_assigned",
+      `${profile.fullName} assigned you to "${task.title}"`
+    );
+  }
+
   return task;
 }
 
@@ -246,6 +258,17 @@ export async function assignTask(
   } catch (error) {
     console.error("broadcastChange failed:", error);
   }
+
+  if (targetAssigneeId !== profile.id) {
+    await createNotification(
+      targetAssigneeId,
+      "task",
+      updated.id,
+      "task_assigned",
+      `${profile.fullName} assigned you to "${updated.title}"`
+    );
+  }
+
   return updated;
 }
 

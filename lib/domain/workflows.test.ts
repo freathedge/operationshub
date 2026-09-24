@@ -14,6 +14,8 @@ import {
   startWorkflow,
 } from "@/lib/domain/workflows";
 import { ForbiddenError, NotFoundError, UnprocessableRequestError } from "@/lib/domain/errors";
+import { listActivity } from "@/lib/domain/activity";
+import { listNotifications } from "@/lib/domain/notifications";
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("workflow engine", () => {
   const supabase = createSupabaseAdminClient();
@@ -460,6 +462,61 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("workflow engine", () =>
       const otherRequest = await createRequest(employee, { title: "No workflow", category: "hr" });
       const notFound = await getWorkflowInstanceForRequest(otherRequest.id);
       expect(notFound).toBeNull();
+    });
+
+    it("logs a workflow-scoped activity entry when a step completes and when the instance completes", async () => {
+      const request = await createRequest(employee, {
+        title: "Workflow activity log test",
+        category: "equipment",
+      });
+      const instance = await startWorkflow(employee, "approval-first-test", {
+        requestId: request.id,
+      });
+
+      await advanceWorkflow(employee, instance.id);
+
+      const activity = await listActivity("workflow", instance.id);
+      expect(activity.some((entry) => entry.message === "Workflow started")).toBe(true);
+      expect(activity.some((entry) => entry.message.includes("completed"))).toBe(true);
+    });
+
+    it("notifies the instance's related employee when a step completes, but not when there is none", async () => {
+      const request = await createRequest(employee, {
+        title: "Workflow notification test",
+        category: "equipment",
+      });
+      const instance = await startWorkflow(employee, "approval-first-test", {
+        requestId: request.id,
+      });
+
+      await advanceWorkflow(employee, instance.id);
+
+      const notifications = await listNotifications(employee.id);
+      expect(
+        notifications.some(
+          (n) => n.entityId === instance.id && n.type === "workflow_step_completed"
+        )
+      ).toBe(true);
+
+      const noContextInstance = await startWorkflow(employee, "task-only-test", {});
+      await advanceWorkflow(employee, noContextInstance.id);
+      // task-only-test's first step is a task step; advancing it just moves to step 2,
+      // it doesn't complete the instance — but the *step*-completed notification should
+      // still be skipped either way, since relatedEmployeeId is null with no context given.
+      const notificationsAfter = await listNotifications(employee.id);
+      expect(
+        notificationsAfter.filter(
+          (n) => n.entityId === noContextInstance.id && n.type === "workflow_step_completed"
+        )
+      ).toHaveLength(0);
+    });
+
+    it("lets the instance's related employee view progress even without a company-wide role, when there is no linked request", async () => {
+      const instance = await startWorkflow(employee, "task-only-test", {
+        employeeId: employee.id,
+      });
+      const progress = await getWorkflowProgress(employee, instance.id);
+      expect(progress.instance.id).toBe(instance.id);
     });
   });
 });
