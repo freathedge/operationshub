@@ -137,6 +137,13 @@ export function canViewWorkflowInstance(
   return COMPANY_WIDE_VIEW_ROLES.has(profile.role);
 }
 
+// Same role set as canViewWorkflowInstance's no-linked-request fallback branch, named
+// separately for the "list every workflow instance in the company" gate (scope=all on
+// /workflows), which has no single instance to check per-row permissions against.
+export function canViewAllWorkflowInstances(profile: Profile): boolean {
+  return COMPANY_WIDE_VIEW_ROLES.has(profile.role);
+}
+
 const EMPLOYEE_MANAGER_ROLES = new Set(["hr", "admin"]);
 const ASSET_MANAGER_ROLES = new Set(["it", "operations_manager", "admin"]);
 

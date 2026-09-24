@@ -15,9 +15,17 @@ export function SummaryCards({
       value: counts.myOpenTasks,
       href: `/tasks?assigneeId=${encodeURIComponent(profileId)}`,
     },
-    { label: "Pending Approvals", value: counts.pendingApprovals, href: null },
+    {
+      label: "Pending Approvals",
+      value: counts.pendingApprovals,
+      href: "/approvals?status=pending",
+    },
     { label: "Open Requests", value: counts.myOpenRequests, href: "/requests" },
-    { label: "Active Workflows", value: counts.activeWorkflows, href: null },
+    {
+      label: "Active Workflows",
+      value: counts.activeWorkflows,
+      href: "/workflows?status=in_progress",
+    },
   ];
 
   return (

@@ -7,7 +7,7 @@ import { NotFoundError, UnprocessableRequestError, ForbiddenError } from "@/lib/
 import type { RequestCategory } from "@/lib/domain/request-status";
 import type { Role } from "@/lib/validation/auth";
 import { loadRequestOrThrow } from "@/lib/domain/requests";
-import { canViewWorkflowInstance } from "@/lib/domain/permissions";
+import { canViewAllWorkflowInstances, canViewWorkflowInstance } from "@/lib/domain/permissions";
 
 export interface WorkflowTemplate {
   id: string;
@@ -163,6 +163,113 @@ export async function listWorkflowTemplates(companyId: string): Promise<Workflow
     .order("name", { ascending: true });
   if (error) throw error;
   return (data ?? []).map(toWorkflowTemplate);
+}
+
+export interface WorkflowInstanceListItem extends WorkflowInstance {
+  templateName: string;
+}
+
+export interface WorkflowInstanceFilters {
+  scope?: "mine" | "all";
+  status?: WorkflowInstance["status"];
+}
+
+// Union of every signal that already ties a profile to a workflow instance elsewhere in
+// this codebase (getPersonalOverview's activeWorkflows count, canViewWorkflowInstance's
+// relatedEmployeeId/request checks): their own onboarding instance, an instance linked to
+// a request they created or approve, or an instance with a task step assigned to them.
+async function collectMyWorkflowInstanceIds(profile: Profile): Promise<Set<string>> {
+  const supabase = createSupabaseAdminClient();
+
+  const [employeeInstances, myRequests, myApprovals, myTaskSteps] = await Promise.all([
+    supabase
+      .from("workflow_instances")
+      .select("id")
+      .eq("company_id", profile.companyId)
+      .eq("related_employee_id", profile.id),
+    supabase
+      .from("requests")
+      .select("id")
+      .eq("company_id", profile.companyId)
+      .eq("created_by", profile.id),
+    supabase
+      .from("approvals")
+      .select("request_id, requests!inner(company_id)")
+      .eq("approver_id", profile.id)
+      .eq("requests.company_id", profile.companyId),
+    supabase
+      .from("workflow_instance_steps")
+      .select("instance_id, tasks!inner(assignee_id, company_id)")
+      .eq("tasks.assignee_id", profile.id)
+      .eq("tasks.company_id", profile.companyId),
+  ]);
+  if (employeeInstances.error) throw employeeInstances.error;
+  if (myRequests.error) throw myRequests.error;
+  if (myApprovals.error) throw myApprovals.error;
+  if (myTaskSteps.error) throw myTaskSteps.error;
+
+  const instanceIds = new Set<string>();
+  for (const row of employeeInstances.data ?? []) instanceIds.add(row.id);
+  for (const row of myTaskSteps.data ?? []) instanceIds.add(row.instance_id);
+
+  const myRequestIds = [
+    ...(myRequests.data ?? []).map((row) => row.id),
+    ...(myApprovals.data ?? []).map((row) => row.request_id),
+  ];
+  if (myRequestIds.length > 0) {
+    const { data: linkedInstances, error: linkedError } = await supabase
+      .from("workflow_instances")
+      .select("id")
+      .eq("company_id", profile.companyId)
+      .in("related_request_id", myRequestIds);
+    if (linkedError) throw linkedError;
+    for (const row of linkedInstances ?? []) instanceIds.add(row.id);
+  }
+
+  return instanceIds;
+}
+
+export async function listWorkflowInstances(
+  profile: Profile,
+  filters: WorkflowInstanceFilters
+): Promise<WorkflowInstanceListItem[]> {
+  const scope = filters.scope ?? "mine";
+  if (scope === "all" && !canViewAllWorkflowInstances(profile)) {
+    throw new ForbiddenError("You cannot view all workflow instances");
+  }
+
+  const supabase = createSupabaseAdminClient();
+  let query = supabase
+    .from("workflow_instances")
+    .select(WORKFLOW_INSTANCE_COLUMNS)
+    .eq("company_id", profile.companyId);
+
+  if (scope === "mine") {
+    const instanceIds = await collectMyWorkflowInstanceIds(profile);
+    if (instanceIds.size === 0) return [];
+    query = query.in("id", Array.from(instanceIds));
+  }
+  if (filters.status) query = query.eq("status", filters.status);
+
+  const { data, error } = await query.order("created_at", { ascending: false });
+  if (error) throw error;
+  const instances = (data ?? []).map(toWorkflowInstance);
+  if (instances.length === 0) return [];
+
+  const templateIds = Array.from(new Set(instances.map((instance) => instance.templateId)));
+  const { data: templateRows, error: templatesError } = await supabase
+    .from("workflow_templates")
+    .select("id, name")
+    .in("id", templateIds);
+  if (templatesError) throw templatesError;
+  const nameByTemplateId = new Map(
+    (templateRows ?? []).map((row) => [row.id, row.name as string])
+  );
+
+  return instances.map((instance) => ({
+    ...instance,
+    templateName: nameByTemplateId.get(instance.templateId) ?? "Unknown workflow",
+  }));
 }
 
 async function loadTemplateBySlug(companyId: string, slug: string): Promise<WorkflowTemplate> {
