@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-24 (Phase 8 — Reports & Search finished)
+Last updated: 2026-09-24 (Phase 9 — Realtime & Notifications Polish started)
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -10,8 +10,6 @@ Last updated: 2026-09-24 (Phase 8 — Reports & Search finished)
 
 Not started yet. See `docs/superpowers/plans/2026-08-26-remaining-phases-outline.md` for the full breakdown of each.
 
-- **Phase 9 — Realtime & Notifications Polish**: notification bell UI, audit pass on Realtime/activity-log/notification coverage.
-
 Standalone follow-up work (not a numbered phase):
 
 - **UI sweep — all screens on shadcn/ui**: the existing screens from Phases 2–6 still use raw `<select>` elements and hand-rolled layouts, and only six shadcn primitives are installed (badge, button, card, input, label, table). Pull in the missing primitives and rebuild those screens from shadcn blocks/primitives, per `CLAUDE.md` §UI. Gets its own spec, plan and branch. Now partially overlapping with the sidebar shell below (Review) — check what that branch already brought in before starting this.
@@ -20,7 +18,7 @@ Standalone follow-up work (not a numbered phase):
 
 ## In Progress
 
-_(nothing right now)_
+- **Phase 9 — Realtime & Notifications Polish**: notification bell UI (unread count, mark-as-read), plus an audit pass closing 3 concrete gaps found by reading the code — 7 of idea.md §19's 9 notification events had no `createNotification` call site, Operations/Assets/Employees detail pages had no live-refresh, workflow instances had no activity-log timeline. Spec: `docs/superpowers/specs/2026-09-24-phase9-realtime-notifications-design.md`. Plan: `docs/superpowers/plans/2026-09-24-phase9-realtime-notifications.md`.
 
 ## Review
 
