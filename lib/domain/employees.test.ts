@@ -126,6 +126,28 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("createEmployee", () => 
     expect(instances).toHaveLength(1);
   });
 
+  it("deletes the just-created profile and rethrows when the Clerk invitation fails", async () => {
+    createInvitationMock.mockReset();
+    createInvitationMock.mockRejectedValue(new Error("Clerk rate limit exceeded"));
+
+    const newHireEmail = `new-hire-invite-fails-${crypto.randomUUID()}@example.com`;
+
+    await expect(
+      createEmployee(hrProfile, {
+        email: newHireEmail,
+        fullName: "Orphaned Hire",
+        role: "employee",
+      })
+    ).rejects.toThrow("Clerk rate limit exceeded");
+
+    expect(createInvitationMock).toHaveBeenCalledTimes(1);
+    const orphanedProfileId = createInvitationMock.mock.calls[0][0].publicMetadata
+      .pendingProfileId as string;
+
+    const leftoverProfile = await getProfileById(orphanedProfileId);
+    expect(leftoverProfile).toBeNull();
+  });
+
   it("does not start onboarding when startOnboarding is false", async () => {
     createInvitationMock.mockReset();
     createInvitationMock.mockResolvedValue({ id: "inv_456" });

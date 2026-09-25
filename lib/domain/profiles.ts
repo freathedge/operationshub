@@ -171,6 +171,12 @@ export async function linkProfileToAuthUser(
   return toProfile(data);
 }
 
+export async function deleteProfile(id: string): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase.from("profiles").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function updateProfile(
   id: string,
   updates: {

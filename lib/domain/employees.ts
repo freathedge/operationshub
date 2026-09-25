@@ -1,5 +1,6 @@
 import {
   createProfile,
+  deleteProfile,
   getProfileById,
   listProfilesByCompany,
   updateProfile,
@@ -36,10 +37,15 @@ export async function createEmployee(
   });
 
   const clerk = await clerkClient();
-  await clerk.invitations.createInvitation({
-    emailAddress: input.email,
-    publicMetadata: { pendingProfileId: employee.id },
-  });
+  try {
+    await clerk.invitations.createInvitation({
+      emailAddress: input.email,
+      publicMetadata: { pendingProfileId: employee.id },
+    });
+  } catch (error) {
+    await deleteProfile(employee.id);
+    throw error;
+  }
 
   await logActivity(
     "profile",
