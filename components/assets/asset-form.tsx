@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createAssetSchema, type CreateAssetInput } from "@/lib/validation/assets";
 import type { Department } from "@/lib/domain/departments";
@@ -10,6 +10,13 @@ import type { Location } from "@/lib/domain/locations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function AssetForm({
   departments,
@@ -22,6 +29,7 @@ export function AssetForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<CreateAssetInput>({ resolver: zodResolver(createAssetSchema) });
@@ -60,34 +68,54 @@ export function AssetForm({
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="departmentId">Department</Label>
-        <select
-          id="departmentId"
-          {...register("departmentId", { setValueAs: (v) => v || undefined })}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-        >
-          <option value="">No department</option>
-          {departments.map((department) => (
-            <option key={department.id} value={department.id}>
-              {department.name}
-            </option>
-          ))}
-        </select>
+        <Controller
+          name="departmentId"
+          control={control}
+          render={({ field }) => (
+            <Select
+              value={field.value ?? "none"}
+              onValueChange={(value) => field.onChange(value === "none" || value === null ? undefined : value)}
+            >
+              <SelectTrigger id="departmentId" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No department</SelectItem>
+                {departments.map((department) => (
+                  <SelectItem key={department.id} value={department.id}>
+                    {department.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="locationId">Location</Label>
-        <select
-          id="locationId"
-          {...register("locationId", { setValueAs: (v) => v || undefined })}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-        >
-          <option value="">No location</option>
-          {locations.map((location) => (
-            <option key={location.id} value={location.id}>
-              {location.name}
-            </option>
-          ))}
-        </select>
+        <Controller
+          name="locationId"
+          control={control}
+          render={({ field }) => (
+            <Select
+              value={field.value ?? "none"}
+              onValueChange={(value) => field.onChange(value === "none" || value === null ? undefined : value)}
+            >
+              <SelectTrigger id="locationId" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No location</SelectItem>
+                {locations.map((location) => (
+                  <SelectItem key={location.id} value={location.id}>
+                    {location.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </div>
 
       {submitError && <p className="text-sm text-red-600">{submitError}</p>}
