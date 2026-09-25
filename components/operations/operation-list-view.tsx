@@ -71,7 +71,7 @@ export function OperationListView({
       <div className="flex gap-2">
         <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" || value === null ? "" : value)}>
           <SelectTrigger className="w-44">
-            <SelectValue />
+            <SelectValue>{(value: string) => (value === "all" ? "All statuses" : value.replace("_", " "))}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
@@ -87,7 +87,9 @@ export function OperationListView({
           onValueChange={(value) => setDepartmentId(value === "all" || value === null ? "" : value)}
         >
           <SelectTrigger className="w-44">
-            <SelectValue />
+            <SelectValue>
+              {(value: string) => (value === "all" ? "All departments" : (departments.find((d) => d.id === value)?.name ?? value))}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All departments</SelectItem>

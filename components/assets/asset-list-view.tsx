@@ -57,7 +57,7 @@ export function AssetListView({ companyId }: { companyId: string }) {
     <div className="flex flex-col gap-4">
       <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" || value === null ? "" : value)}>
         <SelectTrigger className="w-40">
-          <SelectValue />
+          <SelectValue>{(value: string) => (value === "all" ? "All statuses" : value.charAt(0).toUpperCase() + value.slice(1))}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All statuses</SelectItem>

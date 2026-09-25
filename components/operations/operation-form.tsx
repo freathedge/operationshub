@@ -83,7 +83,9 @@ export function OperationForm({ departments }: { departments: Department[] }) {
               onValueChange={(value) => field.onChange(value === "none" || value === null ? undefined : value)}
             >
               <SelectTrigger id="departmentId" className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {(value: string) => (value === "none" ? "No department" : (departments.find((x) => x.id === value)?.name ?? value))}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No department</SelectItem>

@@ -46,7 +46,7 @@ export function OperationLinkPicker({
   const router = useRouter();
   const [items, setItems] = useState<PickableItem[]>([]);
   const [itemsLoaded, setItemsLoaded] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,15 +93,19 @@ export function OperationLinkPicker({
       return;
     }
 
-    setSelectedId(undefined);
+    setSelectedId(null);
     router.refresh();
   }
 
   return (
     <div className="flex gap-2">
-      <Select value={selectedId} onValueChange={(value) => setSelectedId(value ?? undefined)} disabled={!itemsLoaded}>
+      <Select value={selectedId} onValueChange={setSelectedId} disabled={!itemsLoaded}>
         <SelectTrigger className="w-56">
-          <SelectValue placeholder={itemsLoaded ? "Select an item to link" : "Loading..."} />
+          <SelectValue>
+            {(value: string | null) =>
+              value ? (items.find((i) => i.id === value)?.label ?? value) : itemsLoaded ? "Select an item to link" : "Loading..."
+            }
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {items.map((item) => (

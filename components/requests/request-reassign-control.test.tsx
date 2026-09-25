@@ -40,6 +40,9 @@ describe("RequestReassignControl", () => {
 
     await userEvent.click(screen.getByRole("combobox"));
     await userEvent.click(await screen.findByRole("option", { name: "Alice" }));
+    // Trigger shows the selected colleague's name, not their raw id.
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveTextContent("Alice"));
+    expect(screen.getByRole("combobox")).not.toHaveTextContent("peer-1");
     await userEvent.click(screen.getByRole("button", { name: /reassign/i }));
 
     await waitFor(() => expect(refreshMock).toHaveBeenCalled());

@@ -71,7 +71,7 @@ export function RequestForm() {
           render={({ field }) => (
             <Select value={field.value} onValueChange={field.onChange}>
               <SelectTrigger id="category" className="w-full">
-                <SelectValue />
+                <SelectValue>{(value: string) => formatOptionLabel(value)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {REQUEST_CATEGORIES.map((option) => (

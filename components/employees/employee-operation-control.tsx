@@ -32,7 +32,7 @@ export function EmployeeOperationControl({
   const [operationsLoaded, setOperationsLoaded] = useState(false);
   const [linkedTitle, setLinkedTitle] = useState<string | null>(null);
   const [titleLoadFailed, setTitleLoadFailed] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -145,9 +145,13 @@ export function EmployeeOperationControl({
     <div className="flex flex-col gap-2">
       <Label htmlFor="employee-link-operation">Operation</Label>
       <div className="flex gap-2">
-        <Select value={selectedId} onValueChange={(value) => setSelectedId(value ?? undefined)} disabled={!operationsLoaded}>
+        <Select value={selectedId} onValueChange={setSelectedId} disabled={!operationsLoaded}>
           <SelectTrigger id="employee-link-operation" className="w-56">
-            <SelectValue placeholder={operationsLoaded ? "Select an operation" : "Loading..."} />
+            <SelectValue>
+              {(value: string | null) =>
+                value ? (operations.find((o) => o.id === value)?.title ?? value) : operationsLoaded ? "Select an operation" : "Loading..."
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {operations.map((operation) => (

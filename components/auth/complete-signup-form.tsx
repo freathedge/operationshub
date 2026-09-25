@@ -80,9 +80,11 @@ export function CompleteSignupForm() {
           name="role"
           control={control}
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select value={field.value ?? null} onValueChange={field.onChange}>
               <SelectTrigger id="role" className="w-full">
-                <SelectValue placeholder="Choose a role" />
+                <SelectValue>
+                  {(value: string | null) => (value ? (ROLE_OPTIONS.find((o) => o.value === value)?.label ?? value) : "Choose a role")}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {ROLE_OPTIONS.map((option) => (

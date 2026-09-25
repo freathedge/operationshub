@@ -106,7 +106,7 @@ export function RequestListView({ companyId }: { companyId: string }) {
         </div>
         <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" || value === null ? "" : value)}>
           <SelectTrigger className="w-44">
-            <SelectValue />
+            <SelectValue>{(value: string) => (value === "all" ? "All statuses" : formatOptionLabel(value))}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
@@ -119,7 +119,7 @@ export function RequestListView({ companyId }: { companyId: string }) {
         </Select>
         <Select value={category || "all"} onValueChange={(value) => setCategory(value === "all" || value === null ? "" : value)}>
           <SelectTrigger className="w-44">
-            <SelectValue />
+            <SelectValue>{(value: string) => (value === "all" ? "All categories" : formatOptionLabel(value))}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All categories</SelectItem>

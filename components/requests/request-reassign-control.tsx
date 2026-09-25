@@ -28,7 +28,7 @@ export function RequestReassignControl({
   const router = useRouter();
   const [peers, setPeers] = useState<PeerProfile[]>([]);
   const [peersLoaded, setPeersLoaded] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,11 +86,15 @@ export function RequestReassignControl({
       <CardContent className="flex flex-col gap-2">
         <Select
           value={selectedId}
-          onValueChange={(value) => setSelectedId(value ?? undefined)}
+          onValueChange={setSelectedId}
           disabled={!peersLoaded}
         >
           <SelectTrigger className="w-56">
-            <SelectValue placeholder={peersLoaded ? "Select a colleague" : "Loading..."} />
+            <SelectValue>
+              {(value: string | null) =>
+                value ? (peers.find((p) => p.id === value)?.fullName ?? value) : peersLoaded ? "Select a colleague" : "Loading..."
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {peers.map((peer) => (

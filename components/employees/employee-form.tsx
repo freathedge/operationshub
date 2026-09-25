@@ -105,7 +105,7 @@ export function EmployeeForm({
           render={({ field }) => (
             <Select value={field.value} onValueChange={field.onChange}>
               <SelectTrigger id="role" className="w-full">
-                <SelectValue />
+                <SelectValue>{(value: string) => ROLE_OPTIONS.find((o) => o.value === value)?.label ?? value}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {ROLE_OPTIONS.map((option) => (
@@ -143,7 +143,9 @@ export function EmployeeForm({
               onValueChange={(value) => field.onChange(value === "none" || value === null ? undefined : value)}
             >
               <SelectTrigger id="departmentId" className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {(value: string) => (value === "none" ? "No department" : (departments.find((x) => x.id === value)?.name ?? value))}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No department</SelectItem>
@@ -169,7 +171,9 @@ export function EmployeeForm({
               onValueChange={(value) => field.onChange(value === "none" || value === null ? undefined : value)}
             >
               <SelectTrigger id="locationId" className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {(value: string) => (value === "none" ? "No location" : (locations.find((x) => x.id === value)?.name ?? value))}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No location</SelectItem>
@@ -195,7 +199,9 @@ export function EmployeeForm({
               onValueChange={(value) => field.onChange(value === "none" || value === null ? undefined : value)}
             >
               <SelectTrigger id="managerId" className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {(value: string) => (value === "none" ? "No manager" : (managers.find((x) => x.id === value)?.fullName ?? value))}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No manager</SelectItem>

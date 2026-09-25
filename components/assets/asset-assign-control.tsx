@@ -20,7 +20,7 @@ interface EmployeeOption {
 export function AssetAssignControl({ assetId }: { assetId: string }) {
   const router = useRouter();
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
-  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,9 +60,11 @@ export function AssetAssignControl({ assetId }: { assetId: string }) {
     <div className="flex flex-col gap-2">
       <Label htmlFor="assign-to">Assign to</Label>
       <div className="flex gap-2">
-        <Select value={selectedId} onValueChange={(value) => setSelectedId(value ?? undefined)}>
+        <Select value={selectedId} onValueChange={setSelectedId}>
           <SelectTrigger id="assign-to" className="w-56">
-            <SelectValue placeholder="Select an employee" />
+            <SelectValue>
+              {(value: string | null) => (value ? (employees.find((e) => e.id === value)?.fullName ?? value) : "Select an employee")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {employees.map((employee) => (
