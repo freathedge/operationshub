@@ -77,7 +77,7 @@ export function TaskListView({ companyId }: { companyId: string }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
-        <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" ? "" : value)}>
+        <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" || value === null ? "" : value)}>
           <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>
@@ -90,7 +90,7 @@ export function TaskListView({ companyId }: { companyId: string }) {
             ))}
           </SelectContent>
         </Select>
-        <Select value={priority || "all"} onValueChange={(value) => setPriority(value === "all" ? "" : value)}>
+        <Select value={priority || "all"} onValueChange={(value) => setPriority(value === "all" || value === null ? "" : value)}>
           <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>
