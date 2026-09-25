@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBroadcastListener } from "@/lib/realtime/use-broadcast-listener";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -14,6 +13,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import type { Department } from "@/lib/domain/departments";
 
 interface OperationListItem {
@@ -28,11 +35,9 @@ const STATUS_OPTIONS = ["planning", "in_progress", "on_hold", "completed", "canc
 
 export function OperationListView({
   companyId,
-  canCreate,
   departments,
 }: {
   companyId: string;
-  canCreate: boolean;
   departments: Department[];
 }) {
   const [status, setStatus] = useState("");
@@ -63,77 +68,79 @@ export function OperationListView({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex gap-2">
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-          >
-            <option value="">All statuses</option>
+      <div className="flex gap-2">
+        <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" || value === null ? "" : value)}>
+          <SelectTrigger className="w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
             {STATUS_OPTIONS.map((option) => (
-              <option key={option} value={option}>
+              <SelectItem key={option} value={option}>
                 {option.replace("_", " ")}
-              </option>
+              </SelectItem>
             ))}
-          </select>
-          <select
-            value={departmentId}
-            onChange={(event) => setDepartmentId(event.target.value)}
-            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-          >
-            <option value="">All departments</option>
+          </SelectContent>
+        </Select>
+        <Select
+          value={departmentId || "all"}
+          onValueChange={(value) => setDepartmentId(value === "all" || value === null ? "" : value)}
+        >
+          <SelectTrigger className="w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All departments</SelectItem>
             {departments.map((department) => (
-              <option key={department.id} value={department.id}>
+              <SelectItem key={department.id} value={department.id}>
                 {department.name}
-              </option>
+              </SelectItem>
             ))}
-          </select>
-        </div>
-        {canCreate && (
-          <Button render={<Link href="/operations/new" />} nativeButton={false}>
-            New operation
-          </Button>
-        )}
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading && <p className="text-muted-foreground">Loading operations...</p>}
       {error && <p className="text-red-600">Failed to load operations.</p>}
 
       {data && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Title</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Priority</TableHead>
-              <TableHead>Department</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((operation) => (
-              <TableRow key={operation.id}>
-                <TableCell>
-                  <Link href={`/operations/${operation.id}`} className="hover:underline">
-                    {operation.title}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{operation.status.replace("_", " ")}</Badge>
-                </TableCell>
-                <TableCell>{operation.priority}</TableCell>
-                <TableCell>{departmentName(operation.departmentId)}</TableCell>
-              </TableRow>
-            ))}
-            {data.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  No operations found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+        <Card>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Department</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map((operation) => (
+                  <TableRow key={operation.id}>
+                    <TableCell>
+                      <Link href={`/operations/${operation.id}`} className="hover:underline">
+                        {operation.title}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{operation.status.replace("_", " ")}</Badge>
+                    </TableCell>
+                    <TableCell>{operation.priority}</TableCell>
+                    <TableCell>{departmentName(operation.departmentId)}</TableCell>
+                  </TableRow>
+                ))}
+                {data.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      No operations found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

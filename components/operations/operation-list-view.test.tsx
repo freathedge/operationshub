@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 
@@ -40,17 +40,7 @@ beforeEach(() => {
 
 describe("OperationListView", () => {
   it("renders the fetched operations", async () => {
-    renderWithClient(
-      <OperationListView companyId="company-1" canCreate={false} departments={[]} />
-    );
+    renderWithClient(<OperationListView companyId="company-1" departments={[]} />);
     expect(await screen.findByText("Vienna Office Relocation")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /new operation/i })).not.toBeInTheDocument();
-  });
-
-  it("shows the new operation link when canCreate is true", async () => {
-    renderWithClient(
-      <OperationListView companyId="company-1" canCreate={true} departments={[]} />
-    );
-    await waitFor(() => screen.getByRole("button", { name: /new operation/i }));
   });
 });
