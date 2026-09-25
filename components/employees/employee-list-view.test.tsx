@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 
@@ -34,13 +34,7 @@ beforeEach(() => {
 
 describe("EmployeeListView", () => {
   it("renders the fetched employees", async () => {
-    renderWithClient(<EmployeeListView companyId="company-1" canCreate={false} />);
+    renderWithClient(<EmployeeListView companyId="company-1" />);
     expect(await screen.findByText("Ada Lovelace")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /new employee/i })).not.toBeInTheDocument();
-  });
-
-  it("shows the new employee link when canCreate is true", async () => {
-    renderWithClient(<EmployeeListView companyId="company-1" canCreate={true} />);
-    await waitFor(() => screen.getByRole("button", { name: /new employee/i }));
   });
 });
