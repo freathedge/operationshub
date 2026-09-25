@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useClerk } from "@clerk/nextjs"
 import {
   Avatar,
@@ -39,13 +38,10 @@ function initials(name: string): string {
 
 export function NavUser({ user }: { user: CurrentUserSummary }) {
   const { isMobile } = useSidebar()
-  const router = useRouter()
   const { signOut } = useClerk()
 
   async function handleLogout() {
-    await signOut()
-    router.push("/login")
-    router.refresh()
+    await signOut({ redirectUrl: "/login" })
   }
 
   return (
