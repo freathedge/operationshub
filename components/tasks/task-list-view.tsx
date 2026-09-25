@@ -7,7 +7,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBroadcastListener } from "@/lib/realtime/use-broadcast-listener";
 import { isTaskOverdue } from "@/components/tasks/is-task-overdue";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -69,36 +76,33 @@ export function TaskListView({ companyId }: { companyId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2">
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-          >
-            <option value="">All statuses</option>
+      <div className="flex items-center gap-2">
+        <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" ? "" : value)}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
             {STATUS_OPTIONS.map((option) => (
-              <option key={option} value={option}>
+              <SelectItem key={option} value={option}>
                 {formatOptionLabel(option)}
-              </option>
+              </SelectItem>
             ))}
-          </select>
-          <select
-            value={priority}
-            onChange={(event) => setPriority(event.target.value)}
-            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-          >
-            <option value="">All priorities</option>
+          </SelectContent>
+        </Select>
+        <Select value={priority || "all"} onValueChange={(value) => setPriority(value === "all" ? "" : value)}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All priorities</SelectItem>
             {PRIORITY_OPTIONS.map((option) => (
-              <option key={option} value={option}>
+              <SelectItem key={option} value={option}>
                 {formatOptionLabel(option)}
-              </option>
+              </SelectItem>
             ))}
-          </select>
-        </div>
-        <Button render={<Link href="/tasks/new" />} nativeButton={false}>
-          New task
-        </Button>
+          </SelectContent>
+        </Select>
       </div>
 
       {(assigneeId || departmentId) && (
@@ -114,46 +118,50 @@ export function TaskListView({ companyId }: { companyId: string }) {
       {error && <p className="text-red-600">Failed to load tasks.</p>}
 
       {data && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Title</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Priority</TableHead>
-              <TableHead>Due date</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((task) => (
-              <TableRow key={task.id}>
-                <TableCell>
-                  <Link href={`/tasks/${task.id}`} className="hover:underline">
-                    {task.title}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{task.status}</Badge>
-                </TableCell>
-                <TableCell>{task.priority}</TableCell>
-                <TableCell>
-                  {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "—"}
-                  {isTaskOverdue(task) && (
-                    <Badge variant="destructive" className="ml-2">
-                      Overdue
-                    </Badge>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-            {data.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  No tasks found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+        <Card>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Due date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map((task) => (
+                  <TableRow key={task.id}>
+                    <TableCell>
+                      <Link href={`/tasks/${task.id}`} className="hover:underline">
+                        {task.title}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{task.status}</Badge>
+                    </TableCell>
+                    <TableCell>{task.priority}</TableCell>
+                    <TableCell>
+                      {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "—"}
+                      {isTaskOverdue(task) && (
+                        <Badge variant="destructive" className="ml-2">
+                          Overdue
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {data.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      No tasks found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
