@@ -7,11 +7,11 @@ vi.mock("next/navigation", () => ({
   redirect: (path: string) => redirectMock(path),
 }));
 
-const getUserMock = vi.fn();
-vi.mock("@/lib/supabase/server", () => ({
-  createSupabaseServerClient: async () => ({
-    auth: { getUser: getUserMock },
-  }),
+const authMock = vi.fn();
+const currentUserMock = vi.fn();
+vi.mock("@clerk/nextjs/server", () => ({
+  auth: () => authMock(),
+  currentUser: () => currentUserMock(),
 }));
 
 const getProfileByAuthUserIdMock = vi.fn();
@@ -28,7 +28,8 @@ import AppLayout from "@/app/(app)/layout";
 
 beforeEach(() => {
   redirectMock.mockClear();
-  getUserMock.mockReset();
+  authMock.mockReset();
+  currentUserMock.mockReset();
   getProfileByAuthUserIdMock.mockReset();
   cookiesMock.mockReset();
   cookiesMock.mockReturnValue({ get: () => undefined });
@@ -36,20 +37,23 @@ beforeEach(() => {
 
 describe("AppLayout", () => {
   it("redirects to /login when there is no authenticated user", async () => {
-    getUserMock.mockResolvedValue({ data: { user: null } });
+    authMock.mockResolvedValue({ userId: null });
 
     await expect(AppLayout({ children: null })).rejects.toThrow("REDIRECT:/login");
   });
 
   it("redirects to /signup when the user has no profile yet", async () => {
-    getUserMock.mockResolvedValue({ data: { user: { id: "auth-1" } } });
+    authMock.mockResolvedValue({ userId: "auth-1" });
     getProfileByAuthUserIdMock.mockResolvedValue(null);
 
     await expect(AppLayout({ children: null })).rejects.toThrow("REDIRECT:/signup");
   });
 
   it("renders the shell with the profile's name and role", async () => {
-    getUserMock.mockResolvedValue({ data: { user: { id: "auth-1" } } });
+    authMock.mockResolvedValue({ userId: "auth-1" });
+    currentUserMock.mockResolvedValue({
+      primaryEmailAddress: { emailAddress: "max@alpentech.example" },
+    });
     getProfileByAuthUserIdMock.mockResolvedValue({
       id: "profile-1",
       authUserId: "auth-1",
@@ -61,7 +65,9 @@ describe("AppLayout", () => {
     });
 
     const element = await AppLayout({ children: "hello" });
-    expect(JSON.stringify(element)).toContain("Max Mustermann");
-    expect(JSON.stringify(element)).toContain('"role":"it"');
+    const serialized = JSON.stringify(element);
+    expect(serialized).toContain("Max Mustermann");
+    expect(serialized).toContain('"role":"it"');
+    expect(serialized).toContain("max@alpentech.example");
   });
 });

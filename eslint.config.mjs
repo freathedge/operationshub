@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored third-party template code from CLI skill installers — gitignored
+    // but not automatically excluded from lint.
+    ".agents/**",
+    ".claude/skills/**",
   ]),
 ]);
 

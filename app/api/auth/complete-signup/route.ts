@@ -1,21 +1,18 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { auth } from "@clerk/nextjs/server";
 import { completeSignupSchema } from "@/lib/validation/auth";
 import { createProfile, getProfileByAuthUserId } from "@/lib/domain/profiles";
 import { getDefaultCompany } from "@/lib/domain/companies";
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { userId } = await auth();
 
-    if (!user) {
+    if (!userId) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const existing = await getProfileByAuthUserId(user.id);
+    const existing = await getProfileByAuthUserId(userId);
     if (existing) {
       return NextResponse.json({ error: "Profile already exists" }, { status: 409 });
     }
@@ -28,7 +25,7 @@ export async function POST(request: Request) {
 
     const company = await getDefaultCompany();
     const profile = await createProfile({
-      authUserId: user.id,
+      authUserId: userId,
       companyId: company.id,
       fullName: parsed.data.fullName,
       role: parsed.data.role,

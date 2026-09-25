@@ -440,7 +440,7 @@ export type Database = {
       }
       profiles: {
         Row: {
-          auth_user_id: string
+          auth_user_id: string | null
           company_id: string
           created_at: string
           department_id: string | null
@@ -456,7 +456,7 @@ export type Database = {
           status: Database["public"]["Enums"]["profile_status"]
         }
         Insert: {
-          auth_user_id: string
+          auth_user_id?: string | null
           company_id: string
           created_at?: string
           department_id?: string | null
@@ -472,7 +472,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["profile_status"]
         }
         Update: {
-          auth_user_id?: string
+          auth_user_id?: string | null
           company_id?: string
           created_at?: string
           department_id?: string | null

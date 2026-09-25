@@ -5,17 +5,9 @@ import userEvent from "@testing-library/user-event";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { NavUser } from "@/components/nav-user";
 
-const pushMock = vi.fn();
-const refreshMock = vi.fn();
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
-}));
-
 const signOutMock = vi.fn().mockResolvedValue(undefined);
-vi.mock("@/lib/supabase/browser", () => ({
-  createSupabaseBrowserClient: () => ({
-    auth: { signOut: signOutMock },
-  }),
+vi.mock("@clerk/nextjs", () => ({
+  useClerk: () => ({ signOut: signOutMock }),
 }));
 
 const user = { name: "Max Mustermann", email: "max@alpentech.example", role: "it" };
@@ -47,14 +39,12 @@ describe("NavUser", () => {
     expect(settingsLink.closest("a")).toHaveAttribute("href", "/settings");
   });
 
-  it("signs the user out and redirects to /login when Log out is clicked", async () => {
+  it("signs the user out via Clerk with a redirect to /login", async () => {
     renderNavUser();
     await userEvent.click(screen.getByText("Max Mustermann"));
     const logoutItem = await screen.findByText("Log out");
     await userEvent.click(logoutItem);
 
-    expect(signOutMock).toHaveBeenCalled();
-    expect(pushMock).toHaveBeenCalledWith("/login");
-    expect(refreshMock).toHaveBeenCalled();
+    expect(signOutMock).toHaveBeenCalledWith({ redirectUrl: "/login" });
   });
 });

@@ -1,23 +1,22 @@
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { getProfileByAuthUserId } from "@/lib/domain/profiles";
 import { BackLink } from "@/components/back-link";
 import { ThemeToggle } from "@/components/settings/theme-toggle";
 
 export default async function SettingsPage() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { userId } = await auth();
 
-  if (!user) {
+  if (!userId) {
     redirect("/login");
   }
 
-  const profile = await getProfileByAuthUserId(user.id);
+  const profile = await getProfileByAuthUserId(userId);
   if (!profile) {
     redirect("/signup");
   }
+
+  const user = await currentUser();
 
   return (
     <div>
@@ -34,7 +33,7 @@ export default async function SettingsPage() {
         </div>
         <div>
           <p className="text-sm text-muted-foreground">Email</p>
-          <p>{user.email ?? ""}</p>
+          <p>{user?.primaryEmailAddress?.emailAddress ?? ""}</p>
         </div>
         <div className="flex items-center justify-between border-t pt-4">
           <p className="text-sm font-medium">Theme</p>

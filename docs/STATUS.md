@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-24 (`/approvals` and `/workflows` list pages finished; Clerk auth migration spec + plan written, moved to In Progress)
+Last updated: 2026-09-24 (Clerk auth migration: all 8 plan tasks complete, whole-branch review done, fix wave applied, moved to Review)
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -16,11 +16,15 @@ Standalone follow-up work (not a numbered phase):
 
 ## In Progress
 
-- **Auth via Clerk**: replace Supabase Auth with Clerk as the identity provider (minimal identity swap — companies/departments/`profiles`/roles/`permissions.ts` stay on Supabase; pre-production clean cutover, no user migration; Clerk's built-in invitations for employee invites). Spec: `docs/superpowers/specs/2026-09-24-clerk-auth-migration-design.md`. Plan: `docs/superpowers/plans/2026-09-24-clerk-auth-migration.md`. Not yet on its own branch/worktree — execution method still being chosen.
+_(nothing right now)_
 
 ## Review
 
-_(nothing right now)_
+- **Auth via Clerk**: replaced Supabase Auth with Clerk as the identity provider (minimal identity swap — companies/departments/`profiles`/roles/`permissions.ts` stay on Supabase Postgres; pre-production clean cutover, no user migration; Clerk's built-in invitations for employee invites, linked back via a `user.created` webhook). Spec: `docs/superpowers/specs/2026-09-24-clerk-auth-migration-design.md`. Plan: `docs/superpowers/plans/2026-09-24-clerk-auth-migration.md`. All 8 plan tasks complete on `worktree-clerk-auth-migration-plan`.
+  - Whole-branch review found 3 Important/Critical cross-task issues, fixed in a bundled final wave: the invited-employee accept-invite flow dead-ended on the webhook-already-linked 409 response instead of treating it as success; `NavUser`'s logout raced Clerk's own post-`signOut()` redirect instead of passing `redirectUrl` directly; a failed Clerk invitation (rate limit, duplicate email) left an orphaned `profiles` row with no invite ever sent, now cleaned up via try/catch + delete-and-rethrow. Plus Minor fixes: a layout test's mock shape didn't match the code it was testing, ESLint was linting vendored Clerk-CLI skill-installer templates, `/signup/complete` had no auth guard, and dead code (`lib/supabase/server.ts`, superseded by Clerk's `auth()`) was removed. Docs (`README.md`, `docs/architecture.md` §5) updated to describe Clerk as the shipped auth provider instead of Supabase Auth.
+  - `test:unit` and `test:integration` pass; `tsc --noEmit`, `pnpm lint`, and `pnpm build` are clean.
+  - Flagged for human follow-up (not fixed in code, per the plan's own scope): the Clerk webhook must be registered in the Clerk Dashboard (`user.created` → `CLERK_WEBHOOK_SIGNING_SECRET`) before invited-employee linking works in any real deployment; no manual browser click-through was possible in this environment (same as every prior phase) — a human pass (fresh signup, role pick, logout/login, admin invite end-to-end) is especially important given this replaces the entire auth surface; the `/signup/complete` race between an invited user's browser and the async webhook link is a known UX gap, not resolved by this plan.
+  - Not yet merged — open PR belongs here per this file's convention.
 
 ## Finished
 

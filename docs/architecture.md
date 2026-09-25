@@ -10,7 +10,7 @@ Companion to `idea.md` (product concept). This document defines *how* the produc
 
 - **Purpose:** Portfolio/demo project. Publicly deployable, showcasing high-quality custom internal business software. Not intended to onboard real companies.
 - **Tenancy:** Single fictional company (AlpenTech Industries). A `companies` table exists for clean modeling and future extensibility, but only one row is ever populated. No multi-tenant isolation logic is built.
-- **Auth:** Real Supabase Auth signup/login (not fixed demo accounts). At signup, the visitor picks which role they want to explore (Employee, Manager, Operations Manager, IT, HR, Admin). This lets every visitor self-serve into any perspective without an admin manually assigning roles.
+- **Auth:** Real Clerk signup/login (not fixed demo accounts). At signup, the visitor picks which role they want to explore (Employee, Manager, Operations Manager, IT, HR, Admin). This lets every visitor self-serve into any perspective without an admin manually assigning roles.
 - **Seed data:** A seed script populates AlpenTech Industries with realistic departments, locations, employees, assets, requests, tasks, and workflow instances, so the demo feels alive immediately after deploy, independent of real signups.
 
 ---
@@ -31,7 +31,7 @@ Domain / Service Layer  (lib/domain/**)     ← business logic: requests, approv
         ▼
 Supabase Postgres  (via service-role key)   ← pure data storage, RLS disabled
         +
-Supabase Auth        (login/signup, sessions)
+Clerk                 (login/signup, sessions, invitations)
 Supabase Storage      (file attachments on tasks/requests)
 Supabase Realtime     (broadcast channels only, see §6)
 ```
@@ -52,7 +52,7 @@ Principles:
 | Framework | Next.js (App Router) | Frontend + API in one project, native Vercel integration |
 | Language | TypeScript (strict) | Type safety across route handlers, domain layer, DB types |
 | Database | Supabase Postgres | Managed Postgres, generated TS types from schema |
-| Auth | Supabase Auth | Ready-made email/password signup flow, session handling |
+| Auth | Clerk | Ready-made sign-in/sign-up UI, session handling, and invitations |
 | Storage | Supabase Storage | File attachments on tasks/requests, via signed URLs |
 | API layer | REST via Next.js Route Handlers | Explicit, easy to read/demo, no extra infrastructure |
 | Validation | Zod | Request body validation in route handlers, shared types with frontend |
@@ -72,7 +72,7 @@ companies                (1 row: AlpenTech Industries)
 departments               → company
 locations                 → company
 
-profiles                  → company, department, manager (self-ref), auth.users(id)
+profiles                  → company, department, manager (self-ref), auth_user_id (nullable text, Clerk user id)
   role: employee | manager | operations_manager | it | hr | admin
 
 assets                    → company, department, location, assigned_to (profile)
@@ -116,27 +116,12 @@ attachments                  → polymorphic: entity_type + entity_id, storage_p
 
 ## 5. Auth & RBAC
 
-- **Supabase Auth** handles signup/login/session (email + password). At signup, the visitor also picks their demo role. This creates a `profiles` row with `company_id = AlpenTech` and the chosen role (via a dedicated `/api/auth/complete-signup` endpoint called right after Supabase Auth signup succeeds).
-- **Authorization happens exclusively in the domain layer** — never in the frontend, never in the database. Every domain function receives the caller's `profile` (with role) and checks permissions itself, e.g. `canApproveRequest(profile, request)`.
+- **[Clerk](https://clerk.com)** is the identity provider: signup/login/session/invitations. `clerkMiddleware()` (`proxy.ts`) handles session refresh; every route/page that needs the current user calls `auth()`/`currentUser()` from `@clerk/nextjs/server` (`lib/auth/session.ts`'s `getCurrentProfile()` wraps this pattern for domain-layer callers). At signup, the visitor also picks their demo role via a same-app role-picker step (`/signup/complete`) shown after Clerk's `<SignUp>` completes; this creates a `profiles` row with `company_id = AlpenTech` and the chosen role (via `/api/auth/complete-signup`, called with the now-authenticated Clerk session). `profiles.auth_user_id` is a nullable `text` column holding the Clerk user id (nullable so an HR/admin-invited employee's profile can exist before they've accepted their invite).
+- Employee invites use Clerk's `invitations` API (`clerkClient().invitations.createInvitation()`), with the pre-created profile's id carried in `publicMetadata.pendingProfileId`. A `user.created` webhook (`app/api/webhooks/clerk/route.ts`) links the profile to the new Clerk user id once the invite is accepted.
+- **Authorization happens exclusively in the domain layer** — never in the frontend, never in the database, and independent of which identity provider issues the session. Every domain function receives the caller's `profile` (with role) and checks permissions itself, e.g. `canApproveRequest(profile, request)`.
 - Role capabilities are centralized as plain functions in `lib/domain/permissions.ts` (e.g. `hasCapability(profile, "approve:request")`) rather than scattered across individual routes. This maps to the roles and rights described in idea.md §21 (Employee < Manager < Operations Manager/IT/HR < Admin, with some overlapping and some exclusive rights).
-- Every route handler resolves the current Supabase session server-side, loads the corresponding `profiles` row, and passes it into the domain layer. A missing/invalid session is rejected before any domain function runs.
-
-### Idea (not decided): move authentication to Clerk
-
-Supabase Auth is the current and shipped choice; nothing below is committed work.
-
-The idea is to replace Supabase Auth with [Clerk](https://clerk.com) as the identity provider while keeping Supabase Postgres as the database. Motivation: a ready-made, well-designed sign-in/sign-up UI and account management (organizations, MFA, social login, user management dashboard) without building or styling those screens ourselves, plus a first-class Next.js App Router integration.
-
-What such a migration would touch:
-
-- `middleware.ts` and `lib/auth/session.ts` — session resolution moves from `@supabase/ssr` cookies to Clerk's middleware and server helpers.
-- `profiles.auth_user_id` — currently a Supabase `auth.users` id; would become the Clerk user id. Needs a migration plus a decision on how existing rows map over.
-- `/api/auth/complete-signup` and the role picker — would hook into Clerk's post-signup flow (e.g. a webhook or a first-login callback) instead of running right after a Supabase signup call.
-- `app/(marketing)/login` / `signup` and `app/auth/confirmed` — replaced by Clerk's hosted or embedded components.
-- Server-side Supabase access stays as-is: the domain layer already uses the service-role admin client and does its own authorization, so it is unaffected by who issues the session.
-- Supabase Storage signed URLs are issued server-side by the admin client and so do not depend on Supabase Auth either.
-
-Open questions before this could be planned: whether Clerk's free tier covers the demo's needs, how the seed script would create users, and whether the custom Resend SMTP setup done for Supabase Auth invites (see Phase 5 in `docs/STATUS.md`) has an equivalent in Clerk's invitation flow.
+- Every route handler/page resolves the current Clerk session server-side, loads the corresponding `profiles` row, and passes it into the domain layer. A missing session or missing profile is redirected before any domain function runs.
+- Supabase Postgres remains the database for everything else (companies/departments/`profiles`/roles), accessed server-side only via the service-role admin client (`lib/supabase/admin.ts`); it is unaffected by who issues the session. Supabase Storage signed URLs are likewise issued server-side by the admin client and do not depend on either auth provider.
 
 ---
 
@@ -207,7 +192,7 @@ app/
 lib/
   domain/                business logic per entity (requests.ts, tasks.ts, workflows.ts,
                           approvals.ts, permissions.ts, notifications.ts, activity.ts)
-  supabase/              server client (service-role), browser client (auth only)
+  supabase/              admin client (service-role, Postgres access), browser client (Realtime/Storage only)
   realtime/              broadcast helpers
   validation/            zod schemas, shared between route handlers and frontend forms
 components/
