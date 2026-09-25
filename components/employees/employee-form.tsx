@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createEmployeeSchema, type CreateEmployeeInput } from "@/lib/validation/employees";
 import type { Department } from "@/lib/domain/departments";
@@ -10,6 +10,14 @@ import type { Location } from "@/lib/domain/locations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const ROLE_OPTIONS: { value: CreateEmployeeInput["role"]; label: string }[] = [
   { value: "employee", label: "Employee" },
@@ -37,6 +45,7 @@ export function EmployeeForm({
   const [managers, setManagers] = useState<ManagerOption[]>([]);
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<CreateEmployeeInput>({
@@ -90,17 +99,24 @@ export function EmployeeForm({
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="role">Role</Label>
-        <select
-          id="role"
-          {...register("role")}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-        >
-          {ROLE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        <Controller
+          name="role"
+          control={control}
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger id="role" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -118,54 +134,90 @@ export function EmployeeForm({
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="departmentId">Department</Label>
-        <select
-          id="departmentId"
-          {...register("departmentId", { setValueAs: (v) => v || undefined })}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-        >
-          <option value="">No department</option>
-          {departments.map((department) => (
-            <option key={department.id} value={department.id}>
-              {department.name}
-            </option>
-          ))}
-        </select>
+        <Controller
+          name="departmentId"
+          control={control}
+          render={({ field }) => (
+            <Select
+              value={field.value ?? "none"}
+              onValueChange={(value) => field.onChange(value === "none" || value === null ? undefined : value)}
+            >
+              <SelectTrigger id="departmentId" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No department</SelectItem>
+                {departments.map((department) => (
+                  <SelectItem key={department.id} value={department.id}>
+                    {department.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="locationId">Location</Label>
-        <select
-          id="locationId"
-          {...register("locationId", { setValueAs: (v) => v || undefined })}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-        >
-          <option value="">No location</option>
-          {locations.map((location) => (
-            <option key={location.id} value={location.id}>
-              {location.name}
-            </option>
-          ))}
-        </select>
+        <Controller
+          name="locationId"
+          control={control}
+          render={({ field }) => (
+            <Select
+              value={field.value ?? "none"}
+              onValueChange={(value) => field.onChange(value === "none" || value === null ? undefined : value)}
+            >
+              <SelectTrigger id="locationId" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No location</SelectItem>
+                {locations.map((location) => (
+                  <SelectItem key={location.id} value={location.id}>
+                    {location.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="managerId">Manager</Label>
-        <select
-          id="managerId"
-          {...register("managerId", { setValueAs: (v) => v || undefined })}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-        >
-          <option value="">No manager</option>
-          {managers.map((manager) => (
-            <option key={manager.id} value={manager.id}>
-              {manager.fullName}
-            </option>
-          ))}
-        </select>
+        <Controller
+          name="managerId"
+          control={control}
+          render={({ field }) => (
+            <Select
+              value={field.value ?? "none"}
+              onValueChange={(value) => field.onChange(value === "none" || value === null ? undefined : value)}
+            >
+              <SelectTrigger id="managerId" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No manager</SelectItem>
+                {managers.map((manager) => (
+                  <SelectItem key={manager.id} value={manager.id}>
+                    {manager.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </div>
 
       <div className="flex items-center gap-2">
-        <input id="startOnboarding" type="checkbox" defaultChecked {...register("startOnboarding")} />
+        <Controller
+          name="startOnboarding"
+          control={control}
+          render={({ field }) => (
+            <Checkbox id="startOnboarding" checked={field.value} onCheckedChange={field.onChange} />
+          )}
+        />
         <Label htmlFor="startOnboarding">Start onboarding workflow</Label>
       </div>
 
