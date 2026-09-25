@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { canCreateEmployee } from "@/lib/domain/permissions";
 import { BackLink } from "@/components/back-link";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { EmployeeListView } from "@/components/employees/employee-list-view";
 
 export default async function EmployeesPage() {
@@ -10,11 +13,22 @@ export default async function EmployeesPage() {
     redirect("/login");
   }
 
+  const canCreate = canCreateEmployee(profile);
+
   return (
-    <div>
+    <div className="flex flex-col gap-6">
       <BackLink href="/dashboard" />
-      <h1 className="text-2xl font-semibold mb-4 mt-2">Employees</h1>
-      <EmployeeListView companyId={profile.companyId} canCreate={canCreateEmployee(profile)} />
+      <PageHeader
+        title="Employees"
+        action={
+          canCreate ? (
+            <Button render={<Link href="/employees/new" />} nativeButton={false}>
+              New employee
+            </Button>
+          ) : undefined
+        }
+      />
+      <EmployeeListView companyId={profile.companyId} />
     </div>
   );
 }
