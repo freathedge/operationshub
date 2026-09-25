@@ -104,7 +104,7 @@ export function RequestListView({ companyId }: { companyId: string }) {
             All
           </Button>
         </div>
-        <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" ? "" : value)}>
+        <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" || value === null ? "" : value)}>
           <SelectTrigger className="w-44">
             <SelectValue />
           </SelectTrigger>
@@ -117,7 +117,7 @@ export function RequestListView({ companyId }: { companyId: string }) {
             ))}
           </SelectContent>
         </Select>
-        <Select value={category || "all"} onValueChange={(value) => setCategory(value === "all" ? "" : value)}>
+        <Select value={category || "all"} onValueChange={(value) => setCategory(value === "all" || value === null ? "" : value)}>
           <SelectTrigger className="w-44">
             <SelectValue />
           </SelectTrigger>

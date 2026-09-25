@@ -145,7 +145,11 @@ export function RequestOperationControl({
     <div className="flex flex-col gap-2">
       <Label htmlFor="request-link-operation">Operation</Label>
       <div className="flex gap-2">
-        <Select value={selectedId} onValueChange={setSelectedId} disabled={!operationsLoaded}>
+        <Select
+          value={selectedId}
+          onValueChange={(value) => setSelectedId(value ?? undefined)}
+          disabled={!operationsLoaded}
+        >
           <SelectTrigger id="request-link-operation" className="w-56">
             <SelectValue placeholder={operationsLoaded ? "Select an operation" : "Loading..."} />
           </SelectTrigger>

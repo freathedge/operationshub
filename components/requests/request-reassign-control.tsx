@@ -84,7 +84,11 @@ export function RequestReassignControl({
         <CardTitle>Reassign to someone else</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
-        <Select value={selectedId} onValueChange={setSelectedId} disabled={!peersLoaded}>
+        <Select
+          value={selectedId}
+          onValueChange={(value) => setSelectedId(value ?? undefined)}
+          disabled={!peersLoaded}
+        >
           <SelectTrigger className="w-56">
             <SelectValue placeholder={peersLoaded ? "Select a colleague" : "Loading..."} />
           </SelectTrigger>
