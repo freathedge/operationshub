@@ -32,7 +32,8 @@ describe("TaskOperationControl", () => {
     render(<TaskOperationControl taskId="task-1" relatedOperationId={null} canManage />);
 
     const select = await screen.findByLabelText(/operation/i);
-    await userEvent.selectOptions(select, "op-1");
+    await userEvent.click(select);
+    await userEvent.click(await screen.findByRole("option", { name: "Vienna Relocation" }));
     await userEvent.click(screen.getByRole("button", { name: /^link$/i }));
 
     await waitFor(() => expect(refreshMock).toHaveBeenCalled());
