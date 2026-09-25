@@ -35,6 +35,13 @@ export function CompleteSignupForm() {
       body: JSON.stringify(values),
     });
 
+    if (response.status === 409) {
+      // Invited employee whose profile was already linked by Clerk's webhook — they're done.
+      router.push("/dashboard");
+      router.refresh();
+      return;
+    }
+
     if (!response.ok) {
       let message = "Failed to complete signup";
       try {

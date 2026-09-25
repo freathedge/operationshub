@@ -42,6 +42,7 @@ describe("CompleteSignupForm", () => {
   it("shows an error message when the request fails", async () => {
     fetchMock.mockResolvedValue({
       ok: false,
+      status: 422,
       json: async () => ({ error: "Profile already exists" }),
     });
     render(<CompleteSignupForm />);
@@ -52,5 +53,17 @@ describe("CompleteSignupForm", () => {
 
     expect(await screen.findByText("Profile already exists")).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects to /dashboard when the profile was already linked by Clerk's webhook (409)", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 409 });
+    render(<CompleteSignupForm />);
+
+    await userEvent.type(screen.getByLabelText("Full name"), "Max Mustermann");
+    await userEvent.selectOptions(screen.getByLabelText("Explore as"), "employee");
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+
+    expect(pushMock).toHaveBeenCalledWith("/dashboard");
+    expect(refreshMock).toHaveBeenCalled();
   });
 });
