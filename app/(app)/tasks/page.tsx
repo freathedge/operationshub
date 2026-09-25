@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { BackLink } from "@/components/back-link";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { TaskListView } from "@/components/tasks/task-list-view";
 
 export default async function TasksPage() {
@@ -10,9 +13,16 @@ export default async function TasksPage() {
   }
 
   return (
-    <div>
+    <div className="flex flex-col gap-6">
       <BackLink href="/dashboard" />
-      <h1 className="text-2xl font-semibold mb-4 mt-2">Tasks</h1>
+      <PageHeader
+        title="Tasks"
+        action={
+          <Button render={<Link href="/tasks/new" />} nativeButton={false}>
+            New task
+          </Button>
+        }
+      />
       <TaskListView companyId={profile.companyId} />
     </div>
   );
