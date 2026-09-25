@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { BackLink } from "@/components/back-link";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { RequestListView } from "@/components/requests/request-list-view";
 
 export default async function RequestsPage() {
@@ -10,9 +13,16 @@ export default async function RequestsPage() {
   }
 
   return (
-    <div>
+    <div className="flex flex-col gap-6">
       <BackLink href="/dashboard" />
-      <h1 className="text-2xl font-semibold mb-4 mt-2">Requests</h1>
+      <PageHeader
+        title="Requests"
+        action={
+          <Button render={<Link href="/requests/new" />} nativeButton={false}>
+            New request
+          </Button>
+        }
+      />
       <RequestListView companyId={profile.companyId} />
     </div>
   );

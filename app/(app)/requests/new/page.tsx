@@ -1,12 +1,18 @@
 import { BackLink } from "@/components/back-link";
+import { PageHeader } from "@/components/page-header";
+import { Card, CardContent } from "@/components/ui/card";
 import { RequestForm } from "@/components/requests/request-form";
 
 export default function NewRequestPage() {
   return (
-    <div>
+    <div className="flex flex-col gap-6">
       <BackLink href="/requests" />
-      <h1 className="text-2xl font-semibold mb-4 mt-2">New request</h1>
-      <RequestForm />
+      <PageHeader title="New request" />
+      <Card>
+        <CardContent>
+          <RequestForm />
+        </CardContent>
+      </Card>
     </div>
   );
 }
