@@ -25,7 +25,8 @@ describe("CompleteSignupForm", () => {
     render(<CompleteSignupForm />);
 
     await userEvent.type(screen.getByLabelText("Full name"), "Max Mustermann");
-    await userEvent.selectOptions(screen.getByLabelText("Explore as"), "employee");
+    await userEvent.click(screen.getByLabelText("Explore as"));
+    await userEvent.click(await screen.findByRole("option", { name: "Employee" }));
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -48,7 +49,8 @@ describe("CompleteSignupForm", () => {
     render(<CompleteSignupForm />);
 
     await userEvent.type(screen.getByLabelText("Full name"), "Max Mustermann");
-    await userEvent.selectOptions(screen.getByLabelText("Explore as"), "employee");
+    await userEvent.click(screen.getByLabelText("Explore as"));
+    await userEvent.click(await screen.findByRole("option", { name: "Employee" }));
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(await screen.findByText("Profile already exists")).toBeInTheDocument();
@@ -60,7 +62,8 @@ describe("CompleteSignupForm", () => {
     render(<CompleteSignupForm />);
 
     await userEvent.type(screen.getByLabelText("Full name"), "Max Mustermann");
-    await userEvent.selectOptions(screen.getByLabelText("Explore as"), "employee");
+    await userEvent.click(screen.getByLabelText("Explore as"));
+    await userEvent.click(await screen.findByRole("option", { name: "Employee" }));
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(pushMock).toHaveBeenCalledWith("/dashboard");

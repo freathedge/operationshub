@@ -2,12 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { completeSignupSchema, type CompleteSignupInput } from "@/lib/validation/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const ROLE_OPTIONS: { value: CompleteSignupInput["role"]; label: string }[] = [
   { value: "employee", label: "Employee" },
@@ -23,6 +30,7 @@ export function CompleteSignupForm() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<CompleteSignupInput>({ resolver: zodResolver(completeSignupSchema) });
@@ -68,21 +76,24 @@ export function CompleteSignupForm() {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="role">Explore as</Label>
-        <select
-          id="role"
-          defaultValue=""
-          {...register("role")}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-        >
-          <option value="" disabled>
-            Choose a role
-          </option>
-          {ROLE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        <Controller
+          name="role"
+          control={control}
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger id="role" className="w-full">
+                <SelectValue placeholder="Choose a role" />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
         {errors.role && <p className="text-sm text-red-600">{errors.role.message}</p>}
       </div>
 
