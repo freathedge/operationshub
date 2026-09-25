@@ -2,13 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createRequestSchema, type CreateRequestInput } from "@/lib/validation/requests";
 import { REQUEST_CATEGORIES } from "@/lib/domain/request-status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function formatOptionLabel(value: string): string {
   return value
@@ -22,6 +29,7 @@ export function RequestForm() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<CreateRequestInput>({
@@ -57,17 +65,24 @@ export function RequestForm() {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="category">Category</Label>
-        <select
-          id="category"
-          {...register("category")}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-        >
-          {REQUEST_CATEGORIES.map((option) => (
-            <option key={option} value={option}>
-              {formatOptionLabel(option)}
-            </option>
-          ))}
-        </select>
+        <Controller
+          name="category"
+          control={control}
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger id="category" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {REQUEST_CATEGORIES.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {formatOptionLabel(option)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
         {errors.category && <p className="text-sm text-red-600">{errors.category.message}</p>}
       </div>
 
