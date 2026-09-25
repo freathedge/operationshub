@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 
@@ -34,13 +34,7 @@ beforeEach(() => {
 
 describe("AssetListView", () => {
   it("renders the fetched assets", async () => {
-    renderWithClient(<AssetListView companyId="company-1" canCreate={false} />);
+    renderWithClient(<AssetListView companyId="company-1" />);
     expect(await screen.findByText("AST-00001")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /new asset/i })).not.toBeInTheDocument();
-  });
-
-  it("shows the new asset link when canCreate is true", async () => {
-    renderWithClient(<AssetListView companyId="company-1" canCreate={true} />);
-    await waitFor(() => screen.getByRole("button", { name: /new asset/i }));
   });
 });
