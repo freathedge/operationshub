@@ -1,7 +1,15 @@
+import { redirect } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import { BackLink } from "@/components/back-link";
 import { CompleteSignupForm } from "@/components/auth/complete-signup-form";
 
-export default function CompleteSignupPage() {
+export default async function CompleteSignupPage() {
+  const { userId } = await auth();
+
+  if (!userId) {
+    redirect("/signup");
+  }
+
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center gap-6 p-6">
       <div className="absolute left-6 top-6">
