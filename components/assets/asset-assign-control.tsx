@@ -4,6 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface EmployeeOption {
   id: string;
@@ -13,7 +20,7 @@ interface EmployeeOption {
 export function AssetAssignControl({ assetId }: { assetId: string }) {
   const router = useRouter();
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,19 +60,18 @@ export function AssetAssignControl({ assetId }: { assetId: string }) {
     <div className="flex flex-col gap-2">
       <Label htmlFor="assign-to">Assign to</Label>
       <div className="flex gap-2">
-        <select
-          id="assign-to"
-          value={selectedId}
-          onChange={(event) => setSelectedId(event.target.value)}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-        >
-          <option value="">Select an employee</option>
-          {employees.map((employee) => (
-            <option key={employee.id} value={employee.id}>
-              {employee.fullName}
-            </option>
-          ))}
-        </select>
+        <Select value={selectedId} onValueChange={(value) => setSelectedId(value ?? undefined)}>
+          <SelectTrigger id="assign-to" className="w-56">
+            <SelectValue placeholder="Select an employee" />
+          </SelectTrigger>
+          <SelectContent>
+            {employees.map((employee) => (
+              <SelectItem key={employee.id} value={employee.id}>
+                {employee.fullName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button variant="outline" disabled={isSubmitting || !selectedId} onClick={assign}>
           Assign
         </Button>
