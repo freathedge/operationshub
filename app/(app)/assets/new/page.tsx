@@ -4,6 +4,8 @@ import { canCreateAsset } from "@/lib/domain/permissions";
 import { listDepartments } from "@/lib/domain/departments";
 import { listLocations } from "@/lib/domain/locations";
 import { BackLink } from "@/components/back-link";
+import { PageHeader } from "@/components/page-header";
+import { Card, CardContent } from "@/components/ui/card";
 import { AssetForm } from "@/components/assets/asset-form";
 
 export default async function NewAssetPage() {
@@ -21,10 +23,14 @@ export default async function NewAssetPage() {
   ]);
 
   return (
-    <div>
+    <div className="flex flex-col gap-6">
       <BackLink href="/assets" />
-      <h1 className="text-2xl font-semibold mb-4 mt-2">New asset</h1>
-      <AssetForm departments={departments} locations={locations} />
+      <PageHeader title="New asset" />
+      <Card>
+        <CardContent>
+          <AssetForm departments={departments} locations={locations} />
+        </CardContent>
+      </Card>
     </div>
   );
 }
