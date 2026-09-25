@@ -52,7 +52,7 @@ describe("AppLayout", () => {
   it("renders the shell with the profile's name and role", async () => {
     authMock.mockResolvedValue({ userId: "auth-1" });
     currentUserMock.mockResolvedValue({
-      emailAddresses: [{ emailAddress: "max@alpentech.example" }],
+      primaryEmailAddress: { emailAddress: "max@alpentech.example" },
     });
     getProfileByAuthUserIdMock.mockResolvedValue({
       id: "profile-1",
@@ -65,7 +65,9 @@ describe("AppLayout", () => {
     });
 
     const element = await AppLayout({ children: "hello" });
-    expect(JSON.stringify(element)).toContain("Max Mustermann");
-    expect(JSON.stringify(element)).toContain('"role":"it"');
+    const serialized = JSON.stringify(element);
+    expect(serialized).toContain("Max Mustermann");
+    expect(serialized).toContain('"role":"it"');
+    expect(serialized).toContain("max@alpentech.example");
   });
 });
