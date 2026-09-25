@@ -5,6 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface OperationOption {
   id: string;
@@ -25,7 +32,7 @@ export function EmployeeOperationControl({
   const [operationsLoaded, setOperationsLoaded] = useState(false);
   const [linkedTitle, setLinkedTitle] = useState<string | null>(null);
   const [titleLoadFailed, setTitleLoadFailed] = useState(false);
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,20 +145,18 @@ export function EmployeeOperationControl({
     <div className="flex flex-col gap-2">
       <Label htmlFor="employee-link-operation">Operation</Label>
       <div className="flex gap-2">
-        <select
-          id="employee-link-operation"
-          value={selectedId}
-          onChange={(event) => setSelectedId(event.target.value)}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-          disabled={!operationsLoaded}
-        >
-          <option value="">{operationsLoaded ? "Select an operation" : "Loading..."}</option>
-          {operations.map((operation) => (
-            <option key={operation.id} value={operation.id}>
-              {operation.title}
-            </option>
-          ))}
-        </select>
+        <Select value={selectedId} onValueChange={(value) => setSelectedId(value ?? undefined)} disabled={!operationsLoaded}>
+          <SelectTrigger id="employee-link-operation" className="w-56">
+            <SelectValue placeholder={operationsLoaded ? "Select an operation" : "Loading..."} />
+          </SelectTrigger>
+          <SelectContent>
+            {operations.map((operation) => (
+              <SelectItem key={operation.id} value={operation.id}>
+                {operation.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button variant="outline" disabled={isSubmitting || !selectedId} onClick={link}>
           Link
         </Button>
