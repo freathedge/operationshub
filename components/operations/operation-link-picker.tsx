@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export type LinkableEntityType = "task" | "request" | "asset" | "employee";
 
@@ -39,7 +46,7 @@ export function OperationLinkPicker({
   const router = useRouter();
   const [items, setItems] = useState<PickableItem[]>([]);
   const [itemsLoaded, setItemsLoaded] = useState(false);
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,25 +93,24 @@ export function OperationLinkPicker({
       return;
     }
 
-    setSelectedId("");
+    setSelectedId(undefined);
     router.refresh();
   }
 
   return (
     <div className="flex gap-2">
-      <select
-        value={selectedId}
-        onChange={(event) => setSelectedId(event.target.value)}
-        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-        disabled={!itemsLoaded}
-      >
-        <option value="">{itemsLoaded ? "Select an item to link" : "Loading..."}</option>
-        {items.map((item) => (
-          <option key={item.id} value={item.id}>
-            {item.label}
-          </option>
-        ))}
-      </select>
+      <Select value={selectedId} onValueChange={(value) => setSelectedId(value ?? undefined)} disabled={!itemsLoaded}>
+        <SelectTrigger className="w-56">
+          <SelectValue placeholder={itemsLoaded ? "Select an item to link" : "Loading..."} />
+        </SelectTrigger>
+        <SelectContent>
+          {items.map((item) => (
+            <SelectItem key={item.id} value={item.id}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Button variant="outline" disabled={isSubmitting || !selectedId} onClick={link}>
         Link
       </Button>
