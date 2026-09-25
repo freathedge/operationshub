@@ -9,6 +9,8 @@ import {
 } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
+import { PageHeader } from "@/components/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AssetAssignControl } from "@/components/assets/asset-assign-control";
 import { AssetStatusControl } from "@/components/assets/asset-status-control";
 import { AssetReportIssueForm } from "@/components/assets/asset-report-issue-form";
@@ -44,12 +46,7 @@ export default async function AssetDetailPage({
       <AssetRealtimeRefresh companyId={profile.companyId} />
       <BackLink href="/assets" />
 
-      <div>
-        <h1 className="text-2xl font-semibold">{asset.name}</h1>
-        <p className="text-muted-foreground">
-          {asset.assetCode} · {asset.category}
-        </p>
-      </div>
+      <PageHeader title={asset.name} subtitle={`${asset.assetCode} · ${asset.category}`} />
 
       {canAssignAsset(profile, asset) && <AssetAssignControl assetId={asset.id} />}
       {canChangeAssetStatus(profile, asset) && (
@@ -62,15 +59,19 @@ export default async function AssetDetailPage({
         canManage={canLinkEntityToOperation(profile)}
       />
 
-      <section>
-        <h2 className="text-lg font-medium mb-2">Activity</h2>
-        <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
-          {activity.map((entry) => (
-            <li key={entry.id}>{entry.message}</li>
-          ))}
-          {activity.length === 0 && <li>No activity yet.</li>}
-        </ul>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
+            {activity.map((entry) => (
+              <li key={entry.id}>{entry.message}</li>
+            ))}
+            {activity.length === 0 && <li>No activity yet.</li>}
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 }

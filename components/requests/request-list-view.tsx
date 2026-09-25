@@ -8,6 +8,14 @@ import { useBroadcastListener } from "@/lib/realtime/use-broadcast-listener";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import {
   Table,
   TableBody,
   TableCell,
@@ -81,89 +89,90 @@ export function RequestListView({ companyId }: { companyId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2">
-          <div className="flex gap-1">
-            <Button
-              variant={scope === "mine" ? "default" : "outline"}
-              onClick={() => setScope("mine")}
-            >
-              Mine
-            </Button>
-            <Button
-              variant={scope === "all" ? "default" : "outline"}
-              onClick={() => setScope("all")}
-            >
-              All
-            </Button>
-          </div>
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+      <div className="flex items-center gap-2">
+        <div className="flex gap-1">
+          <Button
+            variant={scope === "mine" ? "default" : "outline"}
+            onClick={() => setScope("mine")}
           >
-            <option value="">All statuses</option>
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {formatOptionLabel(option)}
-              </option>
-            ))}
-          </select>
-          <select
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
-            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+            Mine
+          </Button>
+          <Button
+            variant={scope === "all" ? "default" : "outline"}
+            onClick={() => setScope("all")}
           >
-            <option value="">All categories</option>
-            {CATEGORY_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {formatOptionLabel(option)}
-              </option>
-            ))}
-          </select>
+            All
+          </Button>
         </div>
-        <Button render={<Link href="/requests/new" />} nativeButton={false}>
-          New request
-        </Button>
+        <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" || value === null ? "" : value)}>
+          <SelectTrigger className="w-44">
+            <SelectValue>{(value: string) => (value === "all" ? "All statuses" : formatOptionLabel(value))}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {STATUS_OPTIONS.map((option) => (
+              <SelectItem key={option} value={option}>
+                {formatOptionLabel(option)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={category || "all"} onValueChange={(value) => setCategory(value === "all" || value === null ? "" : value)}>
+          <SelectTrigger className="w-44">
+            <SelectValue>{(value: string) => (value === "all" ? "All categories" : formatOptionLabel(value))}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            {CATEGORY_OPTIONS.map((option) => (
+              <SelectItem key={option} value={option}>
+                {formatOptionLabel(option)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading && <p className="text-muted-foreground">Loading requests...</p>}
       {error && <p className="text-red-600">Failed to load requests.</p>}
 
       {data && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Title</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Created</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>
-                  <Link href={`/requests/${item.id}`} className="hover:underline">
-                    {item.title}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{item.status}</Badge>
-                </TableCell>
-                <TableCell>{item.category}</TableCell>
-                <TableCell>{new Date(item.createdAt).toLocaleDateString()}</TableCell>
-              </TableRow>
-            ))}
-            {data.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  No requests found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+        <Card>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Created</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <Link href={`/requests/${item.id}`} className="hover:underline">
+                        {item.title}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{item.status}</Badge>
+                    </TableCell>
+                    <TableCell>{item.category}</TableCell>
+                    <TableCell>{new Date(item.createdAt).toLocaleDateString()}</TableCell>
+                  </TableRow>
+                ))}
+                {data.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      No requests found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -31,10 +31,15 @@ describe("OperationLinkPicker", () => {
     render(<OperationLinkPicker operationId="op-1" entityType="task" />);
 
     const select = await screen.findByRole("combobox");
-    await userEvent.selectOptions(select, "task-1");
+    await userEvent.click(select);
+    await userEvent.click(await screen.findByRole("option", { name: "Move desks" }));
+    await waitFor(() => expect(select).toHaveTextContent("Move desks"));
     await userEvent.click(screen.getByRole("button", { name: /^link$/i }));
 
     await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+    // After a successful link the picker resets to empty (proves the Select is actually controlled).
+    await waitFor(() => expect(select).toHaveTextContent("Select an item to link"));
+    expect(select).not.toHaveTextContent("Move desks");
     expect(fetch).toHaveBeenCalledWith(
       "/api/operations/op-1/link",
       expect.objectContaining({

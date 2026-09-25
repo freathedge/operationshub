@@ -7,6 +7,8 @@ import { listActivity } from "@/lib/domain/activity";
 import { canManageOperation } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
+import { PageHeader } from "@/components/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   OperationLinkPicker,
   OperationUnlinkButton,
@@ -55,15 +57,14 @@ export default async function OperationDetailPage({
       <OperationRealtimeRefresh companyId={profile.companyId} />
       <BackLink href="/operations" />
 
-      <div>
-        <h1 className="text-2xl font-semibold">{operation.title}</h1>
-        <p className="text-muted-foreground">
-          {operation.status.replace("_", " ")} · {operation.priority}
-        </p>
-        {operation.description && (
-          <p className="mt-2 text-muted-foreground">{operation.description}</p>
-        )}
-      </div>
+      <PageHeader
+        title={operation.title}
+        subtitle={
+          operation.description
+            ? `${operation.status.replace("_", " ")} · ${operation.priority} — ${operation.description}`
+            : `${operation.status.replace("_", " ")} · ${operation.priority}`
+        }
+      />
 
       {canManage && (
         <OperationEditControl
@@ -74,114 +75,120 @@ export default async function OperationDetailPage({
         />
       )}
 
-      <div className="rounded-md border p-4">
-        <p className="text-sm text-muted-foreground">Progress</p>
-        <p className="text-2xl font-semibold">
-          {progressPercent}% ({progress.completedTasks}/{progress.totalTasks} tasks)
-        </p>
-      </div>
+      <Card>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Progress</p>
+          <p className="text-2xl font-semibold">
+            {progressPercent}% ({progress.completedTasks}/{progress.totalTasks} tasks)
+          </p>
+        </CardContent>
+      </Card>
 
-      <section>
-        <h2 className="text-lg font-medium mb-2">Tasks ({tasks.length})</h2>
-        <ul className="flex flex-col gap-1 text-sm">
-          {tasks.map((task) => (
-            <li key={task.id} className="flex items-center justify-between">
-              <Link href={`/tasks/${task.id}`} className="hover:underline">
-                {task.title}
-              </Link>
-              {canManage && (
-                <OperationUnlinkButton
-                  operationId={operation.id}
-                  entityType="task"
-                  entityId={task.id}
-                />
-              )}
-            </li>
-          ))}
-          {tasks.length === 0 && <li className="text-muted-foreground">No tasks linked yet.</li>}
-        </ul>
-        {canManage && <OperationLinkPicker operationId={operation.id} entityType="task" />}
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Tasks ({tasks.length})</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-1 text-sm">
+            {tasks.map((task) => (
+              <li key={task.id} className="flex items-center justify-between">
+                <Link href={`/tasks/${task.id}`} className="hover:underline">
+                  {task.title}
+                </Link>
+                {canManage && (
+                  <OperationUnlinkButton operationId={operation.id} entityType="task" entityId={task.id} />
+                )}
+              </li>
+            ))}
+            {tasks.length === 0 && <li className="text-muted-foreground">No tasks linked yet.</li>}
+          </ul>
+          {canManage && <OperationLinkPicker operationId={operation.id} entityType="task" />}
+        </CardContent>
+      </Card>
 
-      <section>
-        <h2 className="text-lg font-medium mb-2">Requests ({requests.length})</h2>
-        <ul className="flex flex-col gap-1 text-sm">
-          {requests.map((request) => (
-            <li key={request.id} className="flex items-center justify-between">
-              <Link href={`/requests/${request.id}`} className="hover:underline">
-                {request.title}
-              </Link>
-              {canManage && (
-                <OperationUnlinkButton
-                  operationId={operation.id}
-                  entityType="request"
-                  entityId={request.id}
-                />
-              )}
-            </li>
-          ))}
-          {requests.length === 0 && (
-            <li className="text-muted-foreground">No requests linked yet.</li>
-          )}
-        </ul>
-        {canManage && <OperationLinkPicker operationId={operation.id} entityType="request" />}
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Requests ({requests.length})</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-1 text-sm">
+            {requests.map((request) => (
+              <li key={request.id} className="flex items-center justify-between">
+                <Link href={`/requests/${request.id}`} className="hover:underline">
+                  {request.title}
+                </Link>
+                {canManage && (
+                  <OperationUnlinkButton operationId={operation.id} entityType="request" entityId={request.id} />
+                )}
+              </li>
+            ))}
+            {requests.length === 0 && (
+              <li className="text-muted-foreground">No requests linked yet.</li>
+            )}
+          </ul>
+          {canManage && <OperationLinkPicker operationId={operation.id} entityType="request" />}
+        </CardContent>
+      </Card>
 
-      <section>
-        <h2 className="text-lg font-medium mb-2">Assets ({assets.length})</h2>
-        <ul className="flex flex-col gap-1 text-sm">
-          {assets.map((asset) => (
-            <li key={asset.id} className="flex items-center justify-between">
-              <Link href={`/assets/${asset.id}`} className="hover:underline">
-                {asset.name}
-              </Link>
-              {canManage && (
-                <OperationUnlinkButton
-                  operationId={operation.id}
-                  entityType="asset"
-                  entityId={asset.id}
-                />
-              )}
-            </li>
-          ))}
-          {assets.length === 0 && <li className="text-muted-foreground">No assets linked yet.</li>}
-        </ul>
-        {canManage && <OperationLinkPicker operationId={operation.id} entityType="asset" />}
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Assets ({assets.length})</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-1 text-sm">
+            {assets.map((asset) => (
+              <li key={asset.id} className="flex items-center justify-between">
+                <Link href={`/assets/${asset.id}`} className="hover:underline">
+                  {asset.name}
+                </Link>
+                {canManage && (
+                  <OperationUnlinkButton operationId={operation.id} entityType="asset" entityId={asset.id} />
+                )}
+              </li>
+            ))}
+            {assets.length === 0 && <li className="text-muted-foreground">No assets linked yet.</li>}
+          </ul>
+          {canManage && <OperationLinkPicker operationId={operation.id} entityType="asset" />}
+        </CardContent>
+      </Card>
 
-      <section>
-        <h2 className="text-lg font-medium mb-2">Employees ({employees.length})</h2>
-        <ul className="flex flex-col gap-1 text-sm">
-          {employees.map((employee) => (
-            <li key={employee.id} className="flex items-center justify-between">
-              <Link href={`/employees/${employee.id}`} className="hover:underline">
-                {employee.fullName}
-              </Link>
-              {canManage && (
-                <OperationUnlinkButton
-                  operationId={operation.id}
-                  entityType="employee"
-                  entityId={employee.id}
-                />
-              )}
-            </li>
-          ))}
-          {employees.length === 0 && (
-            <li className="text-muted-foreground">No employees linked yet.</li>
-          )}
-        </ul>
-        {canManage && <OperationLinkPicker operationId={operation.id} entityType="employee" />}
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Employees ({employees.length})</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-1 text-sm">
+            {employees.map((employee) => (
+              <li key={employee.id} className="flex items-center justify-between">
+                <Link href={`/employees/${employee.id}`} className="hover:underline">
+                  {employee.fullName}
+                </Link>
+                {canManage && (
+                  <OperationUnlinkButton operationId={operation.id} entityType="employee" entityId={employee.id} />
+                )}
+              </li>
+            ))}
+            {employees.length === 0 && (
+              <li className="text-muted-foreground">No employees linked yet.</li>
+            )}
+          </ul>
+          {canManage && <OperationLinkPicker operationId={operation.id} entityType="employee" />}
+        </CardContent>
+      </Card>
 
-      <section>
-        <h2 className="text-lg font-medium mb-2">Activity</h2>
-        <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
-          {activity.map((entry) => (
-            <li key={entry.id}>{entry.message}</li>
-          ))}
-          {activity.length === 0 && <li>No activity yet.</li>}
-        </ul>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
+            {activity.map((entry) => (
+              <li key={entry.id}>{entry.message}</li>
+            ))}
+            {activity.length === 0 && <li>No activity yet.</li>}
+          </ul>
+        </CardContent>
+      </Card>
 
       <OperationComments operationId={operation.id} initialComments={comments} />
     </div>

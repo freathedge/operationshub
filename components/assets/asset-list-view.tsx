@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBroadcastListener } from "@/lib/realtime/use-broadcast-listener";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -14,6 +13,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface AssetListItem {
   id: string;
@@ -26,13 +33,7 @@ interface AssetListItem {
 
 const STATUS_OPTIONS = ["available", "assigned", "maintenance", "retired", "lost"];
 
-export function AssetListView({
-  companyId,
-  canCreate,
-}: {
-  companyId: string;
-  canCreate: boolean;
-}) {
+export function AssetListView({ companyId }: { companyId: string }) {
   const [status, setStatus] = useState("");
   const queryClient = useQueryClient();
 
@@ -54,63 +55,61 @@ export function AssetListView({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <select
-          value={status}
-          onChange={(event) => setStatus(event.target.value)}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-        >
-          <option value="">All statuses</option>
+      <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" || value === null ? "" : value)}>
+        <SelectTrigger className="w-40">
+          <SelectValue>{(value: string) => (value === "all" ? "All statuses" : value.charAt(0).toUpperCase() + value.slice(1))}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All statuses</SelectItem>
           {STATUS_OPTIONS.map((option) => (
-            <option key={option} value={option}>
+            <SelectItem key={option} value={option}>
               {option.charAt(0).toUpperCase() + option.slice(1)}
-            </option>
+            </SelectItem>
           ))}
-        </select>
-        {canCreate && (
-          <Button render={<Link href="/assets/new" />} nativeButton={false}>
-            New asset
-          </Button>
-        )}
-      </div>
+        </SelectContent>
+      </Select>
 
       {isLoading && <p className="text-muted-foreground">Loading assets...</p>}
       {error && <p className="text-red-600">Failed to load assets.</p>}
 
       {data && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Code</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((asset) => (
-              <TableRow key={asset.id}>
-                <TableCell>
-                  <Link href={`/assets/${asset.id}`} className="hover:underline">
-                    {asset.assetCode}
-                  </Link>
-                </TableCell>
-                <TableCell>{asset.name}</TableCell>
-                <TableCell>{asset.category}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{asset.status}</Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-            {data.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  No assets found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+        <Card>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map((asset) => (
+                  <TableRow key={asset.id}>
+                    <TableCell>
+                      <Link href={`/assets/${asset.id}`} className="hover:underline">
+                        {asset.assetCode}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{asset.name}</TableCell>
+                    <TableCell>{asset.category}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{asset.status}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {data.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      No assets found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

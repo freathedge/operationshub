@@ -5,7 +5,14 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBroadcastListener } from "@/lib/realtime/use-broadcast-listener";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -25,13 +32,7 @@ interface EmployeeListItem {
 
 const STATUS_OPTIONS = ["active", "inactive"];
 
-export function EmployeeListView({
-  companyId,
-  canCreate,
-}: {
-  companyId: string;
-  canCreate: boolean;
-}) {
+export function EmployeeListView({ companyId }: { companyId: string }) {
   const [status, setStatus] = useState("");
   const queryClient = useQueryClient();
 
@@ -53,61 +54,59 @@ export function EmployeeListView({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <select
-          value={status}
-          onChange={(event) => setStatus(event.target.value)}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-        >
-          <option value="">All statuses</option>
+      <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" || value === null ? "" : value)}>
+        <SelectTrigger className="w-40">
+          <SelectValue>{(value: string) => (value === "all" ? "All statuses" : value.charAt(0).toUpperCase() + value.slice(1))}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All statuses</SelectItem>
           {STATUS_OPTIONS.map((option) => (
-            <option key={option} value={option}>
+            <SelectItem key={option} value={option}>
               {option.charAt(0).toUpperCase() + option.slice(1)}
-            </option>
+            </SelectItem>
           ))}
-        </select>
-        {canCreate && (
-          <Button render={<Link href="/employees/new" />} nativeButton={false}>
-            New employee
-          </Button>
-        )}
-      </div>
+        </SelectContent>
+      </Select>
 
       {isLoading && <p className="text-muted-foreground">Loading employees...</p>}
       {error && <p className="text-red-600">Failed to load employees.</p>}
 
       {data && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Position</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((employee) => (
-              <TableRow key={employee.id}>
-                <TableCell>
-                  <Link href={`/employees/${employee.id}`} className="hover:underline">
-                    {employee.fullName}
-                  </Link>
-                </TableCell>
-                <TableCell>{employee.positionTitle ?? "—"}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{employee.status}</Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-            {data.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground">
-                  No employees found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+        <Card>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Position</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map((employee) => (
+                  <TableRow key={employee.id}>
+                    <TableCell>
+                      <Link href={`/employees/${employee.id}`} className="hover:underline">
+                        {employee.fullName}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{employee.positionTitle ?? "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{employee.status}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {data.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center text-muted-foreground">
+                      No employees found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

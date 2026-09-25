@@ -32,7 +32,11 @@ describe("TaskOperationControl", () => {
     render(<TaskOperationControl taskId="task-1" relatedOperationId={null} canManage />);
 
     const select = await screen.findByLabelText(/operation/i);
-    await userEvent.selectOptions(select, "op-1");
+    await userEvent.click(select);
+    await userEvent.click(await screen.findByRole("option", { name: "Vienna Relocation" }));
+    // Trigger shows the selected operation's label, not its raw id.
+    await waitFor(() => expect(select).toHaveTextContent("Vienna Relocation"));
+    expect(select).not.toHaveTextContent("op-1");
     await userEvent.click(screen.getByRole("button", { name: /^link$/i }));
 
     await waitFor(() => expect(refreshMock).toHaveBeenCalled());

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface AttachmentWithUrl {
   id: string;
@@ -59,36 +60,40 @@ export function TaskAttachments({
   }
 
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-medium">Attachments</h2>
-      <ul className="flex flex-col gap-1 text-sm">
-        {initialAttachments.map((attachment) => (
-          <li key={attachment.id}>
-            {attachment.downloadUrl ? (
-              <a href={attachment.downloadUrl} className="hover:underline">
-                {attachment.storagePath.split("/").pop()}
-              </a>
-            ) : (
-              <span className="text-muted-foreground">
-                {attachment.storagePath.split("/").pop()} (unavailable)
-              </span>
-            )}
-          </li>
-        ))}
-        {initialAttachments.length === 0 && (
-          <li className="text-muted-foreground">No attachments yet.</li>
-        )}
-      </ul>
-      <div className="flex items-center gap-2">
-        <input
-          ref={fileInputRef}
-          type="file"
-          onChange={handleFileChange}
-          disabled={isUploading}
-        />
-        {isUploading && <span className="text-sm text-muted-foreground">Uploading...</span>}
-      </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-    </section>
+    <Card>
+      <CardHeader>
+        <CardTitle>Attachments</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-1 text-sm">
+          {initialAttachments.map((attachment) => (
+            <li key={attachment.id}>
+              {attachment.downloadUrl ? (
+                <a href={attachment.downloadUrl} className="hover:underline">
+                  {attachment.storagePath.split("/").pop()}
+                </a>
+              ) : (
+                <span className="text-muted-foreground">
+                  {attachment.storagePath.split("/").pop()} (unavailable)
+                </span>
+              )}
+            </li>
+          ))}
+          {initialAttachments.length === 0 && (
+            <li className="text-muted-foreground">No attachments yet.</li>
+          )}
+        </ul>
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            onChange={handleFileChange}
+            disabled={isUploading}
+          />
+          {isUploading && <span className="text-sm text-muted-foreground">Uploading...</span>}
+        </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+      </CardContent>
+    </Card>
   );
 }

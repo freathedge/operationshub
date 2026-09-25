@@ -2,13 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createOperationSchema, type CreateOperationInput } from "@/lib/validation/operations";
 import type { Department } from "@/lib/domain/departments";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const PRIORITY_OPTIONS: NonNullable<CreateOperationInput["priority"]>[] = [
   "low",
@@ -22,6 +29,7 @@ export function OperationForm({ departments }: { departments: Department[] }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<CreateOperationInput>({
@@ -66,33 +74,52 @@ export function OperationForm({ departments }: { departments: Department[] }) {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="departmentId">Department</Label>
-        <select
-          id="departmentId"
-          {...register("departmentId", { setValueAs: (v) => v || undefined })}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-        >
-          <option value="">No department</option>
-          {departments.map((department) => (
-            <option key={department.id} value={department.id}>
-              {department.name}
-            </option>
-          ))}
-        </select>
+        <Controller
+          name="departmentId"
+          control={control}
+          render={({ field }) => (
+            <Select
+              value={field.value ?? "none"}
+              onValueChange={(value) => field.onChange(value === "none" || value === null ? undefined : value)}
+            >
+              <SelectTrigger id="departmentId" className="w-full">
+                <SelectValue>
+                  {(value: string) => (value === "none" ? "No department" : (departments.find((x) => x.id === value)?.name ?? value))}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No department</SelectItem>
+                {departments.map((department) => (
+                  <SelectItem key={department.id} value={department.id}>
+                    {department.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="priority">Priority</Label>
-        <select
-          id="priority"
-          {...register("priority")}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-        >
-          {PRIORITY_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+        <Controller
+          name="priority"
+          control={control}
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger id="priority" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITY_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">

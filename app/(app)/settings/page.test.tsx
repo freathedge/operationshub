@@ -67,5 +67,7 @@ describe("SettingsPage", () => {
     expect(serialized).toContain("Max Mustermann");
     expect(serialized).toContain('"it"');
     expect(serialized).toContain("max@alpentech.example");
+    expect(serialized).toContain("Profile");
+    expect(serialized).toContain("Appearance");
   });
 });

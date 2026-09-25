@@ -11,6 +11,8 @@ import { createSignedDownloadUrl, listAttachments } from "@/lib/domain/attachmen
 import { canDecideApproval, canLinkEntityToOperation } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
+import { PageHeader } from "@/components/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RequestRealtimeRefresh } from "@/components/requests/request-realtime-refresh";
 import { RequestStatusTimeline } from "@/components/requests/request-status-timeline";
 import { RequestApprovalControl } from "@/components/requests/request-approval-control";
@@ -68,12 +70,7 @@ export default async function RequestDetailPage({
 
       <BackLink href="/requests" />
 
-      <div>
-        <h1 className="text-2xl font-semibold">{request.title}</h1>
-        {request.description && (
-          <p className="mt-2 text-muted-foreground">{request.description}</p>
-        )}
-      </div>
+      <PageHeader title={request.title} subtitle={request.description ?? undefined} />
 
       <RequestStatusTimeline status={request.status} />
 
@@ -101,15 +98,19 @@ export default async function RequestDetailPage({
         canManage={canLinkEntityToOperation(profile)}
       />
 
-      <section>
-        <h2 className="text-lg font-medium mb-2">Activity</h2>
-        <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
-          {activity.map((entry) => (
-            <li key={entry.id}>{entry.message}</li>
-          ))}
-          {activity.length === 0 && <li>No activity yet.</li>}
-        </ul>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
+            {activity.map((entry) => (
+              <li key={entry.id}>{entry.message}</li>
+            ))}
+            {activity.length === 0 && <li>No activity yet.</li>}
+          </ul>
+        </CardContent>
+      </Card>
 
       <RequestComments requestId={request.id} initialComments={comments} />
 

@@ -4,6 +4,7 @@ import { getWorkflowProgress } from "@/lib/domain/workflows";
 import { listActivity } from "@/lib/domain/activity";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WorkflowRealtimeRefresh } from "@/components/workflows/workflow-realtime-refresh";
 import { WorkflowStepper } from "@/components/workflows/workflow-stepper";
 
@@ -41,15 +42,19 @@ export default async function WorkflowInstancePage({
       <BackLink href={backHref} />
       <WorkflowStepper progress={progress} />
 
-      <section>
-        <h2 className="text-lg font-medium mb-2">Activity</h2>
-        <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
-          {activity.map((entry) => (
-            <li key={entry.id}>{entry.message}</li>
-          ))}
-          {activity.length === 0 && <li>No activity yet.</li>}
-        </ul>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
+            {activity.map((entry) => (
+              <li key={entry.id}>{entry.message}</li>
+            ))}
+            {activity.length === 0 && <li>No activity yet.</li>}
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 }

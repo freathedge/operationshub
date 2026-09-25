@@ -31,7 +31,8 @@ describe("AssetAssignControl", () => {
     render(<AssetAssignControl assetId="asset-1" />);
 
     const select = await screen.findByLabelText(/assign to/i);
-    await userEvent.selectOptions(select, "employee-1");
+    await userEvent.click(select);
+    await userEvent.click(await screen.findByRole("option", { name: "Ada Lovelace" }));
     await userEvent.click(screen.getByRole("button", { name: /^assign$/i }));
 
     await waitFor(() => expect(refreshMock).toHaveBeenCalled());

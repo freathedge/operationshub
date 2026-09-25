@@ -10,6 +10,8 @@ import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { isTaskOverdue } from "@/components/tasks/is-task-overdue";
 import { Badge } from "@/components/ui/badge";
 import { BackLink } from "@/components/back-link";
+import { PageHeader } from "@/components/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskRealtimeRefresh } from "@/components/tasks/task-realtime-refresh";
 import { TaskStatusControl } from "@/components/tasks/task-status-control";
 import { TaskAssetAssignmentForm } from "@/components/tasks/task-asset-assignment-form";
@@ -63,15 +65,11 @@ export default async function TaskDetailPage({
 
       <BackLink href="/tasks" />
 
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold">{task.title}</h1>
-          {isTaskOverdue(task) && <Badge variant="destructive">Overdue</Badge>}
-        </div>
-        {task.description && (
-          <p className="mt-2 text-muted-foreground">{task.description}</p>
-        )}
-      </div>
+      <PageHeader
+        title={task.title}
+        subtitle={task.description ?? undefined}
+        action={isTaskOverdue(task) ? <Badge variant="destructive">Overdue</Badge> : undefined}
+      />
 
       <TaskStatusControl
         taskId={task.id}
@@ -85,15 +83,19 @@ export default async function TaskDetailPage({
         canManage={canLinkEntityToOperation(profile)}
       />
 
-      <section>
-        <h2 className="text-lg font-medium mb-2">Activity</h2>
-        <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
-          {activity.map((entry) => (
-            <li key={entry.id}>{entry.message}</li>
-          ))}
-          {activity.length === 0 && <li>No activity yet.</li>}
-        </ul>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
+            {activity.map((entry) => (
+              <li key={entry.id}>{entry.message}</li>
+            ))}
+            {activity.length === 0 && <li>No activity yet.</li>}
+          </ul>
+        </CardContent>
+      </Card>
 
       <TaskComments taskId={task.id} initialComments={comments} />
 

@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { canCreateAsset } from "@/lib/domain/permissions";
 import { BackLink } from "@/components/back-link";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { AssetListView } from "@/components/assets/asset-list-view";
 
 export default async function AssetsPage() {
@@ -10,11 +13,22 @@ export default async function AssetsPage() {
     redirect("/login");
   }
 
+  const canCreate = canCreateAsset(profile);
+
   return (
-    <div>
+    <div className="flex flex-col gap-6">
       <BackLink href="/dashboard" />
-      <h1 className="text-2xl font-semibold mb-4 mt-2">Assets</h1>
-      <AssetListView companyId={profile.companyId} canCreate={canCreateAsset(profile)} />
+      <PageHeader
+        title="Assets"
+        action={
+          canCreate ? (
+            <Button render={<Link href="/assets/new" />} nativeButton={false}>
+              New asset
+            </Button>
+          ) : undefined
+        }
+      />
+      <AssetListView companyId={profile.companyId} />
     </div>
   );
 }

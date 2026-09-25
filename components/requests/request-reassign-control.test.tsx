@@ -35,10 +35,14 @@ describe("RequestReassignControl", () => {
 
     render(<RequestReassignControl approvalId="approval-1" currentApproverRole="operations_manager" />);
 
-    expect(await screen.findByText("Alice")).toBeInTheDocument();
+    expect(await screen.findByText("Select a colleague")).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith("/api/profiles?role=operations_manager");
 
-    await userEvent.selectOptions(screen.getByRole("combobox"), "peer-1");
+    await userEvent.click(screen.getByRole("combobox"));
+    await userEvent.click(await screen.findByRole("option", { name: "Alice" }));
+    // Trigger shows the selected colleague's name, not their raw id.
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveTextContent("Alice"));
+    expect(screen.getByRole("combobox")).not.toHaveTextContent("peer-1");
     await userEvent.click(screen.getByRole("button", { name: /reassign/i }));
 
     await waitFor(() => expect(refreshMock).toHaveBeenCalled());

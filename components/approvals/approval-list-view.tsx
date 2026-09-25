@@ -15,6 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface ApprovalListItem {
   id: string;
@@ -84,59 +92,64 @@ export function ApprovalListView({
             </Button>
           )}
         </div>
-        <select
-          value={status}
-          onChange={(event) => setStatus(event.target.value)}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-        >
-          <option value="">All statuses</option>
-          {STATUS_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option.charAt(0).toUpperCase() + option.slice(1)}
-            </option>
-          ))}
-        </select>
+        <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" || value === null ? "" : value)}>
+          <SelectTrigger className="w-40">
+            <SelectValue>{(value: string) => (value === "all" ? "All statuses" : value.charAt(0).toUpperCase() + value.slice(1))}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {STATUS_OPTIONS.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option.charAt(0).toUpperCase() + option.slice(1)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading && <p className="text-muted-foreground">Loading approvals...</p>}
       {error && <p className="text-red-600">Failed to load approvals.</p>}
 
       {data && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Request</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Requested</TableHead>
-              <TableHead>Decided</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>
-                  <Link href={`/requests/${item.requestId}`} className="hover:underline">
-                    {item.requestTitle}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{item.status}</Badge>
-                </TableCell>
-                <TableCell>{new Date(item.createdAt).toLocaleDateString()}</TableCell>
-                <TableCell>
-                  {item.decidedAt ? new Date(item.decidedAt).toLocaleDateString() : "—"}
-                </TableCell>
-              </TableRow>
-            ))}
-            {data.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  No approvals found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+        <Card>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Request</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Requested</TableHead>
+                  <TableHead>Decided</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <Link href={`/requests/${item.requestId}`} className="hover:underline">
+                        {item.requestTitle}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{item.status}</Badge>
+                    </TableCell>
+                    <TableCell>{new Date(item.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {item.decidedAt ? new Date(item.decidedAt).toLocaleDateString() : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {data.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      No approvals found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
