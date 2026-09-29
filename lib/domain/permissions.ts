@@ -155,6 +155,10 @@ export function canUpdateEmployee(profile: Profile): boolean {
   return EMPLOYEE_MANAGER_ROLES.has(profile.role);
 }
 
+export function canManageEmployeeAccount(profile: Profile): boolean {
+  return EMPLOYEE_MANAGER_ROLES.has(profile.role);
+}
+
 export interface EmployeeLike {
   companyId: string;
   id: string;
