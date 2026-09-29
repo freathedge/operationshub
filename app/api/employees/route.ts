@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentProfile } from "@/lib/auth/session";
-import { createEmployee, listEmployees } from "@/lib/domain/employees";
+import { createEmployee, listEmployees, getAccountInfoForEmployees } from "@/lib/domain/employees";
 import { createEmployeeSchema, employeeFiltersSchema } from "@/lib/validation/employees";
 import { toErrorResponse } from "@/lib/api/error-response";
+import { toPublicProfile } from "@/lib/domain/profiles";
 
 export async function GET(request: Request) {
   const profile = await getCurrentProfile();
@@ -21,7 +22,12 @@ export async function GET(request: Request) {
 
   try {
     const employees = await listEmployees(profile, parsed.data);
-    return NextResponse.json({ employees });
+    const accounts = await getAccountInfoForEmployees(profile, employees);
+    const employeesWithAccounts = employees.map((employee) => ({
+      ...toPublicProfile(employee),
+      account: accounts.get(employee.id) ?? null,
+    }));
+    return NextResponse.json({ employees: employeesWithAccounts });
   } catch (error) {
     return toErrorResponse(error);
   }
@@ -46,7 +52,7 @@ export async function POST(request: Request) {
 
   try {
     const employee = await createEmployee(profile, parsed.data);
-    return NextResponse.json({ employee }, { status: 201 });
+    return NextResponse.json({ employee: toPublicProfile(employee) }, { status: 201 });
   } catch (error) {
     return toErrorResponse(error);
   }

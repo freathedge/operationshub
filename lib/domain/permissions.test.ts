@@ -10,6 +10,7 @@ import {
   canCreateEmployee,
   canCreateOperation,
   canLinkEntityToOperation,
+  canManageEmployeeAccount,
   canCreateRequest,
   canCreateTask,
   canDecideApproval,
@@ -44,6 +45,7 @@ function makeProfile(overrides: Partial<Profile> = {}): Profile {
     employeeNumber: null,
     locationId: null,
     relatedOperationId: null,
+    invitedEmail: null,
     status: "active",
     ...overrides,
   };
@@ -409,6 +411,17 @@ describe("canCreateEmployee / canUpdateEmployee", () => {
 
     expect(canUpdateEmployee(makeProfile({ role: "hr" }))).toBe(true);
     expect(canUpdateEmployee(makeProfile({ role: "employee" }))).toBe(false);
+  });
+});
+
+describe("canManageEmployeeAccount", () => {
+  it("allows hr and admin, denies everyone else", () => {
+    expect(canManageEmployeeAccount(makeProfile({ role: "hr" }))).toBe(true);
+    expect(canManageEmployeeAccount(makeProfile({ role: "admin" }))).toBe(true);
+    expect(canManageEmployeeAccount(makeProfile({ role: "operations_manager" }))).toBe(false);
+    expect(canManageEmployeeAccount(makeProfile({ role: "it" }))).toBe(false);
+    expect(canManageEmployeeAccount(makeProfile({ role: "manager" }))).toBe(false);
+    expect(canManageEmployeeAccount(makeProfile({ role: "employee" }))).toBe(false);
   });
 });
 

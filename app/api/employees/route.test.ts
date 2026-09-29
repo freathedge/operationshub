@@ -6,10 +6,11 @@ vi.mock("@/lib/auth/session", () => ({
 vi.mock("@/lib/domain/employees", () => ({
   createEmployee: vi.fn(),
   listEmployees: vi.fn(),
+  getAccountInfoForEmployees: vi.fn(),
 }));
 
 import { getCurrentProfile } from "@/lib/auth/session";
-import { createEmployee, listEmployees } from "@/lib/domain/employees";
+import { createEmployee, listEmployees, getAccountInfoForEmployees } from "@/lib/domain/employees";
 import { GET, POST } from "@/app/api/employees/route";
 import { ForbiddenError } from "@/lib/domain/errors";
 
@@ -25,6 +26,7 @@ const PROFILE = {
   employeeNumber: null,
   locationId: null,
   relatedOperationId: null,
+  invitedEmail: null,
   status: "active" as const,
 };
 
@@ -32,6 +34,7 @@ beforeEach(() => {
   vi.mocked(getCurrentProfile).mockReset();
   vi.mocked(createEmployee).mockReset();
   vi.mocked(listEmployees).mockReset();
+  vi.mocked(getAccountInfoForEmployees).mockReset();
 });
 
 describe("GET /api/employees", () => {
@@ -44,6 +47,7 @@ describe("GET /api/employees", () => {
   it("returns employees scoped by the caller's filters", async () => {
     vi.mocked(getCurrentProfile).mockResolvedValue(PROFILE);
     vi.mocked(listEmployees).mockResolvedValue([]);
+    vi.mocked(getAccountInfoForEmployees).mockResolvedValue(new Map());
 
     const response = await GET(new Request("http://localhost/api/employees?status=active"));
     expect(response.status).toBe(200);
@@ -54,6 +58,45 @@ describe("GET /api/employees", () => {
     vi.mocked(getCurrentProfile).mockResolvedValue(PROFILE);
     const response = await GET(new Request("http://localhost/api/employees?status=on_leave"));
     expect(response.status).toBe(400);
+  });
+
+  it("attaches account info per employee from getAccountInfoForEmployees", async () => {
+    vi.mocked(getCurrentProfile).mockResolvedValue(PROFILE);
+    vi.mocked(listEmployees).mockResolvedValue([
+      { id: "employee-1" } as never,
+      { id: "employee-2" } as never,
+    ]);
+    vi.mocked(getAccountInfoForEmployees).mockResolvedValue(
+      new Map([["employee-1", { linked: true, email: "a@example.com" }]])
+    );
+
+    const response = await GET(new Request("http://localhost/api/employees"));
+    const body = await response.json();
+
+    expect(body.employees[0]).toEqual(
+      expect.objectContaining({ id: "employee-1", account: { linked: true, email: "a@example.com" } })
+    );
+    expect(body.employees[1]).toEqual(expect.objectContaining({ id: "employee-2", account: null }));
+  });
+
+  it.each([
+    { role: "hr" as const, account: { linked: false as const, invitedEmail: "pending@example.com" } },
+    { role: "employee" as const, account: null },
+  ])("never includes the raw invitedEmail field for a $role caller", async ({ role, account }) => {
+    vi.mocked(getCurrentProfile).mockResolvedValue({ ...PROFILE, role });
+    vi.mocked(listEmployees).mockResolvedValue([
+      { ...PROFILE, id: "pending-1", authUserId: null, role: "employee", invitedEmail: "pending@example.com" },
+    ]);
+    vi.mocked(getAccountInfoForEmployees).mockResolvedValue(
+      account ? new Map([["pending-1", account]]) : new Map()
+    );
+
+    const response = await GET(new Request("http://localhost/api/employees"));
+    const body = await response.json();
+
+    expect(body.employees[0]).not.toHaveProperty("invitedEmail");
+    expect(body.employees[0].id).toBe("pending-1");
+    expect(body.employees[0].account).toEqual(account);
   });
 });
 
@@ -82,6 +125,23 @@ describe("POST /api/employees", () => {
     expect(response.status).toBe(201);
     const body = await response.json();
     expect(body.employee.id).toBe("employee-1");
+  });
+
+  it("never includes the raw invitedEmail field in the created employee", async () => {
+    vi.mocked(getCurrentProfile).mockResolvedValue(PROFILE);
+    vi.mocked(createEmployee).mockResolvedValue({
+      ...PROFILE,
+      id: "employee-1",
+      authUserId: null,
+      invitedEmail: "new.hire@example.com",
+    });
+
+    const response = await POST(
+      jsonRequest({ email: "new.hire@example.com", fullName: "New Hire", role: "employee" })
+    );
+    const body = await response.json();
+    expect(body.employee.id).toBe("employee-1");
+    expect(body.employee).not.toHaveProperty("invitedEmail");
   });
 
   it("returns 400 for an invalid body", async () => {

@@ -46,4 +46,14 @@ describe("updateEmployeeSchema", () => {
     const result = updateEmployeeSchema.safeParse({ status: "inactive" });
     expect(result.success).toBe(true);
   });
+
+  it("accepts a role change", () => {
+    const result = updateEmployeeSchema.safeParse({ role: "manager" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an invalid role", () => {
+    const result = updateEmployeeSchema.safeParse({ role: "ceo" });
+    expect(result.success).toBe(false);
+  });
 });

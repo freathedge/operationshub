@@ -1,12 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/session";
-import { getEmployeeProfile } from "@/lib/domain/employees";
-import { canLinkEntityToOperation } from "@/lib/domain/permissions";
+import { getEmployeeProfile, getAccountInfoForEmployees } from "@/lib/domain/employees";
+import { canLinkEntityToOperation, canManageEmployeeAccount } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { BackLink } from "@/components/back-link";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmployeeOperationControl } from "@/components/employees/employee-operation-control";
+import { EmployeeAccountControl } from "@/components/employees/employee-account-control";
 import { EmployeeRealtimeRefresh } from "@/components/employees/employee-realtime-refresh";
 
 export default async function EmployeeDetailPage({
@@ -32,6 +33,10 @@ export default async function EmployeeDetailPage({
   }
 
   const { profile: employee, counts, activity } = result;
+  const canManageAccount = canManageEmployeeAccount(profile);
+  const account = canManageAccount
+    ? (await getAccountInfoForEmployees(profile, [employee])).get(employee.id) ?? null
+    : null;
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
@@ -65,6 +70,15 @@ export default async function EmployeeDetailPage({
           </div>
         </CardContent>
       </Card>
+
+      {canManageAccount && account && (
+        <EmployeeAccountControl
+          employeeId={employee.id}
+          currentRole={employee.role}
+          currentStatus={employee.status}
+          account={account}
+        />
+      )}
 
       <EmployeeOperationControl
         employeeId={employee.id}

@@ -25,7 +25,14 @@ beforeEach(() => {
       ok: true,
       json: async () => ({
         employees: [
-          { id: "employee-1", fullName: "Ada Lovelace", positionTitle: "Engineer", departmentId: null, status: "active" },
+          {
+            id: "employee-1",
+            fullName: "Ada Lovelace",
+            positionTitle: "Engineer",
+            departmentId: null,
+            status: "active",
+            account: { linked: true, email: "ada@example.com" },
+          },
         ],
       }),
     })
@@ -34,7 +41,68 @@ beforeEach(() => {
 
 describe("EmployeeListView", () => {
   it("renders the fetched employees", async () => {
-    renderWithClient(<EmployeeListView companyId="company-1" />);
+    renderWithClient(<EmployeeListView companyId="company-1" canManageAccount={false} />);
     expect(await screen.findByText("Ada Lovelace")).toBeInTheDocument();
+  });
+
+  it("shows the Account column and email when canManageAccount is true", async () => {
+    renderWithClient(<EmployeeListView companyId="company-1" canManageAccount={true} />);
+    expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
+    expect(screen.getByText("Account")).toBeInTheDocument();
+  });
+
+  it("hides the Account column when canManageAccount is false", async () => {
+    renderWithClient(<EmployeeListView companyId="company-1" canManageAccount={false} />);
+    await screen.findByText("Ada Lovelace");
+    expect(screen.queryByText("Account")).not.toBeInTheDocument();
+    expect(screen.queryByText("ada@example.com")).not.toBeInTheDocument();
+  });
+
+  it("shows an Invitation pending badge for a pending employee", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          employees: [
+            {
+              id: "employee-2",
+              fullName: "Pending Hire",
+              positionTitle: null,
+              departmentId: null,
+              status: "active",
+              account: { linked: false, invitedEmail: "pending@example.com" },
+            },
+          ],
+        }),
+      })
+    );
+    renderWithClient(<EmployeeListView companyId="company-1" canManageAccount={true} />);
+    expect(await screen.findByText("Invitation pending")).toBeInTheDocument();
+    expect(screen.getByText("pending@example.com")).toBeInTheDocument();
+  });
+
+  it("shows an Account not found badge for a linked employee with no known email", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          employees: [
+            {
+              id: "employee-3",
+              fullName: "Orphaned Link",
+              positionTitle: null,
+              departmentId: null,
+              status: "active",
+              account: { linked: true, email: null },
+            },
+          ],
+        }),
+      })
+    );
+    renderWithClient(<EmployeeListView companyId="company-1" canManageAccount={true} />);
+    expect(await screen.findByText("Account not found")).toBeInTheDocument();
+    expect(screen.queryByText("Invitation pending")).not.toBeInTheDocument();
   });
 });

@@ -9,13 +9,90 @@ import {
 import { logActivity, listActivity, type ActivityEntry } from "@/lib/domain/activity";
 import { broadcastChange } from "@/lib/realtime/broadcast";
 import { startWorkflow } from "@/lib/domain/workflows";
-import { canCreateEmployee, canUpdateEmployee, canViewEmployeeProfile } from "@/lib/domain/permissions";
-import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
+import { canCreateEmployee, canUpdateEmployee, canViewEmployeeProfile, canManageEmployeeAccount } from "@/lib/domain/permissions";
+import { ForbiddenError, NotFoundError, InvalidTransitionError, UnprocessableRequestError } from "@/lib/domain/errors";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { clerkClient } from "@clerk/nextjs/server";
 import type { CreateEmployeeInput, EmployeeFilters, UpdateEmployeeInput } from "@/lib/validation/employees";
 
 export type Employee = Profile;
+
+export type EmployeeAccountInfo =
+  | { linked: true; email: string | null }
+  | { linked: false; invitedEmail: string | null };
+
+interface ClerkEmailAddress {
+  id: string;
+  emailAddress: string;
+}
+
+interface ClerkUserLike {
+  id: string;
+  primaryEmailAddressId: string | null;
+  emailAddresses: ClerkEmailAddress[];
+}
+
+function extractPrimaryEmail(user: ClerkUserLike): string {
+  return (
+    user.emailAddresses.find((address) => address.id === user.primaryEmailAddressId)?.emailAddress ??
+    user.emailAddresses[0]?.emailAddress ??
+    ""
+  );
+}
+
+const CLERK_GET_USER_LIST_MAX = 500;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
+export async function getAccountInfoForEmployees(
+  profile: Profile,
+  employees: Employee[]
+): Promise<Map<string, EmployeeAccountInfo>> {
+  const result = new Map<string, EmployeeAccountInfo>();
+  if (!canManageEmployeeAccount(profile)) {
+    return result;
+  }
+
+  const linked = employees.filter((employee) => employee.authUserId !== null);
+  const pending = employees.filter((employee) => employee.authUserId === null);
+
+  for (const employee of pending) {
+    result.set(employee.id, { linked: false, invitedEmail: employee.invitedEmail });
+  }
+
+  if (linked.length > 0) {
+    const emailByAuthUserId = new Map<string, string>();
+    try {
+      const clerk = await clerkClient();
+      const authUserIds = linked.map((employee) => employee.authUserId as string);
+      for (const batch of chunk(authUserIds, CLERK_GET_USER_LIST_MAX)) {
+        const { data: users } = await clerk.users.getUserList({
+          userId: batch,
+          limit: batch.length,
+        });
+        for (const user of users) {
+          emailByAuthUserId.set(user.id, extractPrimaryEmail(user));
+        }
+      }
+    } catch (error) {
+      console.error("Clerk getUserList failed:", error);
+    }
+    for (const employee of linked) {
+      result.set(employee.id, {
+        linked: true,
+        email: emailByAuthUserId.get(employee.authUserId as string) ?? null,
+      });
+    }
+  }
+
+  return result;
+}
 
 export async function createEmployee(
   profile: Profile,
@@ -34,6 +111,7 @@ export async function createEmployee(
     locationId: input.locationId ?? null,
     positionTitle: input.positionTitle ?? null,
     employeeNumber: input.employeeNumber ?? null,
+    invitedEmail: input.email,
   });
 
   const clerk = await clerkClient();
@@ -69,6 +147,41 @@ export async function createEmployee(
   }
 
   return employee;
+}
+
+export async function resendEmployeeInvite(profile: Profile, employeeId: string): Promise<void> {
+  if (!canManageEmployeeAccount(profile)) {
+    throw new ForbiddenError("You cannot manage employee accounts");
+  }
+  const target = await getProfileById(employeeId);
+  if (!target || target.companyId !== profile.companyId) {
+    throw new NotFoundError("Employee not found");
+  }
+  if (target.authUserId) {
+    throw new InvalidTransitionError("This employee has already linked their account");
+  }
+  if (!target.invitedEmail) {
+    throw new UnprocessableRequestError("No invited email on file for this employee");
+  }
+
+  const clerk = await clerkClient();
+  await clerk.invitations.createInvitation({
+    emailAddress: target.invitedEmail,
+    publicMetadata: { pendingProfileId: target.id },
+    ignoreExisting: true,
+  });
+
+  await logActivity(
+    "profile",
+    employeeId,
+    profile.id,
+    `${profile.fullName} resent an invitation to ${target.fullName}`
+  );
+  try {
+    await broadcastChange(profile.companyId, "employees", { type: "employee_invite_resent" });
+  } catch (broadcastError) {
+    console.error("broadcastChange failed:", broadcastError);
+  }
 }
 
 export interface EmployeeCounts {
@@ -151,12 +264,18 @@ export async function updateEmployee(
   }
 
   const updated = await updateProfile(employeeId, input);
-  await logActivity(
-    "profile",
-    employeeId,
-    profile.id,
-    `${profile.fullName} updated ${target.fullName}'s profile`
-  );
+
+  let message = `${profile.fullName} updated ${target.fullName}'s profile`;
+  if (input.role !== undefined && input.role !== target.role) {
+    message = `${profile.fullName} changed ${target.fullName}'s role from ${target.role} to ${input.role}`;
+  } else if (input.status !== undefined && input.status !== target.status) {
+    message =
+      input.status === "inactive"
+        ? `${profile.fullName} deactivated ${target.fullName}'s account`
+        : `${profile.fullName} reactivated ${target.fullName}'s account`;
+  }
+  await logActivity("profile", employeeId, profile.id, message);
+
   try {
     await broadcastChange(profile.companyId, "employees", { type: "employee_updated" });
   } catch (broadcastError) {

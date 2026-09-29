@@ -1,13 +1,22 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createProfile, getProfileById, type Profile } from "@/lib/domain/profiles";
-import { createEmployee, getEmployeeProfile, listEmployees, updateEmployee } from "@/lib/domain/employees";
+import {
+  createEmployee,
+  getAccountInfoForEmployees,
+  getEmployeeProfile,
+  listEmployees,
+  resendEmployeeInvite,
+  updateEmployee,
+} from "@/lib/domain/employees";
 import { ForbiddenError } from "@/lib/domain/errors";
 
 const createInvitationMock = vi.fn();
+const getUserListMock = vi.fn();
 vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: async () => ({
     invitations: { createInvitation: createInvitationMock },
+    users: { getUserList: getUserListMock },
   }),
 }));
 
@@ -167,6 +176,21 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("createEmployee", () => 
     if (instancesError) throw instancesError;
     expect(instances).toHaveLength(0);
   });
+
+  it("stores the invited email on the profile for a later resend", async () => {
+    createInvitationMock.mockReset();
+    createInvitationMock.mockResolvedValue({ id: "inv_789" });
+
+    const newHireEmail = `new-hire-invited-email-${crypto.randomUUID()}@example.com`;
+    const employee = await createEmployee(hrProfile, {
+      email: newHireEmail,
+      fullName: "Invited Email Hire",
+      role: "employee",
+      startOnboarding: false,
+    });
+
+    expect(employee.invitedEmail).toBe(newHireEmail);
+  });
 });
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
@@ -287,5 +311,296 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       const employees = await listEmployees(hr, {});
       expect(employees.some((e) => e.id === target.id)).toBe(true);
     });
+
+    it("logs a role-change-specific activity message", async () => {
+      await updateEmployee(hr, target.id, { role: "manager" });
+      const { activity } = await getEmployeeProfile(hr, target.id);
+      expect(
+        activity.some((entry) =>
+          entry.message.includes(`changed ${target.fullName}'s role from employee to manager`)
+        )
+      ).toBe(true);
+    });
+
+    it("logs a deactivate-specific activity message", async () => {
+      await updateEmployee(hr, target.id, { status: "inactive" });
+      const { activity } = await getEmployeeProfile(hr, target.id);
+      expect(
+        activity.some((entry) => entry.message.includes(`deactivated ${target.fullName}'s account`))
+      ).toBe(true);
+
+      // restore for any later test in this file that assumes an active target
+      await updateEmployee(hr, target.id, { status: "active" });
+    });
+
+    it("logs a reactivate-specific activity message", async () => {
+      await updateEmployee(hr, target.id, { status: "inactive" });
+      await updateEmployee(hr, target.id, { status: "active" });
+      const { activity } = await getEmployeeProfile(hr, target.id);
+      expect(
+        activity.some((entry) => entry.message.includes(`reactivated ${target.fullName}'s account`))
+      ).toBe(true);
+    });
   }
 );
+
+describe("getAccountInfoForEmployees", () => {
+  beforeEach(() => {
+    getUserListMock.mockReset();
+  });
+
+  function makeEmployee(overrides: Partial<Profile> = {}): Profile {
+    return {
+      id: "employee-1",
+      authUserId: null,
+      companyId: "company-1",
+      fullName: "Test Employee",
+      role: "employee",
+      departmentId: null,
+      managerId: null,
+      positionTitle: null,
+      employeeNumber: null,
+      locationId: null,
+      relatedOperationId: null,
+      status: "active",
+      invitedEmail: null,
+      ...overrides,
+    };
+  }
+
+  const hr: Profile = {
+    id: "hr-1",
+    authUserId: "auth-hr-1",
+    companyId: "company-1",
+    fullName: "HR Person",
+    role: "hr",
+    departmentId: null,
+    managerId: null,
+    positionTitle: null,
+    employeeNumber: null,
+    locationId: null,
+    relatedOperationId: null,
+    status: "active",
+    invitedEmail: null,
+  };
+
+  const stranger: Profile = { ...hr, id: "stranger-1", role: "employee" };
+
+  it("returns an empty map for a caller without canManageEmployeeAccount, without calling Clerk", async () => {
+    const employees = [makeEmployee({ authUserId: "auth-1" })];
+    const result = await getAccountInfoForEmployees(stranger, employees);
+    expect(result.size).toBe(0);
+    expect(getUserListMock).not.toHaveBeenCalled();
+  });
+
+  it("returns invitedEmail for a pending employee, without calling Clerk", async () => {
+    const employees = [makeEmployee({ id: "pending-1", authUserId: null, invitedEmail: "pending@example.com" })];
+    const result = await getAccountInfoForEmployees(hr, employees);
+    expect(result.get("pending-1")).toEqual({ linked: false, invitedEmail: "pending@example.com" });
+    expect(getUserListMock).not.toHaveBeenCalled();
+  });
+
+  it("makes exactly one Clerk call for multiple linked employees and maps each back by profile id", async () => {
+    getUserListMock.mockResolvedValue({
+      data: [
+        {
+          id: "auth-1",
+          primaryEmailAddressId: "email-1",
+          emailAddresses: [{ id: "email-1", emailAddress: "alice@example.com" }],
+        },
+        {
+          id: "auth-2",
+          primaryEmailAddressId: "email-2",
+          emailAddresses: [{ id: "email-2", emailAddress: "bob@example.com" }],
+        },
+      ],
+    });
+
+    const employees = [
+      makeEmployee({ id: "linked-1", authUserId: "auth-1" }),
+      makeEmployee({ id: "linked-2", authUserId: "auth-2" }),
+    ];
+    const result = await getAccountInfoForEmployees(hr, employees);
+
+    expect(getUserListMock).toHaveBeenCalledTimes(1);
+    expect(getUserListMock).toHaveBeenCalledWith({ userId: ["auth-1", "auth-2"], limit: 2 });
+    expect(result.get("linked-1")).toEqual({ linked: true, email: "alice@example.com" });
+    expect(result.get("linked-2")).toEqual({ linked: true, email: "bob@example.com" });
+  });
+
+  it("mixes linked and pending employees correctly in one call", async () => {
+    getUserListMock.mockResolvedValue({
+      data: [
+        {
+          id: "auth-1",
+          primaryEmailAddressId: "email-1",
+          emailAddresses: [{ id: "email-1", emailAddress: "alice@example.com" }],
+        },
+      ],
+    });
+
+    const employees = [
+      makeEmployee({ id: "linked-1", authUserId: "auth-1" }),
+      makeEmployee({ id: "pending-1", authUserId: null, invitedEmail: "pending@example.com" }),
+    ];
+    const result = await getAccountInfoForEmployees(hr, employees);
+
+    expect(result.get("linked-1")).toEqual({ linked: true, email: "alice@example.com" });
+    expect(result.get("pending-1")).toEqual({ linked: false, invitedEmail: "pending@example.com" });
+  });
+
+  it("keeps a linked employee whose Clerk user is missing, with email null", async () => {
+    getUserListMock.mockResolvedValue({
+      data: [
+        {
+          id: "auth-1",
+          primaryEmailAddressId: "email-1",
+          emailAddresses: [{ id: "email-1", emailAddress: "alice@example.com" }],
+        },
+      ],
+    });
+
+    const employees = [
+      makeEmployee({ id: "linked-1", authUserId: "auth-1" }),
+      makeEmployee({ id: "linked-missing", authUserId: "auth-missing" }),
+    ];
+    const result = await getAccountInfoForEmployees(hr, employees);
+
+    expect(result.get("linked-1")).toEqual({ linked: true, email: "alice@example.com" });
+    expect(result.get("linked-missing")).toEqual({ linked: true, email: null });
+  });
+
+  it("does not throw when Clerk fails, returning email null for every linked employee", async () => {
+    getUserListMock.mockRejectedValue(new Error("Clerk unavailable"));
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const employees = [
+      makeEmployee({ id: "linked-1", authUserId: "auth-1" }),
+      makeEmployee({ id: "linked-2", authUserId: "auth-2" }),
+      makeEmployee({ id: "pending-1", authUserId: null, invitedEmail: "pending@example.com" }),
+    ];
+    const result = await getAccountInfoForEmployees(hr, employees);
+
+    expect(result.get("linked-1")).toEqual({ linked: true, email: null });
+    expect(result.get("linked-2")).toEqual({ linked: true, email: null });
+    expect(result.get("pending-1")).toEqual({ linked: false, invitedEmail: "pending@example.com" });
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("chunks the Clerk lookup at 500 user ids per call", async () => {
+    getUserListMock.mockResolvedValue({ data: [] });
+
+    const employees = Array.from({ length: 501 }, (_, i) =>
+      makeEmployee({ id: `linked-${i}`, authUserId: `auth-${i}` })
+    );
+    await getAccountInfoForEmployees(hr, employees);
+
+    expect(getUserListMock).toHaveBeenCalledTimes(2);
+    expect(getUserListMock.mock.calls[0][0].userId).toHaveLength(500);
+    expect(getUserListMock.mock.calls[0][0].limit).toBe(500);
+    expect(getUserListMock.mock.calls[1][0]).toEqual({ userId: ["auth-500"], limit: 1 });
+  });
+});
+
+describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("resendEmployeeInvite", () => {
+  const supabase = createSupabaseAdminClient();
+  let companyId: string;
+  let hr: Profile;
+
+  beforeEach(() => {
+    createInvitationMock.mockReset();
+  });
+
+  beforeAll(async () => {
+    const { data: company, error: companyError } = await supabase
+      .from("companies")
+      .upsert(
+        { name: "Test Co (resend-invite)", slug: "test-co-resend-invite" },
+        { onConflict: "slug" }
+      )
+      .select("id")
+      .single();
+    if (companyError) throw companyError;
+    companyId = company.id;
+
+    hr = await createProfile({
+      authUserId: `test-hr-resend-${crypto.randomUUID()}`,
+      companyId,
+      fullName: "HR Person",
+      role: "hr",
+    });
+  });
+
+  afterAll(async () => {
+    await supabase.from("companies").delete().eq("slug", "test-co-resend-invite");
+  });
+
+  it("rejects a caller without hr/admin", async () => {
+    const nonHr = await createProfile({
+      authUserId: `test-not-hr-resend-${crypto.randomUUID()}`,
+      companyId,
+      fullName: "Not HR",
+      role: "employee",
+    });
+    const pending = await createProfile({
+      companyId,
+      fullName: "Pending Hire",
+      role: "employee",
+      invitedEmail: "pending@example.com",
+    });
+
+    await expect(resendEmployeeInvite(nonHr, pending.id)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("rejects when the employee has already linked their account", async () => {
+    const linked = await createProfile({
+      authUserId: `test-linked-${crypto.randomUUID()}`,
+      companyId,
+      fullName: "Already Linked",
+      role: "employee",
+      invitedEmail: "already-linked@example.com",
+    });
+
+    await expect(resendEmployeeInvite(hr, linked.id)).rejects.toThrow(
+      "This employee has already linked their account"
+    );
+    expect(createInvitationMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects when there is no invited email on file", async () => {
+    const pendingNoEmail = await createProfile({
+      companyId,
+      fullName: "No Email On File",
+      role: "employee",
+    });
+
+    await expect(resendEmployeeInvite(hr, pendingNoEmail.id)).rejects.toThrow(
+      "No invited email on file for this employee"
+    );
+    expect(createInvitationMock).not.toHaveBeenCalled();
+  });
+
+  it("resends the invitation with ignoreExisting and logs activity", async () => {
+    createInvitationMock.mockResolvedValue({ id: "inv_resend_1" });
+    const pending = await createProfile({
+      companyId,
+      fullName: "Pending Resend",
+      role: "employee",
+      invitedEmail: "pending-resend@example.com",
+    });
+
+    await resendEmployeeInvite(hr, pending.id);
+
+    expect(createInvitationMock).toHaveBeenCalledWith({
+      emailAddress: "pending-resend@example.com",
+      publicMetadata: { pendingProfileId: pending.id },
+      ignoreExisting: true,
+    });
+
+    const { activity } = await getEmployeeProfile(hr, pending.id);
+    expect(
+      activity.some((entry) => entry.message.includes(`resent an invitation to ${pending.fullName}`))
+    ).toBe(true);
+  });
+});

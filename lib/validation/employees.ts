@@ -24,6 +24,7 @@ export const updateEmployeeSchema = z.object({
   managerId: z.string().uuid().nullable().optional(),
   locationId: z.string().uuid().nullable().optional(),
   status: profileStatusSchema.optional(),
+  role: roleSchema.optional(),
 });
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
 

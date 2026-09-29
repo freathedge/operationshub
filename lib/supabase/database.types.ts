@@ -447,6 +447,7 @@ export type Database = {
           employee_number: string | null
           full_name: string
           id: string
+          invited_email: string | null
           location_id: string | null
           manager_id: string | null
           position_title: string | null
@@ -463,6 +464,7 @@ export type Database = {
           employee_number?: string | null
           full_name: string
           id?: string
+          invited_email?: string | null
           location_id?: string | null
           manager_id?: string | null
           position_title?: string | null
@@ -479,6 +481,7 @@ export type Database = {
           employee_number?: string | null
           full_name?: string
           id?: string
+          invited_email?: string | null
           location_id?: string | null
           manager_id?: string | null
           position_title?: string | null
