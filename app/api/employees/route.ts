@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentProfile } from "@/lib/auth/session";
-import { createEmployee, listEmployees } from "@/lib/domain/employees";
+import { createEmployee, listEmployees, getAccountInfoForEmployees } from "@/lib/domain/employees";
 import { createEmployeeSchema, employeeFiltersSchema } from "@/lib/validation/employees";
 import { toErrorResponse } from "@/lib/api/error-response";
 
@@ -21,7 +21,12 @@ export async function GET(request: Request) {
 
   try {
     const employees = await listEmployees(profile, parsed.data);
-    return NextResponse.json({ employees });
+    const accounts = await getAccountInfoForEmployees(profile, employees);
+    const employeesWithAccounts = employees.map((employee) => ({
+      ...employee,
+      account: accounts.get(employee.id) ?? null,
+    }));
+    return NextResponse.json({ employees: employeesWithAccounts });
   } catch (error) {
     return toErrorResponse(error);
   }

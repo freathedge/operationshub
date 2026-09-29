@@ -6,10 +6,11 @@ vi.mock("@/lib/auth/session", () => ({
 vi.mock("@/lib/domain/employees", () => ({
   createEmployee: vi.fn(),
   listEmployees: vi.fn(),
+  getAccountInfoForEmployees: vi.fn(),
 }));
 
 import { getCurrentProfile } from "@/lib/auth/session";
-import { createEmployee, listEmployees } from "@/lib/domain/employees";
+import { createEmployee, listEmployees, getAccountInfoForEmployees } from "@/lib/domain/employees";
 import { GET, POST } from "@/app/api/employees/route";
 import { ForbiddenError } from "@/lib/domain/errors";
 
@@ -33,6 +34,7 @@ beforeEach(() => {
   vi.mocked(getCurrentProfile).mockReset();
   vi.mocked(createEmployee).mockReset();
   vi.mocked(listEmployees).mockReset();
+  vi.mocked(getAccountInfoForEmployees).mockReset();
 });
 
 describe("GET /api/employees", () => {
@@ -45,6 +47,7 @@ describe("GET /api/employees", () => {
   it("returns employees scoped by the caller's filters", async () => {
     vi.mocked(getCurrentProfile).mockResolvedValue(PROFILE);
     vi.mocked(listEmployees).mockResolvedValue([]);
+    vi.mocked(getAccountInfoForEmployees).mockResolvedValue(new Map());
 
     const response = await GET(new Request("http://localhost/api/employees?status=active"));
     expect(response.status).toBe(200);
@@ -55,6 +58,25 @@ describe("GET /api/employees", () => {
     vi.mocked(getCurrentProfile).mockResolvedValue(PROFILE);
     const response = await GET(new Request("http://localhost/api/employees?status=on_leave"));
     expect(response.status).toBe(400);
+  });
+
+  it("attaches account info per employee from getAccountInfoForEmployees", async () => {
+    vi.mocked(getCurrentProfile).mockResolvedValue(PROFILE);
+    vi.mocked(listEmployees).mockResolvedValue([
+      { id: "employee-1" } as never,
+      { id: "employee-2" } as never,
+    ]);
+    vi.mocked(getAccountInfoForEmployees).mockResolvedValue(
+      new Map([["employee-1", { linked: true, email: "a@example.com" }]])
+    );
+
+    const response = await GET(new Request("http://localhost/api/employees"));
+    const body = await response.json();
+
+    expect(body.employees[0]).toEqual(
+      expect.objectContaining({ id: "employee-1", account: { linked: true, email: "a@example.com" } })
+    );
+    expect(body.employees[1]).toEqual(expect.objectContaining({ id: "employee-2", account: null }));
   });
 });
 
