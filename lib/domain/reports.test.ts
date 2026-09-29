@@ -387,26 +387,46 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getTaskRequestTrends", 
     expect(currentWeek.newRequests).toBeGreaterThanOrEqual(1);
   });
 
-  it("places a task completed at the very start of a week (Monday 00:00 UTC) in that week, not the previous one", async () => {
+  it("places a task completed at the very start of a week (Monday 00:00 UTC) in that week, and one completed 1ms earlier (Sunday 23:59:59.999) in the previous week", async () => {
     const thisMonday = new Date(`${mondayStartOf(new Date())}T00:00:00.000Z`);
-    const { error: taskError } = await supabase.from("tasks").insert({
+    const previousWeekStart = new Date(thisMonday);
+    previousWeekStart.setUTCDate(previousWeekStart.getUTCDate() - 7);
+    const sundayNightPrevWeek = new Date(thisMonday.getTime() - 1);
+
+    const before = await getTaskRequestTrends(opsManager, 6);
+
+    const { error: mondayTaskError } = await supabase.from("tasks").insert({
       company_id: companyId,
-      title: "Boundary task",
+      title: "Boundary task (Monday 00:00)",
       status: "completed",
       priority: "medium",
       completed_at: thisMonday.toISOString(),
     });
-    if (taskError) throw taskError;
+    if (mondayTaskError) throw mondayTaskError;
 
-    const result = await getTaskRequestTrends(opsManager, 6);
-    expect(result[5].completedTasks).toBeGreaterThanOrEqual(1);
-    // The previous week's bucket must NOT have picked this up.
-    const previousWeekStart = new Date(thisMonday);
-    previousWeekStart.setUTCDate(previousWeekStart.getUTCDate() - 7);
-    expect(result[4].weekStart).toBe(previousWeekStart.toISOString().slice(0, 10));
+    const { error: sundayTaskError } = await supabase.from("tasks").insert({
+      company_id: companyId,
+      title: "Boundary task (Sunday 23:59:59.999)",
+      status: "completed",
+      priority: "medium",
+      completed_at: sundayNightPrevWeek.toISOString(),
+    });
+    if (sundayTaskError) throw sundayTaskError;
+
+    const after = await getTaskRequestTrends(opsManager, 6);
+    expect(after[5].weekStart).toBe(mondayStartOf(new Date()));
+    expect(after[4].weekStart).toBe(previousWeekStart.toISOString().slice(0, 10));
+    expect(after[5].completedTasks).toBe(before[5].completedTasks + 1);
+    expect(after[4].completedTasks).toBe(before[4].completedTasks + 1);
+  });
+
+  it("mondayStartOf maps a known Sunday to that week's Monday", () => {
+    expect(mondayStartOf(new Date("2026-09-27T12:00:00.000Z"))).toBe("2026-09-21");
   });
 
   it("never counts another company's tasks or requests", async () => {
+    const beforeResult = await getTaskRequestTrends(opsManager, 6);
+
     const { error: taskError } = await supabase.from("tasks").insert({
       company_id: otherCompanyId,
       title: "Other company task",
@@ -425,7 +445,6 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getTaskRequestTrends", 
     });
     if (requestError) throw requestError;
 
-    const beforeResult = await getTaskRequestTrends(opsManager, 6);
     const afterResult = await getTaskRequestTrends(opsManager, 6);
     expect(afterResult[5].completedTasks).toBe(beforeResult[5].completedTasks);
     expect(afterResult[5].newRequests).toBe(beforeResult[5].newRequests);
