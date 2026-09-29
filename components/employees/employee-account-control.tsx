@@ -51,49 +51,64 @@ export function EmployeeAccountControl({
     if (role === currentRole) return;
     setIsSubmittingRole(true);
     setError(null);
-    const response = await fetch(`/api/employees/${employeeId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ role }),
-    });
-    setIsSubmittingRole(false);
-    if (!response.ok) {
-      const body = await response.json();
-      setError(typeof body.error === "string" ? body.error : "Failed to change role");
-      return;
+    try {
+      const response = await fetch(`/api/employees/${employeeId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ role }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        setError(typeof body.error === "string" ? body.error : "Failed to change role");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Failed to change role");
+    } finally {
+      setIsSubmittingRole(false);
     }
-    router.refresh();
   }
 
   async function toggleStatus() {
     const nextStatus: ProfileStatus = currentStatus === "active" ? "inactive" : "active";
     setIsSubmittingStatus(true);
     setError(null);
-    const response = await fetch(`/api/employees/${employeeId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status: nextStatus }),
-    });
-    setIsSubmittingStatus(false);
-    if (!response.ok) {
-      const body = await response.json();
-      setError(typeof body.error === "string" ? body.error : "Failed to update status");
-      return;
+    try {
+      const response = await fetch(`/api/employees/${employeeId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        setError(typeof body.error === "string" ? body.error : "Failed to update status");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Failed to update status");
+    } finally {
+      setIsSubmittingStatus(false);
     }
-    router.refresh();
   }
 
   async function resendInvite() {
     setIsResending(true);
     setError(null);
-    const response = await fetch(`/api/employees/${employeeId}/resend-invite`, { method: "POST" });
-    setIsResending(false);
-    if (!response.ok) {
-      const body = await response.json();
-      setError(typeof body.error === "string" ? body.error : "Failed to resend invite");
-      return;
+    try {
+      const response = await fetch(`/api/employees/${employeeId}/resend-invite`, { method: "POST" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        setError(typeof body.error === "string" ? body.error : "Failed to resend invite");
+        return;
+      }
+      setResendSent(true);
+    } catch {
+      setError("Failed to resend invite");
+    } finally {
+      setIsResending(false);
     }
-    setResendSent(true);
   }
 
   return (
