@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentProfile } from "@/lib/auth/session";
-import { canCreateEmployee } from "@/lib/domain/permissions";
+import { canCreateEmployee, canManageEmployeeAccount } from "@/lib/domain/permissions";
 import { BackLink } from "@/components/back-link";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ export default async function EmployeesPage() {
           ) : undefined
         }
       />
-      <EmployeeListView companyId={profile.companyId} />
+      <EmployeeListView companyId={profile.companyId} canManageAccount={canManageEmployeeAccount(profile)} />
     </div>
   );
 }

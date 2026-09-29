@@ -22,17 +22,30 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+interface EmployeeAccountInfo {
+  linked: boolean;
+  email?: string;
+  invitedEmail?: string | null;
+}
+
 interface EmployeeListItem {
   id: string;
   fullName: string;
   positionTitle: string | null;
   departmentId: string | null;
   status: "active" | "inactive";
+  account: EmployeeAccountInfo | null;
 }
 
 const STATUS_OPTIONS = ["active", "inactive"];
 
-export function EmployeeListView({ companyId }: { companyId: string }) {
+export function EmployeeListView({
+  companyId,
+  canManageAccount,
+}: {
+  companyId: string;
+  canManageAccount: boolean;
+}) {
   const [status, setStatus] = useState("");
   const queryClient = useQueryClient();
 
@@ -80,6 +93,7 @@ export function EmployeeListView({ companyId }: { companyId: string }) {
                   <TableHead>Name</TableHead>
                   <TableHead>Position</TableHead>
                   <TableHead>Status</TableHead>
+                  {canManageAccount && <TableHead>Account</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -94,11 +108,20 @@ export function EmployeeListView({ companyId }: { companyId: string }) {
                     <TableCell>
                       <Badge variant="outline">{employee.status}</Badge>
                     </TableCell>
+                    {canManageAccount && (
+                      <TableCell>
+                        {employee.account?.linked ? (
+                          employee.account.email
+                        ) : (
+                          <Badge variant="outline">Invitation pending</Badge>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
                 {data.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground">
+                    <TableCell colSpan={canManageAccount ? 4 : 3} className="text-center text-muted-foreground">
                       No employees found.
                     </TableCell>
                   </TableRow>
