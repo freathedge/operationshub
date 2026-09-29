@@ -6,6 +6,7 @@ import {
   getAccountInfoForEmployees,
   getEmployeeProfile,
   listEmployees,
+  resendEmployeeInvite,
   updateEmployee,
 } from "@/lib/domain/employees";
 import { ForbiddenError } from "@/lib/domain/errors";
@@ -446,5 +447,107 @@ describe("getAccountInfoForEmployees", () => {
 
     expect(result.get("linked-1")).toEqual({ linked: true, email: "alice@example.com" });
     expect(result.get("pending-1")).toEqual({ linked: false, invitedEmail: "pending@example.com" });
+  });
+});
+
+describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("resendEmployeeInvite", () => {
+  const supabase = createSupabaseAdminClient();
+  let companyId: string;
+  let hr: Profile;
+
+  beforeEach(() => {
+    createInvitationMock.mockReset();
+  });
+
+  beforeAll(async () => {
+    const { data: company, error: companyError } = await supabase
+      .from("companies")
+      .upsert(
+        { name: "Test Co (resend-invite)", slug: "test-co-resend-invite" },
+        { onConflict: "slug" }
+      )
+      .select("id")
+      .single();
+    if (companyError) throw companyError;
+    companyId = company.id;
+
+    hr = await createProfile({
+      authUserId: `test-hr-resend-${crypto.randomUUID()}`,
+      companyId,
+      fullName: "HR Person",
+      role: "hr",
+    });
+  });
+
+  afterAll(async () => {
+    await supabase.from("companies").delete().eq("slug", "test-co-resend-invite");
+  });
+
+  it("rejects a caller without hr/admin", async () => {
+    const nonHr = await createProfile({
+      authUserId: `test-not-hr-resend-${crypto.randomUUID()}`,
+      companyId,
+      fullName: "Not HR",
+      role: "employee",
+    });
+    const pending = await createProfile({
+      companyId,
+      fullName: "Pending Hire",
+      role: "employee",
+      invitedEmail: "pending@example.com",
+    });
+
+    await expect(resendEmployeeInvite(nonHr, pending.id)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("rejects when the employee has already linked their account", async () => {
+    const linked = await createProfile({
+      authUserId: `test-linked-${crypto.randomUUID()}`,
+      companyId,
+      fullName: "Already Linked",
+      role: "employee",
+      invitedEmail: "already-linked@example.com",
+    });
+
+    await expect(resendEmployeeInvite(hr, linked.id)).rejects.toThrow(
+      "This employee has already linked their account"
+    );
+    expect(createInvitationMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects when there is no invited email on file", async () => {
+    const pendingNoEmail = await createProfile({
+      companyId,
+      fullName: "No Email On File",
+      role: "employee",
+    });
+
+    await expect(resendEmployeeInvite(hr, pendingNoEmail.id)).rejects.toThrow(
+      "No invited email on file for this employee"
+    );
+    expect(createInvitationMock).not.toHaveBeenCalled();
+  });
+
+  it("resends the invitation with ignoreExisting and logs activity", async () => {
+    createInvitationMock.mockResolvedValue({ id: "inv_resend_1" });
+    const pending = await createProfile({
+      companyId,
+      fullName: "Pending Resend",
+      role: "employee",
+      invitedEmail: "pending-resend@example.com",
+    });
+
+    await resendEmployeeInvite(hr, pending.id);
+
+    expect(createInvitationMock).toHaveBeenCalledWith({
+      emailAddress: "pending-resend@example.com",
+      publicMetadata: { pendingProfileId: pending.id },
+      ignoreExisting: true,
+    });
+
+    const { activity } = await getEmployeeProfile(hr, pending.id);
+    expect(
+      activity.some((entry) => entry.message.includes(`resent an invitation to ${pending.fullName}`))
+    ).toBe(true);
   });
 });

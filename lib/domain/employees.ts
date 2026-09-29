@@ -10,7 +10,7 @@ import { logActivity, listActivity, type ActivityEntry } from "@/lib/domain/acti
 import { broadcastChange } from "@/lib/realtime/broadcast";
 import { startWorkflow } from "@/lib/domain/workflows";
 import { canCreateEmployee, canUpdateEmployee, canViewEmployeeProfile, canManageEmployeeAccount } from "@/lib/domain/permissions";
-import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
+import { ForbiddenError, NotFoundError, InvalidTransitionError, UnprocessableRequestError } from "@/lib/domain/errors";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { clerkClient } from "@clerk/nextjs/server";
 import type { CreateEmployeeInput, EmployeeFilters, UpdateEmployeeInput } from "@/lib/validation/employees";
@@ -128,6 +128,41 @@ export async function createEmployee(
   }
 
   return employee;
+}
+
+export async function resendEmployeeInvite(profile: Profile, employeeId: string): Promise<void> {
+  if (!canManageEmployeeAccount(profile)) {
+    throw new ForbiddenError("You cannot manage employee accounts");
+  }
+  const target = await getProfileById(employeeId);
+  if (!target || target.companyId !== profile.companyId) {
+    throw new NotFoundError("Employee not found");
+  }
+  if (target.authUserId) {
+    throw new InvalidTransitionError("This employee has already linked their account");
+  }
+  if (!target.invitedEmail) {
+    throw new UnprocessableRequestError("No invited email on file for this employee");
+  }
+
+  const clerk = await clerkClient();
+  await clerk.invitations.createInvitation({
+    emailAddress: target.invitedEmail,
+    publicMetadata: { pendingProfileId: target.id },
+    ignoreExisting: true,
+  });
+
+  await logActivity(
+    "profile",
+    employeeId,
+    profile.id,
+    `${profile.fullName} resent an invitation to ${target.fullName}`
+  );
+  try {
+    await broadcastChange(profile.companyId, "employees", { type: "employee_invite_resent" });
+  } catch (broadcastError) {
+    console.error("broadcastChange failed:", broadcastError);
+  }
 }
 
 export interface EmployeeCounts {
