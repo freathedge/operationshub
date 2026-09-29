@@ -152,12 +152,18 @@ export async function updateEmployee(
   }
 
   const updated = await updateProfile(employeeId, input);
-  await logActivity(
-    "profile",
-    employeeId,
-    profile.id,
-    `${profile.fullName} updated ${target.fullName}'s profile`
-  );
+
+  let message = `${profile.fullName} updated ${target.fullName}'s profile`;
+  if (input.role !== undefined && input.role !== target.role) {
+    message = `${profile.fullName} changed ${target.fullName}'s role from ${target.role} to ${input.role}`;
+  } else if (input.status !== undefined && input.status !== target.status) {
+    message =
+      input.status === "inactive"
+        ? `${profile.fullName} deactivated ${target.fullName}'s account`
+        : `${profile.fullName} reactivated ${target.fullName}'s account`;
+  }
+  await logActivity("profile", employeeId, profile.id, message);
+
   try {
     await broadcastChange(profile.companyId, "employees", { type: "employee_updated" });
   } catch (broadcastError) {

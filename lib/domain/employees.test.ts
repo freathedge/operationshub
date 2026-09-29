@@ -302,5 +302,35 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
       const employees = await listEmployees(hr, {});
       expect(employees.some((e) => e.id === target.id)).toBe(true);
     });
+
+    it("logs a role-change-specific activity message", async () => {
+      await updateEmployee(hr, target.id, { role: "manager" });
+      const { activity } = await getEmployeeProfile(hr, target.id);
+      expect(
+        activity.some((entry) =>
+          entry.message.includes(`changed ${target.fullName}'s role from employee to manager`)
+        )
+      ).toBe(true);
+    });
+
+    it("logs a deactivate-specific activity message", async () => {
+      await updateEmployee(hr, target.id, { status: "inactive" });
+      const { activity } = await getEmployeeProfile(hr, target.id);
+      expect(
+        activity.some((entry) => entry.message.includes(`deactivated ${target.fullName}'s account`))
+      ).toBe(true);
+
+      // restore for any later test in this file that assumes an active target
+      await updateEmployee(hr, target.id, { status: "active" });
+    });
+
+    it("logs a reactivate-specific activity message", async () => {
+      await updateEmployee(hr, target.id, { status: "inactive" });
+      await updateEmployee(hr, target.id, { status: "active" });
+      const { activity } = await getEmployeeProfile(hr, target.id);
+      expect(
+        activity.some((entry) => entry.message.includes(`reactivated ${target.fullName}'s account`))
+      ).toBe(true);
+    });
   }
 );
