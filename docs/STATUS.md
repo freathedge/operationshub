@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-25 (UI sweep: merged to main via PR #19)
+Last updated: 2026-09-29 (Review corrected: Clerk auth migration was already merged via PR #18 — status board just hadn't caught up)
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -22,13 +22,15 @@ _(nothing right now)_
 
 ## Review
 
+_(nothing right now)_
+
+## Finished
+
 - **Auth via Clerk**: replaced Supabase Auth with Clerk as the identity provider (minimal identity swap — companies/departments/`profiles`/roles/`permissions.ts` stay on Supabase Postgres; pre-production clean cutover, no user migration; Clerk's built-in invitations for employee invites, linked back via a `user.created` webhook). Spec: `docs/superpowers/specs/2026-09-24-clerk-auth-migration-design.md`. Plan: `docs/superpowers/plans/2026-09-24-clerk-auth-migration.md`. All 8 plan tasks complete on `worktree-clerk-auth-migration-plan`.
   - Whole-branch review found 3 Important/Critical cross-task issues, fixed in a bundled final wave: the invited-employee accept-invite flow dead-ended on the webhook-already-linked 409 response instead of treating it as success; `NavUser`'s logout raced Clerk's own post-`signOut()` redirect instead of passing `redirectUrl` directly; a failed Clerk invitation (rate limit, duplicate email) left an orphaned `profiles` row with no invite ever sent, now cleaned up via try/catch + delete-and-rethrow. Plus Minor fixes: a layout test's mock shape didn't match the code it was testing, ESLint was linting vendored Clerk-CLI skill-installer templates, `/signup/complete` had no auth guard, and dead code (`lib/supabase/server.ts`, superseded by Clerk's `auth()`) was removed. Docs (`README.md`, `docs/architecture.md` §5) updated to describe Clerk as the shipped auth provider instead of Supabase Auth.
   - `test:unit` and `test:integration` pass; `tsc --noEmit`, `pnpm lint`, and `pnpm build` are clean.
   - Flagged for human follow-up (not fixed in code, per the plan's own scope): the Clerk webhook must be registered in the Clerk Dashboard (`user.created` → `CLERK_WEBHOOK_SIGNING_SECRET`) before invited-employee linking works in any real deployment; no manual browser click-through was possible in this environment (same as every prior phase) — a human pass (fresh signup, role pick, logout/login, admin invite end-to-end) is especially important given this replaces the entire auth surface; the `/signup/complete` race between an invited user's browser and the async webhook link is a known UX gap, not resolved by this plan.
-  - Not yet merged — open PR belongs here per this file's convention.
-
-## Finished
+  - Merged to `main` via PR #18 (`82deaeb`), before the UI sweep (PR #19).
 
 - **UI sweep — all screens on shadcn/ui**: rebuilt every remaining raw-HTML screen from Phases 2–6 onto shadcn/ui primitives — `<select>` elements swapped for shadcn `Select`, `<input type="checkbox">` swapped for shadcn `Checkbox`, hand-rolled layouts rebuilt with `Card` and a new shared `PageHeader` component, per `CLAUDE.md` §UI. 11 tasks across Tasks, Requests, Operations, Employees, Assets, Approvals, Workflows (instances), the Settings page, and the signup-completion form's role select. Spec: `docs/superpowers/specs/2026-09-25-ui-sweep-design.md`. Plan: `docs/superpowers/plans/2026-09-25-ui-sweep.md`.
   - Per-task review found no Critical/Important issues. Two Minor findings deferred (non-blocking, ledgered by the controller): (1) `components/operations/operation-list-view.tsx`'s filter row uses `className="flex gap-2"` while the analogous Tasks-domain file uses `"flex items-center gap-2"` — cosmetically inconsequential (both Select triggers render at the same fixed height), not fixed; (2) `CardTitle` (from `components/ui/card.tsx`) renders a `<div>`, not a semantic heading, so every Card-wrapped section across this whole plan (Activity/Comments/Attachments/linked-item lists) lost its prior `<h2>` landmark — inherent to the plan's mandated `Card`/`CardTitle` primitives (shadcn's own component design), not a task-specific defect, but worth a human accessibility call.
