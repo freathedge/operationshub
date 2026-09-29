@@ -1,13 +1,21 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createProfile, getProfileById, type Profile } from "@/lib/domain/profiles";
-import { createEmployee, getEmployeeProfile, listEmployees, updateEmployee } from "@/lib/domain/employees";
+import {
+  createEmployee,
+  getAccountInfoForEmployees,
+  getEmployeeProfile,
+  listEmployees,
+  updateEmployee,
+} from "@/lib/domain/employees";
 import { ForbiddenError } from "@/lib/domain/errors";
 
 const createInvitationMock = vi.fn();
+const getUserListMock = vi.fn();
 vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: async () => ({
     invitations: { createInvitation: createInvitationMock },
+    users: { getUserList: getUserListMock },
   }),
 }));
 
@@ -334,3 +342,109 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(
     });
   }
 );
+
+describe("getAccountInfoForEmployees", () => {
+  beforeEach(() => {
+    getUserListMock.mockReset();
+  });
+
+  function makeEmployee(overrides: Partial<Profile> = {}): Profile {
+    return {
+      id: "employee-1",
+      authUserId: null,
+      companyId: "company-1",
+      fullName: "Test Employee",
+      role: "employee",
+      departmentId: null,
+      managerId: null,
+      positionTitle: null,
+      employeeNumber: null,
+      locationId: null,
+      relatedOperationId: null,
+      status: "active",
+      invitedEmail: null,
+      ...overrides,
+    };
+  }
+
+  const hr: Profile = {
+    id: "hr-1",
+    authUserId: "auth-hr-1",
+    companyId: "company-1",
+    fullName: "HR Person",
+    role: "hr",
+    departmentId: null,
+    managerId: null,
+    positionTitle: null,
+    employeeNumber: null,
+    locationId: null,
+    relatedOperationId: null,
+    status: "active",
+    invitedEmail: null,
+  };
+
+  const stranger: Profile = { ...hr, id: "stranger-1", role: "employee" };
+
+  it("returns an empty map for a caller without canManageEmployeeAccount, without calling Clerk", async () => {
+    const employees = [makeEmployee({ authUserId: "auth-1" })];
+    const result = await getAccountInfoForEmployees(stranger, employees);
+    expect(result.size).toBe(0);
+    expect(getUserListMock).not.toHaveBeenCalled();
+  });
+
+  it("returns invitedEmail for a pending employee, without calling Clerk", async () => {
+    const employees = [makeEmployee({ id: "pending-1", authUserId: null, invitedEmail: "pending@example.com" })];
+    const result = await getAccountInfoForEmployees(hr, employees);
+    expect(result.get("pending-1")).toEqual({ linked: false, invitedEmail: "pending@example.com" });
+    expect(getUserListMock).not.toHaveBeenCalled();
+  });
+
+  it("makes exactly one Clerk call for multiple linked employees and maps each back by profile id", async () => {
+    getUserListMock.mockResolvedValue({
+      data: [
+        {
+          id: "auth-1",
+          primaryEmailAddressId: "email-1",
+          emailAddresses: [{ id: "email-1", emailAddress: "alice@example.com" }],
+        },
+        {
+          id: "auth-2",
+          primaryEmailAddressId: "email-2",
+          emailAddresses: [{ id: "email-2", emailAddress: "bob@example.com" }],
+        },
+      ],
+    });
+
+    const employees = [
+      makeEmployee({ id: "linked-1", authUserId: "auth-1" }),
+      makeEmployee({ id: "linked-2", authUserId: "auth-2" }),
+    ];
+    const result = await getAccountInfoForEmployees(hr, employees);
+
+    expect(getUserListMock).toHaveBeenCalledTimes(1);
+    expect(getUserListMock).toHaveBeenCalledWith({ userId: ["auth-1", "auth-2"], limit: 2 });
+    expect(result.get("linked-1")).toEqual({ linked: true, email: "alice@example.com" });
+    expect(result.get("linked-2")).toEqual({ linked: true, email: "bob@example.com" });
+  });
+
+  it("mixes linked and pending employees correctly in one call", async () => {
+    getUserListMock.mockResolvedValue({
+      data: [
+        {
+          id: "auth-1",
+          primaryEmailAddressId: "email-1",
+          emailAddresses: [{ id: "email-1", emailAddress: "alice@example.com" }],
+        },
+      ],
+    });
+
+    const employees = [
+      makeEmployee({ id: "linked-1", authUserId: "auth-1" }),
+      makeEmployee({ id: "pending-1", authUserId: null, invitedEmail: "pending@example.com" }),
+    ];
+    const result = await getAccountInfoForEmployees(hr, employees);
+
+    expect(result.get("linked-1")).toEqual({ linked: true, email: "alice@example.com" });
+    expect(result.get("pending-1")).toEqual({ linked: false, invitedEmail: "pending@example.com" });
+  });
+});

@@ -9,13 +9,71 @@ import {
 import { logActivity, listActivity, type ActivityEntry } from "@/lib/domain/activity";
 import { broadcastChange } from "@/lib/realtime/broadcast";
 import { startWorkflow } from "@/lib/domain/workflows";
-import { canCreateEmployee, canUpdateEmployee, canViewEmployeeProfile } from "@/lib/domain/permissions";
+import { canCreateEmployee, canUpdateEmployee, canViewEmployeeProfile, canManageEmployeeAccount } from "@/lib/domain/permissions";
 import { ForbiddenError, NotFoundError } from "@/lib/domain/errors";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { clerkClient } from "@clerk/nextjs/server";
 import type { CreateEmployeeInput, EmployeeFilters, UpdateEmployeeInput } from "@/lib/validation/employees";
 
 export type Employee = Profile;
+
+export type EmployeeAccountInfo =
+  | { linked: true; email: string }
+  | { linked: false; invitedEmail: string | null };
+
+interface ClerkEmailAddress {
+  id: string;
+  emailAddress: string;
+}
+
+interface ClerkUserLike {
+  id: string;
+  primaryEmailAddressId: string | null;
+  emailAddresses: ClerkEmailAddress[];
+}
+
+function extractPrimaryEmail(user: ClerkUserLike): string {
+  return (
+    user.emailAddresses.find((address) => address.id === user.primaryEmailAddressId)?.emailAddress ??
+    user.emailAddresses[0]?.emailAddress ??
+    ""
+  );
+}
+
+export async function getAccountInfoForEmployees(
+  profile: Profile,
+  employees: Employee[]
+): Promise<Map<string, EmployeeAccountInfo>> {
+  const result = new Map<string, EmployeeAccountInfo>();
+  if (!canManageEmployeeAccount(profile)) {
+    return result;
+  }
+
+  const linked = employees.filter((employee) => employee.authUserId !== null);
+  const pending = employees.filter((employee) => employee.authUserId === null);
+
+  for (const employee of pending) {
+    result.set(employee.id, { linked: false, invitedEmail: employee.invitedEmail });
+  }
+
+  if (linked.length > 0) {
+    const clerk = await clerkClient();
+    const authUserIds = linked.map((employee) => employee.authUserId as string);
+    const { data: users } = await clerk.users.getUserList({
+      userId: authUserIds,
+      limit: authUserIds.length,
+    });
+    const emailByAuthUserId = new Map(users.map((user) => [user.id, extractPrimaryEmail(user)]));
+    for (const employee of linked) {
+      const email = emailByAuthUserId.get(employee.authUserId as string);
+      if (email !== undefined) {
+        result.set(employee.id, { linked: true, email });
+      }
+    }
+  }
+
+  return result;
+}
 
 export async function createEmployee(
   profile: Profile,
