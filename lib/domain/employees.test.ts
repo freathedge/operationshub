@@ -167,6 +167,21 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("createEmployee", () => 
     if (instancesError) throw instancesError;
     expect(instances).toHaveLength(0);
   });
+
+  it("stores the invited email on the profile for a later resend", async () => {
+    createInvitationMock.mockReset();
+    createInvitationMock.mockResolvedValue({ id: "inv_789" });
+
+    const newHireEmail = `new-hire-invited-email-${crypto.randomUUID()}@example.com`;
+    const employee = await createEmployee(hrProfile, {
+      email: newHireEmail,
+      fullName: "Invited Email Hire",
+      role: "employee",
+      startOnboarding: false,
+    });
+
+    expect(employee.invitedEmail).toBe(newHireEmail);
+  });
 });
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)(

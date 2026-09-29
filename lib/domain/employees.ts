@@ -34,6 +34,7 @@ export async function createEmployee(
     locationId: input.locationId ?? null,
     positionTitle: input.positionTitle ?? null,
     employeeNumber: input.employeeNumber ?? null,
+    invitedEmail: input.email,
   });
 
   const clerk = await clerkClient();
