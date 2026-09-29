@@ -59,6 +59,7 @@ describe("SettingsPage", () => {
       employeeNumber: null,
       locationId: null,
       relatedOperationId: null,
+      invitedEmail: null,
       status: "active",
     });
 

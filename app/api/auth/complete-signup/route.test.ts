@@ -58,6 +58,7 @@ describe("POST /api/auth/complete-signup", () => {
       employeeNumber: null,
       locationId: null,
       relatedOperationId: null,
+      invitedEmail: null,
       status: "active" as const,
     });
 
@@ -81,6 +82,7 @@ describe("POST /api/auth/complete-signup", () => {
       employeeNumber: null,
       locationId: null,
       relatedOperationId: null,
+      invitedEmail: null,
       status: "active" as const,
     });
 

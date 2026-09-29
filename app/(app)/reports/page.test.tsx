@@ -42,6 +42,7 @@ describe("ReportsPage", () => {
       employeeNumber: null,
       locationId: null,
       relatedOperationId: null,
+      invitedEmail: null,
       status: "active",
     });
 
@@ -67,6 +68,7 @@ describe("ReportsPage", () => {
       employeeNumber: null,
       locationId: null,
       relatedOperationId: null,
+      invitedEmail: null,
       status: "active",
     });
 

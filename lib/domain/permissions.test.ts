@@ -44,6 +44,7 @@ function makeProfile(overrides: Partial<Profile> = {}): Profile {
     employeeNumber: null,
     locationId: null,
     relatedOperationId: null,
+    invitedEmail: null,
     status: "active",
     ...overrides,
   };

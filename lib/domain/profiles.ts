@@ -17,6 +17,7 @@ export interface Profile {
   locationId: string | null;
   relatedOperationId: string | null;
   status: ProfileStatus;
+  invitedEmail: string | null;
 }
 
 interface ProfileRow {
@@ -32,6 +33,7 @@ interface ProfileRow {
   location_id: string | null;
   related_operation_id: string | null;
   status: ProfileStatus;
+  invited_email: string | null;
 }
 
 export function toProfile(row: ProfileRow): Profile {
@@ -48,11 +50,12 @@ export function toProfile(row: ProfileRow): Profile {
     locationId: row.location_id,
     relatedOperationId: row.related_operation_id,
     status: row.status,
+    invitedEmail: row.invited_email,
   };
 }
 
 export const PROFILE_COLUMNS =
-  "id, auth_user_id, company_id, full_name, role, department_id, manager_id, position_title, employee_number, location_id, related_operation_id, status";
+  "id, auth_user_id, company_id, full_name, role, department_id, manager_id, position_title, employee_number, location_id, related_operation_id, status, invited_email";
 
 export async function getProfileByAuthUserId(
   authUserId: string
@@ -127,6 +130,7 @@ export async function createProfile(input: {
   locationId?: string | null;
   positionTitle?: string | null;
   employeeNumber?: string | null;
+  invitedEmail?: string | null;
 }): Promise<Profile> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
@@ -141,6 +145,7 @@ export async function createProfile(input: {
       location_id: input.locationId ?? null,
       position_title: input.positionTitle ?? null,
       employee_number: input.employeeNumber ?? null,
+      invited_email: input.invitedEmail ?? null,
     })
     .select(PROFILE_COLUMNS)
     .single();
@@ -187,6 +192,7 @@ export async function updateProfile(
     locationId?: string | null;
     relatedOperationId?: string | null;
     status?: ProfileStatus;
+    role?: Role;
   }
 ): Promise<Profile> {
   const supabase = createSupabaseAdminClient();
@@ -202,6 +208,7 @@ export async function updateProfile(
         related_operation_id: updates.relatedOperationId,
       }),
       ...(updates.status !== undefined && { status: updates.status }),
+      ...(updates.role !== undefined && { role: updates.role }),
     })
     .eq("id", id)
     .select(PROFILE_COLUMNS)
