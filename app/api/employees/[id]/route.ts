@@ -3,6 +3,7 @@ import { getCurrentProfile } from "@/lib/auth/session";
 import { getEmployeeProfile, updateEmployee } from "@/lib/domain/employees";
 import { updateEmployeeSchema } from "@/lib/validation/employees";
 import { toErrorResponse } from "@/lib/api/error-response";
+import { toPublicProfile } from "@/lib/domain/profiles";
 
 export async function GET(
   _request: Request,
@@ -16,7 +17,7 @@ export async function GET(
 
   try {
     const employeeProfile = await getEmployeeProfile(profile, id);
-    return NextResponse.json(employeeProfile);
+    return NextResponse.json({ ...employeeProfile, profile: toPublicProfile(employeeProfile.profile) });
   } catch (error) {
     return toErrorResponse(error);
   }
@@ -45,7 +46,7 @@ export async function PATCH(
 
   try {
     const employee = await updateEmployee(profile, id, parsed.data);
-    return NextResponse.json({ employee });
+    return NextResponse.json({ employee: toPublicProfile(employee) });
   } catch (error) {
     return toErrorResponse(error);
   }

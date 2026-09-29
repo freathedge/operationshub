@@ -30,6 +30,22 @@ describe("EmployeeAccountControl", () => {
     expect(screen.queryByRole("button", { name: /resend invite/i })).not.toBeInTheDocument();
   });
 
+  it("shows Account not found for a linked employee with no known email", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    render(
+      <EmployeeAccountControl
+        employeeId="employee-1"
+        currentRole="employee"
+        currentStatus="active"
+        account={{ linked: true, email: null }}
+      />
+    );
+
+    expect(screen.getByText("Account not found")).toBeInTheDocument();
+    expect(screen.queryByText("Invitation pending")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /resend invite/i })).not.toBeInTheDocument();
+  });
+
   it("shows Invitation pending and a resend-invite button for a pending employee", async () => {
     vi.stubGlobal("fetch", vi.fn());
     render(

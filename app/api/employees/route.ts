@@ -3,6 +3,7 @@ import { getCurrentProfile } from "@/lib/auth/session";
 import { createEmployee, listEmployees, getAccountInfoForEmployees } from "@/lib/domain/employees";
 import { createEmployeeSchema, employeeFiltersSchema } from "@/lib/validation/employees";
 import { toErrorResponse } from "@/lib/api/error-response";
+import { toPublicProfile } from "@/lib/domain/profiles";
 
 export async function GET(request: Request) {
   const profile = await getCurrentProfile();
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
     const employees = await listEmployees(profile, parsed.data);
     const accounts = await getAccountInfoForEmployees(profile, employees);
     const employeesWithAccounts = employees.map((employee) => ({
-      ...employee,
+      ...toPublicProfile(employee),
       account: accounts.get(employee.id) ?? null,
     }));
     return NextResponse.json({ employees: employeesWithAccounts });
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
 
   try {
     const employee = await createEmployee(profile, parsed.data);
-    return NextResponse.json({ employee }, { status: 201 });
+    return NextResponse.json({ employee: toPublicProfile(employee) }, { status: 201 });
   } catch (error) {
     return toErrorResponse(error);
   }

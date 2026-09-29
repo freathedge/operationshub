@@ -79,5 +79,30 @@ describe("EmployeeListView", () => {
     );
     renderWithClient(<EmployeeListView companyId="company-1" canManageAccount={true} />);
     expect(await screen.findByText("Invitation pending")).toBeInTheDocument();
+    expect(screen.getByText("pending@example.com")).toBeInTheDocument();
+  });
+
+  it("shows an Account not found badge for a linked employee with no known email", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          employees: [
+            {
+              id: "employee-3",
+              fullName: "Orphaned Link",
+              positionTitle: null,
+              departmentId: null,
+              status: "active",
+              account: { linked: true, email: null },
+            },
+          ],
+        }),
+      })
+    );
+    renderWithClient(<EmployeeListView companyId="company-1" canManageAccount={true} />);
+    expect(await screen.findByText("Account not found")).toBeInTheDocument();
+    expect(screen.queryByText("Invitation pending")).not.toBeInTheDocument();
   });
 });

@@ -448,6 +448,59 @@ describe("getAccountInfoForEmployees", () => {
     expect(result.get("linked-1")).toEqual({ linked: true, email: "alice@example.com" });
     expect(result.get("pending-1")).toEqual({ linked: false, invitedEmail: "pending@example.com" });
   });
+
+  it("keeps a linked employee whose Clerk user is missing, with email null", async () => {
+    getUserListMock.mockResolvedValue({
+      data: [
+        {
+          id: "auth-1",
+          primaryEmailAddressId: "email-1",
+          emailAddresses: [{ id: "email-1", emailAddress: "alice@example.com" }],
+        },
+      ],
+    });
+
+    const employees = [
+      makeEmployee({ id: "linked-1", authUserId: "auth-1" }),
+      makeEmployee({ id: "linked-missing", authUserId: "auth-missing" }),
+    ];
+    const result = await getAccountInfoForEmployees(hr, employees);
+
+    expect(result.get("linked-1")).toEqual({ linked: true, email: "alice@example.com" });
+    expect(result.get("linked-missing")).toEqual({ linked: true, email: null });
+  });
+
+  it("does not throw when Clerk fails, returning email null for every linked employee", async () => {
+    getUserListMock.mockRejectedValue(new Error("Clerk unavailable"));
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const employees = [
+      makeEmployee({ id: "linked-1", authUserId: "auth-1" }),
+      makeEmployee({ id: "linked-2", authUserId: "auth-2" }),
+      makeEmployee({ id: "pending-1", authUserId: null, invitedEmail: "pending@example.com" }),
+    ];
+    const result = await getAccountInfoForEmployees(hr, employees);
+
+    expect(result.get("linked-1")).toEqual({ linked: true, email: null });
+    expect(result.get("linked-2")).toEqual({ linked: true, email: null });
+    expect(result.get("pending-1")).toEqual({ linked: false, invitedEmail: "pending@example.com" });
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("chunks the Clerk lookup at 500 user ids per call", async () => {
+    getUserListMock.mockResolvedValue({ data: [] });
+
+    const employees = Array.from({ length: 501 }, (_, i) =>
+      makeEmployee({ id: `linked-${i}`, authUserId: `auth-${i}` })
+    );
+    await getAccountInfoForEmployees(hr, employees);
+
+    expect(getUserListMock).toHaveBeenCalledTimes(2);
+    expect(getUserListMock.mock.calls[0][0].userId).toHaveLength(500);
+    expect(getUserListMock.mock.calls[0][0].limit).toBe(500);
+    expect(getUserListMock.mock.calls[1][0]).toEqual({ userId: ["auth-500"], limit: 1 });
+  });
 });
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("resendEmployeeInvite", () => {

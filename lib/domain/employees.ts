@@ -18,7 +18,7 @@ import type { CreateEmployeeInput, EmployeeFilters, UpdateEmployeeInput } from "
 export type Employee = Profile;
 
 export type EmployeeAccountInfo =
-  | { linked: true; email: string }
+  | { linked: true; email: string | null }
   | { linked: false; invitedEmail: string | null };
 
 interface ClerkEmailAddress {
@@ -40,6 +40,16 @@ function extractPrimaryEmail(user: ClerkUserLike): string {
   );
 }
 
+const CLERK_GET_USER_LIST_MAX = 500;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
 export async function getAccountInfoForEmployees(
   profile: Profile,
   employees: Employee[]
@@ -57,18 +67,27 @@ export async function getAccountInfoForEmployees(
   }
 
   if (linked.length > 0) {
-    const clerk = await clerkClient();
-    const authUserIds = linked.map((employee) => employee.authUserId as string);
-    const { data: users } = await clerk.users.getUserList({
-      userId: authUserIds,
-      limit: authUserIds.length,
-    });
-    const emailByAuthUserId = new Map(users.map((user) => [user.id, extractPrimaryEmail(user)]));
-    for (const employee of linked) {
-      const email = emailByAuthUserId.get(employee.authUserId as string);
-      if (email !== undefined) {
-        result.set(employee.id, { linked: true, email });
+    const emailByAuthUserId = new Map<string, string>();
+    try {
+      const clerk = await clerkClient();
+      const authUserIds = linked.map((employee) => employee.authUserId as string);
+      for (const batch of chunk(authUserIds, CLERK_GET_USER_LIST_MAX)) {
+        const { data: users } = await clerk.users.getUserList({
+          userId: batch,
+          limit: batch.length,
+        });
+        for (const user of users) {
+          emailByAuthUserId.set(user.id, extractPrimaryEmail(user));
+        }
       }
+    } catch (error) {
+      console.error("Clerk getUserList failed:", error);
+    }
+    for (const employee of linked) {
+      result.set(employee.id, {
+        linked: true,
+        email: emailByAuthUserId.get(employee.authUserId as string) ?? null,
+      });
     }
   }
 

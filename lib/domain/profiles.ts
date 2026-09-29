@@ -57,6 +57,12 @@ export function toProfile(row: ProfileRow): Profile {
 export const PROFILE_COLUMNS =
   "id, auth_user_id, company_id, full_name, role, department_id, manager_id, position_title, employee_number, location_id, related_operation_id, status, invited_email";
 
+export function toPublicProfile(profile: Profile): Omit<Profile, "invitedEmail"> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { invitedEmail: _invitedEmail, ...rest } = profile;
+  return rest;
+}
+
 export async function getProfileByAuthUserId(
   authUserId: string
 ): Promise<Profile | null> {

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 
 export type EmployeeAccountInfo =
-  | { linked: true; email: string }
+  | { linked: true; email: string | null }
   | { linked: false; invitedEmail?: string | null };
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
@@ -120,7 +120,11 @@ export function EmployeeAccountControl({
         <div>
           <p className="text-sm text-muted-foreground">Email</p>
           {account.linked ? (
-            <p>{account.email}</p>
+            account.email ? (
+              <p>{account.email}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Account not found</p>
+            )
           ) : (
             <div className="flex items-center gap-2">
               <Badge variant="outline">Invitation pending</Badge>

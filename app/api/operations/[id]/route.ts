@@ -3,6 +3,7 @@ import { getCurrentProfile } from "@/lib/auth/session";
 import { getOperation, updateOperation } from "@/lib/domain/operations";
 import { updateOperationSchema } from "@/lib/validation/operations";
 import { toErrorResponse } from "@/lib/api/error-response";
+import { toPublicProfile } from "@/lib/domain/profiles";
 
 export async function GET(
   _request: Request,
@@ -16,7 +17,7 @@ export async function GET(
 
   try {
     const detail = await getOperation(profile, id);
-    return NextResponse.json(detail);
+    return NextResponse.json({ ...detail, employees: detail.employees.map(toPublicProfile) });
   } catch (error) {
     return toErrorResponse(error);
   }

@@ -24,7 +24,7 @@ import {
 
 interface EmployeeAccountInfo {
   linked: boolean;
-  email?: string;
+  email?: string | null;
   invitedEmail?: string | null;
 }
 
@@ -111,9 +111,14 @@ export function EmployeeListView({
                     {canManageAccount && (
                       <TableCell>
                         {employee.account?.linked ? (
-                          employee.account.email
+                          employee.account.email ?? <Badge variant="outline">Account not found</Badge>
                         ) : (
-                          <Badge variant="outline">Invitation pending</Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">Invitation pending</Badge>
+                            {employee.account?.invitedEmail && (
+                              <span className="text-sm text-muted-foreground">{employee.account.invitedEmail}</span>
+                            )}
+                          </div>
                         )}
                       </TableCell>
                     )}
