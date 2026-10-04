@@ -19,6 +19,7 @@ vi.mock("@/lib/domain/reports", () => ({
   avgRequestCompletionTime: vi.fn().mockResolvedValue([]),
   taskStatistics: vi.fn().mockResolvedValue({ open: 0, completed: 0, overdue: 0 }),
   workflowCompletionRate: vi.fn().mockResolvedValue([]),
+  getTaskRequestTrends: vi.fn().mockResolvedValue([]),
 }));
 
 import ReportsPage from "@/app/(app)/reports/page";
@@ -84,5 +85,39 @@ describe("ReportsPage", () => {
     // nested titles without compromising the page's client/server component usage.
     expect(screen.getByText("Requests by Department")).toBeInTheDocument();
     expect(screen.getByText("Task Statistics")).toBeInTheDocument();
+  });
+
+  it("renders the task/request trend chart with 12 weeks of data", async () => {
+    getCurrentProfileMock.mockResolvedValue({
+      id: "profile-1",
+      authUserId: "auth-1",
+      companyId: "company-1",
+      fullName: "Ops Manager",
+      role: "operations_manager",
+      departmentId: null,
+      managerId: null,
+      positionTitle: null,
+      employeeNumber: null,
+      locationId: null,
+      relatedOperationId: null,
+      invitedEmail: null,
+      status: "active",
+    });
+    const trends = Array.from({ length: 12 }, (_, i) => ({
+      weekStart: `2026-0${(i % 9) + 1}-01`,
+      completedTasks: i,
+      newRequests: i + 1,
+    }));
+    const { getTaskRequestTrends } = await import("@/lib/domain/reports");
+    vi.mocked(getTaskRequestTrends).mockResolvedValue(trends);
+
+    const element = await ReportsPage();
+    render(element);
+
+    expect(screen.getByText("Tasks Completed & Requests Received, by Week")).toBeInTheDocument();
+    expect(getTaskRequestTrends).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "profile-1" }),
+      12
+    );
   });
 });
