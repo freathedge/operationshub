@@ -25,4 +25,13 @@ describe("RootLayout", () => {
 
     expect(tooltipProviderElement.props.children).toBe("hello-world-marker");
   });
+
+  it("points Clerk at the app's own /login and /signup pages", () => {
+    // Without these, Clerk's components silently link to its hosted Account Portal
+    // (accounts.dev) instead of this app's sign-in/sign-up routes.
+    const element = RootLayout({ children: null, params: Promise.resolve({}) });
+    const clerkProviderElement = element.props.children.props.children;
+    expect(clerkProviderElement.props.signInUrl).toBe("/login");
+    expect(clerkProviderElement.props.signUpUrl).toBe("/signup");
+  });
 });
