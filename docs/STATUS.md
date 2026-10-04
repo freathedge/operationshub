@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-04 (Self-healing find-step test fixture: merged via PR #23, moved to Finished; Self-service account settings: started, moved to In Progress)
+Last updated: 2026-10-04 (Clerk sign-in/sign-up links fix: in Review; Self-service account settings: In Progress)
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -20,7 +20,7 @@ Standalone follow-up work (not a numbered phase):
 
 ## Review
 
-_(nothing right now)_
+- **Clerk sign-in/sign-up links pointed at Clerk's hosted pages**: on `/login`, Clerk's "Sign up" link (and "Sign in" on `/signup`) sent users to Clerk's hosted Account Portal (`grateful-clam-3298.accounts.dev`) instead of the app's own pages, in every environment. `<ClerkProvider>` in `app/layout.tsx` had neither `signInUrl` nor `signUpUrl` (nor the matching `NEXT_PUBLIC_CLERK_SIGN_IN_URL`/`_SIGN_UP_URL` env vars), and Clerk silently falls back to the Account Portal when they're missing. Now set in code to `/login` and `/signup`, so every environment works without extra env vars; `app/layout.test.tsx` pins both. Bounded change approved in chat, no spec/plan doc. Found while testing production after its env vars were fixed on 2026-10-04 (the deployment was returning 500 on every route because the Clerk keys were missing and `SUPABASE_SERVICE_ROLE_KEY` was wrong in Vercel; production is now served at `operationshub.adrian-buder.at`). Branch: `worktree-fix-clerk-auth-urls`.
 
 ## Finished
 
