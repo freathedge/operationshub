@@ -112,6 +112,8 @@ export function EmployeeListView({
                       <TableCell>
                         {employee.account?.linked ? (
                           employee.account.email ?? <Badge variant="outline">Account not found</Badge>
+                        ) : !employee.account?.invitedEmail ? (
+                          <Badge variant="outline">No account</Badge>
                         ) : (
                           <div className="flex items-center gap-2">
                             <Badge variant="outline">Invitation pending</Badge>

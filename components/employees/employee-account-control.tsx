@@ -125,6 +125,8 @@ export function EmployeeAccountControl({
             ) : (
               <p className="text-sm text-muted-foreground">Account not found</p>
             )
+          ) : !account.invitedEmail ? (
+            <Badge variant="outline">No account</Badge>
           ) : (
             <div className="flex items-center gap-2">
               <Badge variant="outline">Invitation pending</Badge>
@@ -167,7 +169,7 @@ export function EmployeeAccountControl({
           </Button>
         </div>
 
-        {!account.linked && (
+        {!account.linked && account.invitedEmail && (
           <div className="flex items-center gap-2">
             <Button variant="outline" disabled={isResending} onClick={resendInvite}>
               Resend invite
