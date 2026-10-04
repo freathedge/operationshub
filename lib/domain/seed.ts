@@ -306,7 +306,7 @@ export async function seedDemoActivity(
 
   const { data: existingDemoProfiles, error: existingDemoError } = await supabase
     .from("profiles")
-    .select("id, department_id")
+    .select("id, department_id, employee_number")
     .eq("company_id", companyId)
     .like("employee_number", `${DEMO_EMPLOYEE_MARKER_PREFIX}%`);
   if (existingDemoError) throw existingDemoError;
@@ -318,23 +318,22 @@ export async function seedDemoActivity(
   if (departmentsError) throw departmentsError;
   const departmentIdByName = new Map((departments ?? []).map((d) => [d.name, d.id]));
 
-  let demoProfiles: { id: string; departmentId: string | null }[];
+  const demoProfiles: { id: string; departmentId: string | null }[] = (
+    existingDemoProfiles ?? []
+  ).map((p) => ({ id: p.id, departmentId: p.department_id }));
+  const existingNumbers = new Set((existingDemoProfiles ?? []).map((p) => p.employee_number));
   let employeesCreated = 0;
-  if ((existingDemoProfiles ?? []).length > 0) {
-    demoProfiles = existingDemoProfiles!.map((p) => ({ id: p.id, departmentId: p.department_id }));
-  } else {
-    demoProfiles = [];
-    for (const seed of DEMO_EMPLOYEES) {
-      const profile = await createProfile({
-        companyId,
-        fullName: seed.fullName,
-        role: seed.role,
-        departmentId: departmentIdByName.get(seed.department) ?? null,
-        employeeNumber: seed.employeeNumber,
-      });
-      demoProfiles.push({ id: profile.id, departmentId: profile.departmentId });
-      employeesCreated += 1;
-    }
+  for (const seed of DEMO_EMPLOYEES) {
+    if (existingNumbers.has(seed.employeeNumber)) continue;
+    const profile = await createProfile({
+      companyId,
+      fullName: seed.fullName,
+      role: seed.role,
+      departmentId: departmentIdByName.get(seed.department) ?? null,
+      employeeNumber: seed.employeeNumber,
+    });
+    demoProfiles.push({ id: profile.id, departmentId: profile.departmentId });
+    employeesCreated += 1;
   }
 
   const { count: existingDemoTaskCount, error: existingTasksError } = await supabase
@@ -344,11 +343,18 @@ export async function seedDemoActivity(
     .like("title", "[Demo]%");
   if (existingTasksError) throw existingTasksError;
 
-  if ((existingDemoTaskCount ?? 0) > 0) {
-    return { employeesCreated, tasksCreated: 0, requestsCreated: 0 };
-  }
+  const { count: existingDemoRequestCount, error: existingRequestsError } = await supabase
+    .from("requests")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .like("title", "[Demo]%");
+  if (existingRequestsError) throw existingRequestsError;
+
+  const seedTasks = (existingDemoTaskCount ?? 0) === 0;
+  const seedRequests = (existingDemoRequestCount ?? 0) === 0;
 
   const now = new Date();
+  const clampToNow = (d: Date): Date => (d.getTime() > now.getTime() ? new Date(now) : d);
   const tasksToInsert: {
     company_id: string;
     title: string;
@@ -374,12 +380,13 @@ export async function seedDemoActivity(
     const weekStart = new Date(now);
     weekStart.setUTCDate(weekStart.getUTCDate() - weekOffset * 7);
 
-    const completedTaskCount = randomInt(3, 8);
+    const completedTaskCount = seedTasks ? randomInt(3, 8) : 0;
     for (let i = 0; i < completedTaskCount; i++) {
       const assignee = randomChoice(demoProfiles);
       const completedAt = new Date(weekStart);
       completedAt.setUTCDate(completedAt.getUTCDate() + randomInt(0, 6));
-      const createdAt = new Date(completedAt);
+      const completedAtClamped = clampToNow(completedAt);
+      const createdAt = new Date(completedAtClamped);
       createdAt.setUTCDate(createdAt.getUTCDate() - randomInt(1, 5));
 
       tasksToInsert.push({
@@ -390,16 +397,17 @@ export async function seedDemoActivity(
         assignee_id: assignee.id,
         creator_id: assignee.id,
         department_id: assignee.departmentId,
-        completed_at: completedAt.toISOString(),
+        completed_at: completedAtClamped.toISOString(),
         created_at: createdAt.toISOString(),
       });
     }
 
-    const newRequestCount = randomInt(2, 5);
+    const newRequestCount = seedRequests ? randomInt(2, 5) : 0;
     for (let i = 0; i < newRequestCount; i++) {
       const creator = randomChoice(demoProfiles);
-      const createdAt = new Date(weekStart);
-      createdAt.setUTCDate(createdAt.getUTCDate() + randomInt(0, 6));
+      const createdAtRaw = new Date(weekStart);
+      createdAtRaw.setUTCDate(createdAtRaw.getUTCDate() + randomInt(0, 6));
+      const createdAt = clampToNow(createdAtRaw);
       const { title, category } = randomChoice(DEMO_REQUESTS);
 
       requestsToInsert.push({
@@ -414,11 +422,17 @@ export async function seedDemoActivity(
     }
   }
 
-  const { error: tasksInsertError } = await supabase.from("tasks").insert(tasksToInsert);
-  if (tasksInsertError) throw tasksInsertError;
+  if (tasksToInsert.length > 0) {
+    const { error: tasksInsertError } = await supabase.from("tasks").insert(tasksToInsert);
+    if (tasksInsertError) throw tasksInsertError;
+  }
 
-  const { error: requestsInsertError } = await supabase.from("requests").insert(requestsToInsert);
-  if (requestsInsertError) throw requestsInsertError;
+  if (requestsToInsert.length > 0) {
+    const { error: requestsInsertError } = await supabase
+      .from("requests")
+      .insert(requestsToInsert);
+    if (requestsInsertError) throw requestsInsertError;
+  }
 
   return {
     employeesCreated,

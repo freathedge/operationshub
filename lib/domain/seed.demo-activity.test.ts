@@ -57,4 +57,51 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("seedDemoActivity", () =
     // Exactly the employees created by the FIRST run — not double.
     expect(demoProfiles?.length).toBe(6);
   });
+
+  it("recovers a partial run: re-seeds missing requests without duplicating tasks or employees, and never future-dates", async () => {
+    const { error: deleteError } = await supabase
+      .from("requests")
+      .delete()
+      .eq("company_id", companyId)
+      .like("title", "[Demo]%");
+    if (deleteError) throw deleteError;
+
+    const { data: partialProfile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("employee_number", "DEMO-06")
+      .single();
+    const { error: profileDeleteError } = await supabase
+      .from("profiles")
+      .delete()
+      .eq("id", partialProfile!.id);
+    if (profileDeleteError) throw profileDeleteError;
+
+    const recovered = await seedDemoActivity(testSlug);
+    expect(recovered.requestsCreated).toBeGreaterThan(0);
+    expect(recovered.tasksCreated).toBe(0);
+    expect(recovered.employeesCreated).toBe(1); // only the missing DEMO-06 is recreated
+
+    const { count: profileCount } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .like("employee_number", `${DEMO_EMPLOYEE_MARKER_PREFIX}%`);
+    expect(profileCount).toBe(6);
+
+    const nowIso = new Date().toISOString();
+    const { count: futureTasks } = await supabase
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .gt("completed_at", nowIso);
+    const { count: futureRequests } = await supabase
+      .from("requests")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .gt("created_at", nowIso);
+    expect(futureTasks).toBe(0);
+    expect(futureRequests).toBe(0);
+  });
 });
