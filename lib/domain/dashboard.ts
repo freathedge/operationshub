@@ -6,6 +6,7 @@ import { TASK_PRIORITIES, type TaskPriority, type TaskStatus } from "@/lib/domai
 import type { RequestStatus } from "@/lib/domain/request-status";
 import { canViewCompanyOverview } from "@/lib/domain/permissions";
 import { ForbiddenError } from "@/lib/domain/errors";
+import { getTaskRequestTrends, type WeeklyTrend } from "@/lib/domain/reports";
 
 const OPEN_TASK_STATUSES: TaskStatus[] = ["todo", "in_progress", "blocked"];
 const OPEN_REQUEST_STATUSES: RequestStatus[] = [
@@ -279,6 +280,7 @@ export interface CompanyOverview {
   };
   activeOperations: OperationProgress[];
   departmentActivity: DepartmentActivity[];
+  taskRequestTrends: WeeklyTrend[];
 }
 
 export async function getCompanyOverview(profile: Profile): Promise<CompanyOverview> {
@@ -301,6 +303,7 @@ export async function getCompanyOverview(profile: Profile): Promise<CompanyOverv
     overdueRequestsResult,
     activeOperationsResult,
     departmentsResult,
+    taskRequestTrends,
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -347,6 +350,7 @@ export async function getCompanyOverview(profile: Profile): Promise<CompanyOverv
       .order("created_at", { ascending: false })
       .limit(ACTIVE_OPERATIONS_LIMIT),
     supabase.from("departments").select("id, name").eq("company_id", profile.companyId),
+    getTaskRequestTrends(profile, 6),
   ]);
 
   if (employeesResult.error) throw employeesResult.error;
@@ -414,5 +418,6 @@ export async function getCompanyOverview(profile: Profile): Promise<CompanyOverv
     },
     activeOperations,
     departmentActivity,
+    taskRequestTrends,
   };
 }
