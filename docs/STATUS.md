@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-04 (Admin dashboard statistics: merged via PR #21, moved to Finished; demo data seeded into AlpenTech Industries)
+Last updated: 2026-10-04 (Self-healing find-step test fixture: in Review)
 
 **How to use this file:** one entry per phase (or per standalone piece of follow-up work), moved between columns as it progresses. Backlog → In Progress → Review → Finished. An item only moves to **Finished** once its branch is merged into `main` — an open PR belongs in **Review**, no matter how complete the code is. Keep entries short: one line of description, links to the relevant plan/spec, and the branch/PR if one exists. Whoever picks up work in this repo (human or agent) should update this file as part of that work, not as an afterthought.
 
@@ -21,7 +21,7 @@ _(nothing right now)_
 
 ## Review
 
-_(nothing right now)_
+- **Self-healing `findWorkflowStepByTaskId` test fixture**: `lib/domain/workflows.test.ts`'s `findWorkflowStepByTaskId` block had failed on every run since 2026-09-29. An interrupted run had left its `asset-step-test` template behind in the live DB. Every later `beforeAll` then hit the unique `(company_id, slug)` key, and `afterAll` crashed on the undefined `templateId` before deleting anything, leaking one Supabase auth user and one profile per run. Teardown now finds everything through the `test-co-find-step` slug and also runs at the start of `beforeAll`, and auth users are deleted in a `finally`. A stray `console.error("DEBUG beforeAll invoked", …)` was removed. Bounded change approved in chat, no spec/plan doc. Verified: the fixed test cleared the stale fixture on its first run and passed twice in a row (25/25), leaving nothing behind. Not done: deleting 8 leftover Supabase auth users (`find-step-test-…@example.com`) from the failed runs; the SQL delete was declined at the permission prompt, and they are unused because the app authenticates through Clerk. Note: the `workflow engine` block in the same file has the same latent pattern (teardown by captured ids), but its teardown ignores errors, so it hasn't jammed. Branch: `worktree-fix-find-step-test-fixture`.
 
 ## Finished
 
