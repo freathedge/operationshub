@@ -4,6 +4,8 @@ import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
@@ -27,6 +29,7 @@ export function TaskRequestTrendChart({ data }: { data: WeeklyTrend[] }) {
             <CartesianGrid vertical={false} />
             <XAxis dataKey="weekStart" tickLine={false} axisLine={false} />
             <ChartTooltip content={<ChartTooltipContent />} />
+            <ChartLegend content={<ChartLegendContent />} />
             <Line
               type="monotone"
               dataKey="completedTasks"
