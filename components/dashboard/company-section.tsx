@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActiveOperationsCard } from "@/components/dashboard/active-operations-card";
+import { TaskRequestTrendChart } from "@/components/reports/task-request-trend-chart";
 import type { CompanyOverview } from "@/lib/domain/dashboard";
 
 export function CompanySection({ overview }: { overview: CompanyOverview }) {
@@ -53,6 +54,8 @@ export function CompanySection({ overview }: { overview: CompanyOverview }) {
       </Card>
 
       <ActiveOperationsCard operations={overview.activeOperations} />
+
+      <TaskRequestTrendChart data={overview.taskRequestTrends} />
 
       <Card>
         <CardHeader>
