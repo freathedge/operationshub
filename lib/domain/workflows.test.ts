@@ -625,8 +625,82 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("findWorkflowStepByTaskI
   let employee: Profile;
   let templateId: string;
 
+  // Looks everything up by the fixture's company slug rather than by ids captured in
+  // beforeAll, so it also clears what an earlier, interrupted run left behind. Without that,
+  // a leftover "asset-step-test" template made every later beforeAll fail on the unique
+  // (company_id, slug) key, and this teardown then crashed on an undefined templateId before
+  // it could delete anything — so the fixture never recovered on its own.
+  // startWorkflow's tasks, workflow_instance_steps and workflow_instances->workflow_templates
+  // have no ON DELETE CASCADE (same defect as completeAssetAssignmentTask's fixture in
+  // assets.test.ts), so they are torn down explicitly and in this order; profiles and
+  // departments cascade from the company delete.
+  async function removeFindStepFixture() {
+    const { data: staleCompany, error: companyFetchError } = await supabase
+      .from("companies")
+      .select("id")
+      .eq("slug", "test-co-find-step")
+      .maybeSingle();
+    if (companyFetchError) throw companyFetchError;
+    if (!staleCompany) return;
+
+    const { data: instances, error: instancesFetchError } = await supabase
+      .from("workflow_instances")
+      .select("id")
+      .eq("company_id", staleCompany.id);
+    if (instancesFetchError) throw instancesFetchError;
+
+    const instanceIds = (instances ?? []).map((instance) => instance.id);
+    if (instanceIds.length > 0) {
+      const { error: stepsDeleteError } = await supabase
+        .from("workflow_instance_steps")
+        .delete()
+        .in("instance_id", instanceIds);
+      if (stepsDeleteError) throw stepsDeleteError;
+    }
+
+    const { error: tasksDeleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("company_id", staleCompany.id);
+    if (tasksDeleteError) throw tasksDeleteError;
+
+    const { error: instancesDeleteError } = await supabase
+      .from("workflow_instances")
+      .delete()
+      .eq("company_id", staleCompany.id);
+    if (instancesDeleteError) throw instancesDeleteError;
+
+    const { data: templates, error: templatesFetchError } = await supabase
+      .from("workflow_templates")
+      .select("id")
+      .eq("company_id", staleCompany.id);
+    if (templatesFetchError) throw templatesFetchError;
+
+    const templateIds = (templates ?? []).map((template) => template.id);
+    if (templateIds.length > 0) {
+      const { error: templateStepsDeleteError } = await supabase
+        .from("workflow_template_steps")
+        .delete()
+        .in("template_id", templateIds);
+      if (templateStepsDeleteError) throw templateStepsDeleteError;
+
+      const { error: templateDeleteError } = await supabase
+        .from("workflow_templates")
+        .delete()
+        .in("id", templateIds);
+      if (templateDeleteError) throw templateDeleteError;
+    }
+
+    const { error: companyDeleteError } = await supabase
+      .from("companies")
+      .delete()
+      .eq("id", staleCompany.id);
+    if (companyDeleteError) throw companyDeleteError;
+  }
+
   beforeAll(async () => {
-    console.error("DEBUG beforeAll invoked", new Error().stack);
+    await removeFindStepFixture();
+
     const { data: company, error: companyError } = await supabase
       .from("companies")
       .upsert(
@@ -694,59 +768,15 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("findWorkflowStepByTaskI
   });
 
   afterAll(async () => {
-    // Same defect as completeAssetAssignmentTask's fixture in assets.test.ts: this block's
-    // startWorkflow calls generate tasks and workflow_instance_steps, and those two plus
-    // workflow_instances->workflow_templates have no ON DELETE CASCADE, so they must be torn
-    // down explicitly and in this order. Everything else (profiles, departments) cascades from
-    // the company delete.
-    const { data: instances, error: instancesFetchError } = await supabase
-      .from("workflow_instances")
-      .select("id")
-      .eq("company_id", companyId);
-    if (instancesFetchError) throw instancesFetchError;
-
-    const instanceIds = (instances ?? []).map((instance) => instance.id);
-    if (instanceIds.length > 0) {
-      const { error: stepsDeleteError } = await supabase
-        .from("workflow_instance_steps")
-        .delete()
-        .in("instance_id", instanceIds);
-      if (stepsDeleteError) throw stepsDeleteError;
-    }
-
-    const { error: tasksDeleteError } = await supabase
-      .from("tasks")
-      .delete()
-      .eq("company_id", companyId);
-    if (tasksDeleteError) throw tasksDeleteError;
-
-    const { error: instancesDeleteError } = await supabase
-      .from("workflow_instances")
-      .delete()
-      .eq("company_id", companyId);
-    if (instancesDeleteError) throw instancesDeleteError;
-
-    const { error: templateStepsDeleteError } = await supabase
-      .from("workflow_template_steps")
-      .delete()
-      .eq("template_id", templateId);
-    if (templateStepsDeleteError) throw templateStepsDeleteError;
-
-    const { error: templateDeleteError } = await supabase
-      .from("workflow_templates")
-      .delete()
-      .eq("id", templateId);
-    if (templateDeleteError) throw templateDeleteError;
-
-    const { error: companyDeleteError } = await supabase
-      .from("companies")
-      .delete()
-      .eq("slug", "test-co-find-step");
-    if (companyDeleteError) throw companyDeleteError;
-
-    for (const id of createdAuthUserIds) {
-      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(id);
-      if (authDeleteError) throw authDeleteError;
+    try {
+      await removeFindStepFixture();
+    } finally {
+      // Auth users don't cascade from the company, so delete them even if the teardown above
+      // throws — otherwise every failed run leaks one.
+      for (const id of createdAuthUserIds) {
+        const { error: authDeleteError } = await supabase.auth.admin.deleteUser(id);
+        if (authDeleteError) throw authDeleteError;
+      }
     }
   });
 
