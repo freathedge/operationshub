@@ -43,7 +43,7 @@ export default async function ReportsPage() {
       <BackLink href="/dashboard" />
       <h1 className="text-2xl font-semibold mb-4 mt-2">Reports</h1>
       <div className="flex flex-col gap-4">
-        <TaskRequestTrendChart data={taskRequestTrendsData} />
+        <TaskRequestTrendChart data={taskRequestTrendsData} className="aspect-auto h-[300px] w-full" />
         <div className="grid grid-cols-1 gap-4 @2xl/main:grid-cols-2">
           <RequestsByDepartmentChart data={requestsByDepartmentData} />
           <AvgCompletionTimeChart data={avgRequestCompletionTimeData} />

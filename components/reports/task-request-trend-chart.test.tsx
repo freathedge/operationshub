@@ -22,7 +22,10 @@ vi.mock("recharts", async () => {
     <div ref={ref} style={{ width: 600, height: 300 }}>
       {React.Children.map(children, (child) =>
         React.isValidElement(child)
-          ? React.cloneElement(child, { width: 600, height: 300 } as any)
+          ? React.cloneElement(child as React.ReactElement<{ width?: number; height?: number }>, {
+              width: 600,
+              height: 300,
+            })
           : child
       )}
     </div>
