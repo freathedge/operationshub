@@ -103,5 +103,13 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("seedDemoActivity", () =
       .gt("created_at", nowIso);
     expect(futureTasks).toBe(0);
     expect(futureRequests).toBe(0);
+
+    const { count: openDemoRequests } = await supabase
+      .from("requests")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .like("title", "[Demo]%")
+      .in("status", ["draft", "submitted", "under_review", "approved", "in_progress"]);
+    expect(openDemoRequests).toBe(0);
   });
 });

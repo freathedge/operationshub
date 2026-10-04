@@ -247,7 +247,7 @@ const DEMO_EMPLOYEES: DemoEmployeeSeed[] = [
   { employeeNumber: "DEMO-01", fullName: "Lena Fischer", role: "employee", department: "Engineering" },
   { employeeNumber: "DEMO-02", fullName: "Markus Weber", role: "employee", department: "Production" },
   { employeeNumber: "DEMO-03", fullName: "Sophie Gruber", role: "employee", department: "IT" },
-  { employeeNumber: "DEMO-04", fullName: "Thomas Bauer", role: "manager", department: "Operations" },
+  { employeeNumber: "DEMO-04", fullName: "Thomas Bauer", role: "employee", department: "Operations" },
   { employeeNumber: "DEMO-05", fullName: "Anna Hofer", role: "employee", department: "Sales" },
   { employeeNumber: "DEMO-06", fullName: "Paul Steiner", role: "employee", department: "Procurement" },
 ];
@@ -271,12 +271,15 @@ const DEMO_REQUESTS: { title: string; category: RequestCategory }[] = [
   { title: "Office supplies order", category: "purchase" },
 ];
 
+// Terminal statuses only (none are in OPEN_REQUEST_STATUSES): demo requests
+// have no approvals rows, so an open one could never be closed in-app and
+// would inflate live Open Requests / overdue / department counts. Mostly completed.
 const DEMO_REQUEST_STATUSES: RequestStatus[] = [
-  "submitted",
-  "under_review",
-  "approved",
-  "in_progress",
   "completed",
+  "completed",
+  "completed",
+  "completed",
+  "rejected",
 ];
 
 function randomInt(min: number, max: number): number {
@@ -354,7 +357,8 @@ export async function seedDemoActivity(
   const seedRequests = (existingDemoRequestCount ?? 0) === 0;
 
   const now = new Date();
-  const clampToNow = (d: Date): Date => (d.getTime() > now.getTime() ? new Date(now) : d);
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const WEEK_MS = 7 * DAY_MS;
   const tasksToInsert: {
     company_id: string;
     title: string;
@@ -377,16 +381,15 @@ export async function seedDemoActivity(
   }[] = [];
 
   for (let weekOffset = DEMO_WEEKS - 1; weekOffset >= 0; weekOffset--) {
-    const weekStart = new Date(now);
-    weekStart.setUTCDate(weekStart.getUTCDate() - weekOffset * 7);
+    // Trailing window [now - (k+1)*7d, now - k*7d): never in the future.
+    const windowStartMs = now.getTime() - (weekOffset + 1) * WEEK_MS;
+    const randomInWindow = (): Date => new Date(windowStartMs + Math.random() * WEEK_MS);
 
     const completedTaskCount = seedTasks ? randomInt(3, 8) : 0;
     for (let i = 0; i < completedTaskCount; i++) {
       const assignee = randomChoice(demoProfiles);
-      const completedAt = new Date(weekStart);
-      completedAt.setUTCDate(completedAt.getUTCDate() + randomInt(0, 6));
-      const completedAtClamped = clampToNow(completedAt);
-      const createdAt = new Date(completedAtClamped);
+      const completedAt = randomInWindow();
+      const createdAt = new Date(completedAt);
       createdAt.setUTCDate(createdAt.getUTCDate() - randomInt(1, 5));
 
       tasksToInsert.push({
@@ -397,7 +400,7 @@ export async function seedDemoActivity(
         assignee_id: assignee.id,
         creator_id: assignee.id,
         department_id: assignee.departmentId,
-        completed_at: completedAtClamped.toISOString(),
+        completed_at: completedAt.toISOString(),
         created_at: createdAt.toISOString(),
       });
     }
@@ -405,9 +408,7 @@ export async function seedDemoActivity(
     const newRequestCount = seedRequests ? randomInt(2, 5) : 0;
     for (let i = 0; i < newRequestCount; i++) {
       const creator = randomChoice(demoProfiles);
-      const createdAtRaw = new Date(weekStart);
-      createdAtRaw.setUTCDate(createdAtRaw.getUTCDate() + randomInt(0, 6));
-      const createdAt = clampToNow(createdAtRaw);
+      const createdAt = randomInWindow();
       const { title, category } = randomChoice(DEMO_REQUESTS);
 
       requestsToInsert.push({
