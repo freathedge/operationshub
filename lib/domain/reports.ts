@@ -29,6 +29,71 @@ export interface TaskStatistics {
   overdue: number;
 }
 
+export interface WeeklyTrend {
+  weekStart: string;
+  completedTasks: number;
+  newRequests: number;
+}
+
+function mondayStartOf(date: Date): Date {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = d.getUTCDay(); // 0 = Sunday .. 6 = Saturday
+  const diffToMonday = (day === 0 ? -6 : 1) - day;
+  d.setUTCDate(d.getUTCDate() + diffToMonday);
+  return d;
+}
+
+function toDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+export async function getTaskRequestTrends(profile: Profile, weeks: number): Promise<WeeklyTrend[]> {
+  if (!canViewCompanyOverview(profile)) {
+    throw new ForbiddenError("You cannot view reports");
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const currentWeekStart = mondayStartOf(new Date());
+  const earliestWeekStart = new Date(currentWeekStart);
+  earliestWeekStart.setUTCDate(earliestWeekStart.getUTCDate() - (weeks - 1) * 7);
+
+  const [tasksResult, requestsResult] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("completed_at")
+      .eq("company_id", profile.companyId)
+      .gte("completed_at", earliestWeekStart.toISOString()),
+    supabase
+      .from("requests")
+      .select("created_at")
+      .eq("company_id", profile.companyId)
+      .gte("created_at", earliestWeekStart.toISOString()),
+  ]);
+  if (tasksResult.error) throw tasksResult.error;
+  if (requestsResult.error) throw requestsResult.error;
+
+  const buckets: WeeklyTrend[] = [];
+  for (let i = 0; i < weeks; i++) {
+    const weekStart = new Date(earliestWeekStart);
+    weekStart.setUTCDate(weekStart.getUTCDate() + i * 7);
+    buckets.push({ weekStart: toDateKey(weekStart), completedTasks: 0, newRequests: 0 });
+  }
+  const indexByWeekStart = new Map(buckets.map((bucket, index) => [bucket.weekStart, index]));
+
+  for (const row of tasksResult.data ?? []) {
+    if (!row.completed_at) continue;
+    const index = indexByWeekStart.get(toDateKey(mondayStartOf(new Date(row.completed_at))));
+    if (index !== undefined) buckets[index].completedTasks += 1;
+  }
+
+  for (const row of requestsResult.data ?? []) {
+    const index = indexByWeekStart.get(toDateKey(mondayStartOf(new Date(row.created_at))));
+    if (index !== undefined) buckets[index].newRequests += 1;
+  }
+
+  return buckets;
+}
+
 export async function requestsByDepartment(profile: Profile): Promise<DepartmentRequestCount[]> {
   if (!canViewCompanyOverview(profile)) {
     throw new ForbiddenError("You cannot view reports");

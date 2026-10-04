@@ -545,4 +545,12 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getCompanyOverview", ()
     const overview = await getCompanyOverview(opsManager);
     expect(overview.attention.pendingApprovals).toBeGreaterThanOrEqual(1);
   });
+
+  it("includes a 6-week taskRequestTrends array, most recent week last", async () => {
+    const overview = await getCompanyOverview(opsManager);
+    expect(overview.taskRequestTrends).toHaveLength(6);
+    expect(overview.taskRequestTrends[5].weekStart >= overview.taskRequestTrends[0].weekStart).toBe(
+      true
+    );
+  });
 });

@@ -82,6 +82,30 @@ describe("EmployeeListView", () => {
     expect(screen.getByText("pending@example.com")).toBeInTheDocument();
   });
 
+  it("shows a No account badge for an unlinked employee with no invited email", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          employees: [
+            {
+              id: "employee-3",
+              fullName: "Ghost Employee",
+              positionTitle: null,
+              departmentId: null,
+              status: "active",
+              account: { linked: false, invitedEmail: null },
+            },
+          ],
+        }),
+      })
+    );
+    renderWithClient(<EmployeeListView companyId="company-1" canManageAccount={true} />);
+    expect(await screen.findByText("No account")).toBeInTheDocument();
+    expect(screen.queryByText("Invitation pending")).not.toBeInTheDocument();
+  });
+
   it("shows an Account not found badge for a linked employee with no known email", async () => {
     vi.stubGlobal(
       "fetch",

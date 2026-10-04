@@ -79,6 +79,7 @@ describe("DashboardView", () => {
               { id: "op-1", title: "Vienna Office Relocation", completedTasks: 3, totalTasks: 4 },
             ],
             departmentActivity: [],
+            taskRequestTrends: [],
           },
         }),
       });
@@ -235,6 +236,7 @@ describe("DashboardView", () => {
             departmentActivity: [
               { departmentId: "dept-1", name: "IT", openTasks: 4, openRequests: 1 },
             ],
+            taskRequestTrends: [],
           },
         }),
       });

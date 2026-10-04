@@ -5,6 +5,7 @@ import { requestsByDepartment, taskStatistics } from "@/lib/domain/reports";
 import { ForbiddenError } from "@/lib/domain/errors";
 import { avgRequestCompletionTime, workflowCompletionRate } from "@/lib/domain/reports";
 import { transitionRequestStatus } from "@/lib/domain/requests";
+import { getTaskRequestTrends } from "@/lib/domain/reports";
 
 describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("requestsByDepartment / taskStatistics", () => {
   const supabase = createSupabaseAdminClient();
@@ -256,5 +257,196 @@ describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("avgRequestCompletionTim
     expect(testRow?.totalInstances).toBe(3);
     expect(testRow?.completionRate).toBeCloseTo(2 / 3, 5);
     expect(result.find((row) => row.templateId === emptyTemplate.id)).toBeUndefined();
+  });
+});
+
+describe.skipIf(!process.env.SUPABASE_SERVICE_ROLE_KEY)("getTaskRequestTrends", () => {
+  const supabase = createSupabaseAdminClient();
+  let companyId: string;
+  let otherCompanyId: string;
+  const createdAuthUserIds: string[] = [];
+  let opsManager: Profile;
+  let employee: Profile;
+
+  function mondayStartOf(date: Date): string {
+    const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const day = d.getUTCDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    d.setUTCDate(d.getUTCDate() + diff);
+    return d.toISOString().slice(0, 10);
+  }
+
+  beforeAll(async () => {
+    const { data: company, error: companyError } = await supabase
+      .from("companies")
+      .upsert({ name: "Test Co (trends)", slug: "test-co-trends" }, { onConflict: "slug" })
+      .select("id")
+      .single();
+    if (companyError) throw companyError;
+    companyId = company.id;
+
+    const { data: otherCompany, error: otherCompanyError } = await supabase
+      .from("companies")
+      .upsert({ name: "Test Co (trends, other)", slug: "test-co-trends-other" }, { onConflict: "slug" })
+      .select("id")
+      .single();
+    if (otherCompanyError) throw otherCompanyError;
+    otherCompanyId = otherCompany.id;
+
+    const { data: opsManagerAuthUser, error: opsManagerAuthError } =
+      await supabase.auth.admin.createUser({
+        email: `trends-test-ops-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+    if (opsManagerAuthError || !opsManagerAuthUser.user) throw opsManagerAuthError;
+    createdAuthUserIds.push(opsManagerAuthUser.user.id);
+    opsManager = await createProfile({
+      authUserId: opsManagerAuthUser.user.id,
+      companyId,
+      fullName: "Ops Manager",
+      role: "operations_manager",
+    });
+
+    const { data: employeeAuthUser, error: employeeAuthError } =
+      await supabase.auth.admin.createUser({
+        email: `trends-test-employee-${crypto.randomUUID()}@example.com`,
+        password: "password123",
+        email_confirm: true,
+      });
+    if (employeeAuthError || !employeeAuthUser.user) throw employeeAuthError;
+    createdAuthUserIds.push(employeeAuthUser.user.id);
+    employee = await createProfile({
+      authUserId: employeeAuthUser.user.id,
+      companyId,
+      fullName: "Regular Employee",
+      role: "employee",
+    });
+  });
+
+  afterAll(async () => {
+    const { error: tasksDeleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .in("company_id", [companyId, otherCompanyId]);
+    if (tasksDeleteError) throw tasksDeleteError;
+
+    const { error: requestsDeleteError } = await supabase
+      .from("requests")
+      .delete()
+      .in("company_id", [companyId, otherCompanyId]);
+    if (requestsDeleteError) throw requestsDeleteError;
+
+    const { error: profilesDeleteError } = await supabase
+      .from("profiles")
+      .delete()
+      .eq("company_id", companyId);
+    if (profilesDeleteError) throw profilesDeleteError;
+
+    for (const authUserId of createdAuthUserIds) {
+      await supabase.auth.admin.deleteUser(authUserId);
+    }
+  });
+
+  it("throws ForbiddenError for a non-elevated role", async () => {
+    await expect(getTaskRequestTrends(employee, 6)).rejects.toThrow(ForbiddenError);
+  });
+
+  it("returns exactly `weeks` buckets, zero-filled, ending with the current week", async () => {
+    const result = await getTaskRequestTrends(opsManager, 6);
+    expect(result).toHaveLength(6);
+    expect(result[5].weekStart).toBe(mondayStartOf(new Date()));
+    for (const bucket of result) {
+      expect(bucket.completedTasks).toBeGreaterThanOrEqual(0);
+      expect(bucket.newRequests).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("counts a task completed today in the current week's bucket, and a request created today in the current week's bucket", async () => {
+    const { error: taskError } = await supabase.from("tasks").insert({
+      company_id: companyId,
+      title: "Trend task",
+      status: "completed",
+      priority: "medium",
+      completed_at: new Date().toISOString(),
+    });
+    if (taskError) throw taskError;
+
+    const { error: requestError } = await supabase.from("requests").insert({
+      company_id: companyId,
+      title: "Trend request",
+      category: "general",
+      status: "submitted",
+      created_at: new Date().toISOString(),
+    });
+    if (requestError) throw requestError;
+
+    const result = await getTaskRequestTrends(opsManager, 6);
+    const currentWeek = result[5];
+    expect(currentWeek.completedTasks).toBeGreaterThanOrEqual(1);
+    expect(currentWeek.newRequests).toBeGreaterThanOrEqual(1);
+  });
+
+  it("places a task completed at the very start of a week (Monday 00:00 UTC) in that week, and one completed 1ms earlier (Sunday 23:59:59.999) in the previous week", async () => {
+    const thisMonday = new Date(`${mondayStartOf(new Date())}T00:00:00.000Z`);
+    const previousWeekStart = new Date(thisMonday);
+    previousWeekStart.setUTCDate(previousWeekStart.getUTCDate() - 7);
+    const sundayNightPrevWeek = new Date(thisMonday.getTime() - 1);
+
+    const before = await getTaskRequestTrends(opsManager, 6);
+
+    const { error: mondayTaskError } = await supabase.from("tasks").insert({
+      company_id: companyId,
+      title: "Boundary task (Monday 00:00)",
+      status: "completed",
+      priority: "medium",
+      completed_at: thisMonday.toISOString(),
+    });
+    if (mondayTaskError) throw mondayTaskError;
+
+    const { error: sundayTaskError } = await supabase.from("tasks").insert({
+      company_id: companyId,
+      title: "Boundary task (Sunday 23:59:59.999)",
+      status: "completed",
+      priority: "medium",
+      completed_at: sundayNightPrevWeek.toISOString(),
+    });
+    if (sundayTaskError) throw sundayTaskError;
+
+    const after = await getTaskRequestTrends(opsManager, 6);
+    expect(after[5].weekStart).toBe(mondayStartOf(new Date()));
+    expect(after[4].weekStart).toBe(previousWeekStart.toISOString().slice(0, 10));
+    expect(after[5].completedTasks).toBe(before[5].completedTasks + 1);
+    expect(after[4].completedTasks).toBe(before[4].completedTasks + 1);
+  });
+
+  it("mondayStartOf maps a known Sunday to that week's Monday", () => {
+    expect(mondayStartOf(new Date("2026-09-27T12:00:00.000Z"))).toBe("2026-09-21");
+  });
+
+  it("never counts another company's tasks or requests", async () => {
+    const beforeResult = await getTaskRequestTrends(opsManager, 6);
+
+    const { error: taskError } = await supabase.from("tasks").insert({
+      company_id: otherCompanyId,
+      title: "Other company task",
+      status: "completed",
+      priority: "medium",
+      completed_at: new Date().toISOString(),
+    });
+    if (taskError) throw taskError;
+
+    const { error: requestError } = await supabase.from("requests").insert({
+      company_id: otherCompanyId,
+      title: "Other company request",
+      category: "general",
+      status: "submitted",
+      created_at: new Date().toISOString(),
+    });
+    if (requestError) throw requestError;
+
+    const afterResult = await getTaskRequestTrends(opsManager, 6);
+    expect(afterResult[5].completedTasks).toBe(beforeResult[5].completedTasks);
+    expect(afterResult[5].newRequests).toBe(beforeResult[5].newRequests);
   });
 });

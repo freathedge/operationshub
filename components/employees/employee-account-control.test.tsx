@@ -62,6 +62,22 @@ describe("EmployeeAccountControl", () => {
     expect(screen.getByRole("button", { name: /resend invite/i })).toBeInTheDocument();
   });
 
+  it("shows No account and no resend-invite button for an unlinked employee with no invited email", () => {
+    vi.stubGlobal("fetch", vi.fn());
+    render(
+      <EmployeeAccountControl
+        employeeId="employee-1"
+        currentRole="employee"
+        currentStatus="active"
+        account={{ linked: false, invitedEmail: null }}
+      />
+    );
+
+    expect(screen.getByText("No account")).toBeInTheDocument();
+    expect(screen.queryByText("Invitation pending")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /resend invite/i })).not.toBeInTheDocument();
+  });
+
   it("changes the role via PATCH and refreshes", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     vi.stubGlobal("fetch", fetchMock);
