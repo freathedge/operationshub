@@ -55,7 +55,7 @@ export function CompanySection({ overview }: { overview: CompanyOverview }) {
 
       <ActiveOperationsCard operations={overview.activeOperations} />
 
-      <TaskRequestTrendChart data={overview.taskRequestTrends} />
+      <TaskRequestTrendChart data={overview.taskRequestTrends} className="aspect-auto h-[250px] w-full" />
 
       <Card>
         <CardHeader>

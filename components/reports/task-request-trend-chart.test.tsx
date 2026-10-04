@@ -72,4 +72,16 @@ describe("TaskRequestTrendChart", () => {
     const lineElements = container.querySelectorAll(".recharts-line");
     expect(lineElements.length).toBeGreaterThanOrEqual(2);
   });
+
+  it("forwards className prop to the chart container", () => {
+    const { container } = render(
+      <TaskRequestTrendChart data={sampleData} className="aspect-auto h-[250px] w-full" />
+    );
+
+    const chartContainer = container.querySelector('[data-slot="chart"]');
+    expect(chartContainer).toBeInTheDocument();
+    expect(chartContainer).toHaveClass("aspect-auto");
+    expect(chartContainer).toHaveClass("h-[250px]");
+    expect(chartContainer).toHaveClass("w-full");
+  });
 });

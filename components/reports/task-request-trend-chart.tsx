@@ -17,14 +17,14 @@ const chartConfig = {
   newRequests: { label: "New Requests", color: "var(--chart-2)" },
 } satisfies ChartConfig;
 
-export function TaskRequestTrendChart({ data }: { data: WeeklyTrend[] }) {
+export function TaskRequestTrendChart({ data, className }: { data: WeeklyTrend[]; className?: string }) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Tasks Completed &amp; Requests Received, by Week</CardTitle>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig}>
+        <ChartContainer config={chartConfig} className={className}>
           <LineChart data={data}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="weekStart" tickLine={false} axisLine={false} />
